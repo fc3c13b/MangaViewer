@@ -1,0 +1,16 @@
+System.NullReferenceException: Object reference not set to an instance of an object.
+   at MangaViewer.Form1.UpdatePictureBoxLayout() in C:\source\repos\MangaViewer\Form1.cs:line 139
+   at MangaViewer.Form1.OnResize(EventArgs e) in C:\source\repos\MangaViewer\Form1.cs:line 151
+   at System.Windows.Forms.Control.OnSizeChanged(EventArgs e)
+   at System.Windows.Forms.Control.UpdateBounds(Int32 x, Int32 y, Int32 width, Int32 height, Int32 clientWidth, Int32 clientHeight)
+   at System.Windows.Forms.Control.UpdateBounds(Int32 x, Int32 y, Int32 width, Int32 height)
+   at System.Windows.Forms.Control.SetBoundsCore(Int32 x, Int32 y, Int32 width, Int32 height, BoundsSpecified specified)
+   at System.Windows.Forms.Form.SetBoundsCore(Int32 x, Int32 y, Int32 width, Int32 height, BoundsSpecified specified)
+   at System.Windows.Forms.Control.SetBounds(Int32 x, Int32 y, Int32 width, Int32 height, BoundsSpecified specified)
+   at System.Windows.Forms.Control.set_Size(Size value)
+   at System.Windows.Forms.Control.SetClientSizeCore(Int32 x, Int32 y)
+   at System.Windows.Forms.Form.SetClientSizeCore(Int32 x, Int32 y)
+   at System.Windows.Forms.Control.set_ClientSize(Size value)
+   at MangaViewer.Form1.InitializeComponent() in C:\source\repos\MangaViewer\Form1.Designer.cs:line 51
+   at MangaViewer.Form1..ctor() in C:\source\repos\MangaViewer\Form1.cs:line 25
+   at MangaViewer.Program.Main() in C:\source\repos\MangaViewer\Program.cs:line 16

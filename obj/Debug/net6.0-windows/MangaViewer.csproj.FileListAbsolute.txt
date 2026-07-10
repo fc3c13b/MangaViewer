@@ -1,0 +1,4 @@
+C:\source\repos\MangaViewer\obj\Debug\net6.0-windows\MangaViewer.GeneratedMSBuildEditorConfig.editorconfig
+C:\source\repos\MangaViewer\obj\Debug\net6.0-windows\MangaViewer.AssemblyInfoInputs.cache
+C:\source\repos\MangaViewer\obj\Debug\net6.0-windows\MangaViewer.AssemblyInfo.cs
+C:\source\repos\MangaViewer\obj\Debug\net6.0-windows\MangaViewer.csproj.CoreCompileInputs.cache
