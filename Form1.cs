@@ -12,6 +12,7 @@ namespace MangaViewer
     {
         private PictureBox pictureBoxLeft = null!;
         private PictureBox pictureBoxRight = null!;
+        private Panel panelList = null!;
         private Label labelInfo = null!;
 
         // 数字でソート済み（小さい順）
@@ -27,6 +28,12 @@ namespace MangaViewer
         private Image? currentImageRight = null;
         private Image? currentImageLeft = null;
 
+        // Phase 11: リサイズ用比率 (左画像 : 右画像 : リスト = 36:36:28)
+        private const int RatioLeftImg    = 36;
+        private const int RatioRightImg   = 36;
+        private const int RatioList       = 28;
+        private const int TotalRatio      = RatioLeftImg + RatioRightImg + RatioList;
+
         public Form1()
         {
             InitializeComponent();
@@ -34,7 +41,7 @@ namespace MangaViewer
             this.KeyDown += (s, e) => OnKey(e);
         }
 
-        // Phase 5/6: キー操作（ページ送り＋話移動）
+        // Phase 5/6: キー操作（ページ送り＋↑/↓はリスト移動用）
         private void OnKey(KeyEventArgs e)
         {
             if (e.Control && e.KeyCode == Keys.D1)
@@ -78,28 +85,7 @@ namespace MangaViewer
                     DisplayTwoImages(0);
                 }
             }
-            else if (e.KeyCode == Keys.Up)
-            {
-                // 上矢印: フォルダリストの上位へ移動
-                if (currentFolderIndex > 0)
-                {
-                    currentFolderIndex--;
-                    LoadAndSortImages(folderList[currentFolderIndex]);
-                    currentIndex = 0;
-                    DisplayTwoImages(currentIndex);
-                }
-            }
-            else if (e.KeyCode == Keys.Down)
-            {
-                // 下矢印: フォルダリストの下位へ移動
-                if (currentFolderIndex < folderList.Count - 1)
-                {
-                    currentFolderIndex++;
-                    LoadAndSortImages(folderList[currentFolderIndex]);
-                    currentIndex = 0;
-                    DisplayTwoImages(currentIndex);
-                }
-            }
+            // ↑/↓ は Phase 12 でリスト移動に使用するため、現在は未実装。
         }
 
         /// <summary>
@@ -144,8 +130,8 @@ namespace MangaViewer
             // フォーム基本設定
             this.Text = "Manga Viewer";
             this.StartPosition = FormStartPosition.CenterScreen;
-            this.Size = new Size(1200, 800);
-            this.MinimumSize = new Size(800, 600);
+            this.Size = new Size(1400, 800);
+            this.MinimumSize = new Size(900, 600);
             this.BackColor = Color.Black;
 
             // 右側 PictureBox（小さい数字の画像用）
@@ -165,7 +151,7 @@ namespace MangaViewer
             this.Controls.Add(pictureBoxRight);
             this.Controls.Add(pictureBoxLeft);
 
-            // Phase 7: 情報表示ラベル（下部）
+            // Phase 7: 情報表示ラベル（下部中央）
             labelInfo = new Label
             {
                 Text = "フォルダを選択してください (Ctrl+1)",
@@ -175,11 +161,19 @@ namespace MangaViewer
             };
             this.Controls.Add(labelInfo);
 
+            // Phase 11: リスト表示エリア（右側パネル）→ 今回は空枠のみ
+            panelList = new Panel
+            {
+                BackColor = Color.FromArgb(30, 30, 30),
+                BorderStyle = BorderStyle.FixedSingle,
+            };
+            this.Controls.Add(panelList);
+
             // 初期レイアウト適用
-            UpdatePictureBoxLayout();
+            UpdateLayout();
 
             // イベント
-            this.Resize += (s, e) => UpdatePictureBoxLayout();
+            this.Resize += (s, e) => UpdateLayout();
         }
 
         /// <summary>
@@ -329,22 +323,28 @@ namespace MangaViewer
             }
         }
 
-        private void UpdatePictureBoxLayout()
+        // Phase 11: 3エリアレイアウト（比率固定）＋リサイズ対応
+        private void UpdateLayout()
         {
-            if (pictureBoxRight == null || pictureBoxLeft == null || labelInfo == null) return;
+            if (pictureBoxRight == null || pictureBoxLeft == null || panelList == null || labelInfo == null)
+                return;
 
-            int midX = this.ClientSize.Width / 2;
-            int labelHeight = 30;
-            int height = this.ClientSize.Height - labelHeight;
+            int clientWidth = this.ClientSize.Width;
+            int clientHeight = this.ClientSize.Height;
+            int gap = 2; // エリア間のギャップ（px）
 
-            // 右側
-            pictureBoxRight.Bounds = new Rectangle(midX, 0, midX - 5, height);
+            int leftImgW    = (int)((double)(clientWidth * RatioLeftImg) / TotalRatio);
+            int rightImgW   = (int)((double)(clientWidth * RatioRightImg) / TotalRatio);
+            int listW       = clientWidth - leftImgW - rightImgW;
 
-            // 左側
-            pictureBoxLeft.Bounds = new Rectangle(0, 0, midX - 5, height);
+            int height = clientHeight - 30; // 下部情報表示領域分確保
 
-            // ラベル（下部中央寄り）
-            labelInfo.Location = new Point(10, this.ClientSize.Height - labelHeight + 5);
+            pictureBoxLeft.Bounds    = new Rectangle(0, 0, leftImgW - gap, height);
+            pictureBoxRight.Bounds   = new Rectangle(leftImgW, 0, rightImgW - gap * 2, height);
+            panelList.Bounds         = new Rectangle(leftImgW + rightImgW, 0, listW, clientHeight);
+
+            // ラベルは中央（左右画像の下部付近）に配置
+            labelInfo.Location = new Point(10, clientHeight - 25);
         }
 
         /// <summary>
