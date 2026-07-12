@@ -157,6 +157,7 @@ namespace MangaViewer
 
         /// <summary>
         /// Ctrl+1: 選択したフォルダの直下サブフォルダを昇順ソートしてリスト化（Phase 12）
+        /// フォルダ名の最後に画像数を "-[x]" の形式で付与
         /// </summary>
         private void BuildSubfolderList(string rootPath)
         {
@@ -175,12 +176,30 @@ namespace MangaViewer
 
                 folderList = sorted;
 
-                // ListBox に反映
+                // ListBox に反映（フォルダ名の最後に画像数を付与）
                 listBoxFolders.DataSource = null;
                 listBoxFolders.Items.Clear();
+                
+                // 対応拡張子
+                string[] imgExtensions = { "*.jpg", "*.jpeg", "*.webp", "*.png" };
+
                 foreach (var dir in folderList)
                 {
-                    listBoxFolders.Items.Add(Path.GetFileName(dir));
+                    int imageCount = 0;
+                    foreach (var ext in imgExtensions)
+                    {
+                        try
+                        {
+                            imageCount += Directory.GetFiles(dir, ext, SearchOption.TopDirectoryOnly).Length;
+                        }
+                        catch
+                        {
+                            // アクセスできないフォルダはスキップ
+                        }
+                    }
+
+                    string folderName = Path.GetFileName(dir);
+                    listBoxFolders.Items.Add($"{folderName} -[{imageCount}]");
                 }
 
                 if (folderList.Count > 0)
