@@ -40,9 +40,25 @@ namespace MangaViewer
             InitializeComponent();
             this.KeyPreview = true;
             this.KeyDown += (s, e) => OnKey(e);
+
+            // ListBox のクリック（選択変更）でフォルダ切り替え
+            listBoxFolders.SelectedIndexChanged += (s, e) =>
+            {
+                if (listBoxFolders.SelectedIndex >= 0 &&
+                    listBoxFolders.SelectedIndex < folderList.Count)
+                {
+                    currentFolderIndex = listBoxFolders.SelectedIndex;
+                    LoadAndSortImages(folderList[currentFolderIndex]);
+                    currentIndex = 0;
+                    DisplayTwoImages(currentIndex);
+                }
+            };
         }
 
-        // Phase 5/6: キー操作（ページ送り＋↑/↓はリスト移動用）
+        // キー操作:
+        // - Ctrl+1: フォルダ選択（サブフォルダリスト化）
+        // - ←/→: ページ送り（ListBoxに影響させない）
+        // - ↑/↓: フォルダリストの移動＋画像再読み込み
         private void OnKey(KeyEventArgs e)
         {
             if (e.Control && e.KeyCode == Keys.D1)
@@ -53,7 +69,7 @@ namespace MangaViewer
                     {
                         string rootPath = dialog.SelectedPath;
 
-                        // Phase 12: 直下サブフォルダを昇順で取得・表示
+                        // 直下サブフォルダを昇順で取得・表示
                         BuildSubfolderList(rootPath);
 
                         if (folderList.Count > 0)
@@ -71,6 +87,8 @@ namespace MangaViewer
 
                         currentIndex = 0;
                         DisplayTwoImages(currentIndex);
+
+                        listBoxFolders.SelectedIndex = currentFolderIndex;
                     }
                 }
             }
@@ -101,7 +119,30 @@ namespace MangaViewer
                     DisplayTwoImages(0);
                 }
             }
-            // ↑/↓ は Phase 12 でリスト移動に使用するため、現在は未実装。
+            else if (e.KeyCode == Keys.Up && folderList.Count > 0)
+            {
+                // 上矢印: フォルダリストの上位へ移動
+                if (currentFolderIndex > 0)
+                {
+                    currentFolderIndex--;
+                    listBoxFolders.SelectedIndex = currentFolderIndex;
+                    LoadAndSortImages(folderList[currentFolderIndex]);
+                    currentIndex = 0;
+                    DisplayTwoImages(currentIndex);
+                }
+            }
+            else if (e.KeyCode == Keys.Down && folderList.Count > 0)
+            {
+                // 下矢印: フォルダリストの下位へ移動
+                if (currentFolderIndex < folderList.Count - 1)
+                {
+                    currentFolderIndex++;
+                    listBoxFolders.SelectedIndex = currentFolderIndex;
+                    LoadAndSortImages(folderList[currentFolderIndex]);
+                    currentIndex = 0;
+                    DisplayTwoImages(currentIndex);
+                }
+            }
         }
 
         /// <summary>
@@ -198,6 +239,7 @@ namespace MangaViewer
                 Font = new Font("Meiryo UI", 9F),
                 SelectionMode = SelectionMode.One,
                 HorizontalScrollbar = true,
+                TabStop = false, // ←/→がListBox選択に捕られないように
             };
             panelList.Controls.Add(listBoxFolders);
 
