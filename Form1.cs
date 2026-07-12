@@ -13,6 +13,7 @@ namespace MangaViewer
         private PictureBox pictureBoxLeft = null!;
         private PictureBox pictureBoxRight = null!;
         private Panel panelList = null!;
+        private ListBox listBoxFolders = null!;
         private Label labelInfo = null!;
 
         // 数字でソート済み（小さい順）
@@ -21,7 +22,7 @@ namespace MangaViewer
         private int currentIndex = 0;
         private string currentFolder = "";
 
-        // フォルダリスト管理（親ディレクトリのサブフォルダを昇順ソート）
+        // フォルダリスト管理（直下サブフォルダを昇順ソート）
         private List<string> folderList = new List<string>();
         private int currentFolderIndex = -1;
 
@@ -50,9 +51,24 @@ namespace MangaViewer
                 {
                     if (dialog.ShowDialog() == DialogResult.OK)
                     {
-                        string path = dialog.SelectedPath;
-                        BuildFolderList(path);
-                        LoadAndSortImages(path);
+                        string rootPath = dialog.SelectedPath;
+
+                        // Phase 12: 直下サブフォルダを昇順で取得・表示
+                        BuildSubfolderList(rootPath);
+
+                        if (folderList.Count > 0)
+                        {
+                            currentFolderIndex = 0;
+                            LoadAndSortImages(folderList[currentFolderIndex]);
+                        }
+                        else
+                        {
+                            // サブフォルダなし → そのまま選択フォルダを使う（後互換）
+                            folderList.Clear();
+                            currentFolderIndex = -1;
+                            LoadAndSortImages(rootPath);
+                        }
+
                         currentIndex = 0;
                         DisplayTwoImages(currentIndex);
                     }
@@ -89,32 +105,36 @@ namespace MangaViewer
         }
 
         /// <summary>
-        /// 選択されたフォルダの親ディレクトリにあるサブフォルダを昇順ソートしてリスト化
+        /// Ctrl+1: 選択したフォルダの直下サブフォルダを昇順ソートしてリスト化（Phase 12）
         /// </summary>
-        private void BuildFolderList(string selectedFolder)
+        private void BuildSubfolderList(string rootPath)
         {
-            string? parentPath = Directory.GetParent(selectedFolder)?.FullName;
-            if (string.IsNullOrEmpty(parentPath))
-            {
-                folderList.Clear();
-                currentFolderIndex = -1;
-                return;
-            }
+            folderList.Clear();
+            currentFolderIndex = -1;
 
             try
             {
-                folderList = Directory.GetDirectories(parentPath)
+                var dirs = Directory.GetDirectories(rootPath);
+
+                // フォルダ名（パスの末尾）で昇順ソート
+                var sorted = dirs
                     .Select(d => d.Replace("\\", "/"))
-                    .OrderBy(d => d, StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(d => Path.GetFileName(d), StringComparer.OrdinalIgnoreCase)
                     .ToList();
 
-                string normalizedSelected = selectedFolder.Replace("\\", "/");
-                currentFolderIndex = folderList.FindIndex(
-                    f => string.Equals(f, normalizedSelected, StringComparison.OrdinalIgnoreCase)
-                );
+                folderList = sorted;
 
-                if (currentFolderIndex == -1)
+                // ListBox に反映
+                listBoxFolders.DataSource = null;
+                listBoxFolders.Items.Clear();
+                foreach (var dir in folderList)
                 {
+                    listBoxFolders.Items.Add(Path.GetFileName(dir));
+                }
+
+                if (folderList.Count > 0)
+                {
+                    listBoxFolders.SelectedIndex = 0;
                     currentFolderIndex = 0;
                 }
             }
@@ -161,13 +181,25 @@ namespace MangaViewer
             };
             this.Controls.Add(labelInfo);
 
-            // Phase 11: リスト表示エリア（右側パネル）→ 今回は空枠のみ
+            // Phase 11: リスト表示エリア（右側パネル）
             panelList = new Panel
             {
                 BackColor = Color.FromArgb(30, 30, 30),
                 BorderStyle = BorderStyle.FixedSingle,
             };
             this.Controls.Add(panelList);
+
+            // Phase 12: フォルダリスト (ListBox) を右パネルに配置
+            listBoxFolders = new ListBox
+            {
+                BackColor = Color.FromArgb(40, 40, 40),
+                ForeColor = Color.White,
+                BorderStyle = BorderStyle.None,
+                Font = new Font("Meiryo UI", 9F),
+                SelectionMode = SelectionMode.One,
+                HorizontalScrollbar = true,
+            };
+            panelList.Controls.Add(listBoxFolders);
 
             // 初期レイアウト適用
             UpdateLayout();
@@ -342,6 +374,12 @@ namespace MangaViewer
             pictureBoxLeft.Bounds    = new Rectangle(0, 0, leftImgW - gap, height);
             pictureBoxRight.Bounds   = new Rectangle(leftImgW, 0, rightImgW - gap * 2, height);
             panelList.Bounds         = new Rectangle(leftImgW + rightImgW, 0, listW, clientHeight);
+
+            // Phase 12: ListBox はpanelListいっぱいに広げる（少しマージン）
+            if (listBoxFolders != null)
+            {
+                listBoxFolders.Bounds = panelList.ClientRectangle;
+            }
 
             // ラベルは中央（左右画像の下部付近）に配置
             labelInfo.Location = new Point(10, clientHeight - 25);
