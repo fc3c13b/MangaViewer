@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 
@@ -35,6 +36,9 @@ namespace MangaViewer
         private const int RatioList       = 28;
         private const int TotalRatio      = RatioLeftImg + RatioRightImg + RatioList;
 
+        // setting.json の保存パス（実行フォルダ直下）
+        private static string SettingsFilePath => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "setting.json");
+
         public Form1()
         {
             InitializeComponent();
@@ -53,10 +57,13 @@ namespace MangaViewer
                     DisplayTwoImages(currentIndex);
                 }
             };
+
+            // 起動時に前回保存されたフォルダを復元
+            this.Load += (s, e) => RestoreLastRootFolder();
         }
 
         // キー操作:
-        // - Ctrl+1: フォルダ選択（サブフォルダリスト化）
+        // - Ctrl+1: フォルダ選択（サブフォルダリスト化）＋ 設定保存
         // - ←/→: ページ送り（ListBoxに影響させない）
         // - ↑/↓: フォルダリストの移動＋画像再読み込み
         private void OnKey(KeyEventArgs e)
@@ -68,6 +75,9 @@ namespace MangaViewer
                     if (dialog.ShowDialog() == DialogResult.OK)
                     {
                         string rootPath = dialog.SelectedPath;
+
+                        // 保存（setting.json）
+                        SaveRootFolder(rootPath);
 
                         // 直下サブフォルダを昇順で取得・表示
                         BuildSubfolderList(rootPath);
@@ -183,6 +193,81 @@ namespace MangaViewer
             {
                 folderList.Clear();
                 currentFolderIndex = -1;
+            }
+        }
+
+        /// <summary>
+        /// 設定ファイル(setting.json)から最後に使用したルートフォルダを読み込み、
+        /// その直下サブフォルダをリスト表示して初期化する。
+        /// </summary>
+        private void RestoreLastRootFolder()
+        {
+            if (!File.Exists(SettingsFilePath))
+                return;
+
+            string? rootPath = null;
+            try
+            {
+                var json = File.ReadAllText(SettingsFilePath);
+                using var doc = JsonDocument.Parse(json);
+                if (doc.RootElement.TryGetProperty("LastRootFolder", out var prop) &&
+                    prop.ValueKind == JsonValueKind.String)
+                {
+                    rootPath = prop.ToString();
+                }
+            }
+            catch
+            {
+                // 読み込み失敗時は何もしない（Ctrl+1 で手動選択に任せる）
+                return;
+            }
+
+            if (string.IsNullOrEmpty(rootPath) || !Directory.Exists(rootPath))
+                return;
+
+            // 前回保存されたフォルダを適用
+            BuildSubfolderList(rootPath);
+
+            if (folderList.Count > 0)
+            {
+                currentFolderIndex = 0;
+                LoadAndSortImages(folderList[currentFolderIndex]);
+            }
+            else
+            {
+                folderList.Clear();
+                currentFolderIndex = -1;
+                LoadAndSortImages(rootPath);
+            }
+
+            currentIndex = 0;
+            DisplayTwoImages(currentIndex);
+            listBoxFolders.SelectedIndex = currentFolderIndex;
+        }
+
+        /// <summary>
+        /// ルートフォルダパスを setting.json に保存する。
+        /// </summary>
+        private void SaveRootFolder(string rootPath)
+        {
+            try
+            {
+                var obj = new Dictionary<string, string>
+                {
+                    { "LastRootFolder", rootPath }
+                };
+
+                var options = new JsonSerializerOptions
+                {
+                    WriteIndented = true
+                };
+
+                string json = JsonSerializer.Serialize(obj, options);
+                File.WriteAllText(SettingsFilePath, json);
+            }
+            catch
+            {
+                // 書き込み失敗時は静かに失敗（アプリ自体は続行）
             }
         }
 
