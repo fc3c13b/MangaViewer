@@ -63,12 +63,21 @@ namespace MangaViewer
         }
 
         // キー操作:
+        // - Ctrl+0: 設定ダイアログ表示
         // - Ctrl+1: フォルダ選択（サブフォルダリスト化）＋ 設定保存
         // - ←/→: ページ送り（ListBoxに影響させない）
         // - ↑/↓: フォルダリストの移動＋画像再読み込み
         private void OnKey(KeyEventArgs e)
         {
-            if (e.Control && e.KeyCode == Keys.D1)
+            if (e.Control && e.KeyCode == Keys.D0)
+            {
+                // Ctrl+0: 設定ダイアログを表示
+                using (var dialog = new SettingsDialog())
+                {
+                    dialog.ShowDialog(this);
+                }
+            }
+            else if (e.Control && e.KeyCode == Keys.D1)
             {
                 using (var dialog = new FolderBrowserDialog())
                 {
