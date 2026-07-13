@@ -177,59 +177,22 @@ namespace MangaViewer
             catch { }
         }
 
-        private void BuildSubfolderList(string rootPath)
-        {
-            folderList.Clear();
-            currentFolderIndex = -1;
-            LoadSettingsFromFile();
-            try
-            {
-                var dirs = Directory.GetDirectories(rootPath);
-                var sorted = dirs.Select(d => d.Replace("\\", "/")).OrderBy(d => Path.GetFileName(d), StringComparer.OrdinalIgnoreCase).ToList();
-                string[] imgExtensions = { "*.jpg", "*.jpeg", "*.webp", "*.png" };
-                folderList.Clear();
-                foreach (var dir in sorted)
-                {
-                    int imageCount = 0;
-                    foreach (var ext in imgExtensions)
-                    {
-                        try { imageCount += Directory.GetFiles(dir, ext, SearchOption.TopDirectoryOnly).Length; } catch { }
-                    }
-                    if (minDisplayCountEnabled && imageCount < minDisplayCountValue) continue;
-                    folderList.Add(dir);
-                }
-                listBoxFolders.DataSource = null;
-                listBoxFolders.Items.Clear();
-                foreach (var dir in folderList)
-                {
-                    int imageCount = 0;
-                    foreach (var ext in imgExtensions)
-                    {
-                        try { imageCount += Directory.GetFiles(dir, ext, SearchOption.TopDirectoryOnly).Length; } catch { }
-                    }
-                    listBoxFolders.Items.Add($"{Path.GetFileName(dir)} -[{imageCount}]");
-                }
-                if (folderList.Count > 0)
-                {
-                    listBoxFolders.SelectedIndex = 0;
-                    currentFolderIndex = 0;
-                }
-            }
-            catch { folderList.Clear(); currentFolderIndex = -1; }
-        }
-
         private void RestoreLastRootFolder()
         {
-            if (!File.Exists(SettingsFilePath)) return;
             LoadSettingsFromFile();
             string? rootPath = null;
             try
             {
-                var json = File.ReadAllText(SettingsFilePath);
-                using var doc = JsonDocument.Parse(json);
-                if (doc.RootElement.TryGetProperty("LastRootFolder", out var prop) && prop.ValueKind == JsonValueKind.String)
-                    rootPath = prop.ToString();
-            } catch { return; }
+                if (File.Exists(SettingsFilePath))
+                {
+                    var json = File.ReadAllText(SettingsFilePath);
+                    using var doc = JsonDocument.Parse(json);
+                    if (doc.RootElement.TryGetProperty("LastRootFolder", out var prop) && prop.ValueKind == JsonValueKind.String)
+                        rootPath = prop.ToString();
+                }
+            }
+            catch { return; }
+
             if (string.IsNullOrEmpty(rootPath) || !Directory.Exists(rootPath)) return;
 
             BuildSubfolderList(rootPath);
@@ -268,6 +231,64 @@ namespace MangaViewer
                 }
                 File.WriteAllText(SettingsFilePath, JsonSerializer.Serialize(obj, new JsonSerializerOptions { WriteIndented = true }));
             } catch { }
+        }
+
+        private void BuildSubfolderList(string rootPath)
+        {
+            folderList.Clear();
+            currentFolderIndex = -1;
+
+            LoadSettingsFromFile();
+
+            try
+            {
+                var dirs = Directory.GetDirectories(rootPath);
+                var sorted = dirs
+                    .Select(d => d.Replace("\\", "/"))
+                    .OrderBy(d => Path.GetFileName(d), StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                foreach (var dir in sorted)
+                {
+                    string folderName = Path.GetFileName(dir);
+                    var match = Regex.Match(folderName, @"-\s*(\d+)\s*\]$");
+                    if (match.Success && int.TryParse(match.Groups[1].Value, out int xValue) && xValue <= 20)
+                        continue;
+
+                    if (minDisplayCountEnabled)
+                    {
+                        string[] imgExtensions = { "*.jpg", "*.jpeg", "*.webp", "*.png" };
+                        int imageCount = 0;
+                        foreach (var ext in imgExtensions)
+                        {
+                            try { imageCount += Directory.GetFiles(dir, ext, SearchOption.TopDirectoryOnly).Length; } catch { }
+                        }
+                        if (imageCount < minDisplayCountValue) continue;
+                    }
+
+                    folderList.Add(dir);
+                }
+
+                listBoxFolders.DataSource = null;
+                listBoxFolders.Items.Clear();
+                foreach (var dir in folderList)
+                {
+                    string[] imgExtensions = { "*.jpg", "*.jpeg", "*.webp", "*.png" };
+                    int imageCount = 0;
+                    foreach (var ext in imgExtensions)
+                    {
+                        try { imageCount += Directory.GetFiles(dir, ext, SearchOption.TopDirectoryOnly).Length; } catch { }
+                    }
+                    listBoxFolders.Items.Add($"{Path.GetFileName(dir)} -[{imageCount}]");
+                }
+
+                if (folderList.Count > 0)
+                {
+                    listBoxFolders.SelectedIndex = 0;
+                    currentFolderIndex = 0;
+                }
+            }
+            catch { folderList.Clear(); currentFolderIndex = -1; }
         }
 
         private void InitializeComponent()
@@ -355,28 +376,46 @@ namespace MangaViewer
 
         private void LoadImageIntoPictureBox(PictureBox pb, ref Image? currentImage, string? imagePath)
         {
-            if (currentImage != null) { currentImage.Dispose(); currentImage = null; }
-            if (string.IsNullOrEmpty(imagePath) || !File.Exists(imagePath)) { pb.Image = null; return; }
+            if (currentImage != null)
+            {
+                currentImage.Dispose();
+                currentImage = null;
+            }
+
+            if (string.IsNullOrEmpty(imagePath) || !File.Exists(imagePath))
+            {
+                pb.Image = null;
+                return;
+            }
+
             try
             {
                 using (var stream = new FileStream(imagePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+                {
                     currentImage = new Bitmap(stream);
+                }
                 pb.Image = currentImage;
             }
             catch (OutOfMemoryException)
             {
                 MessageBox.Show("画像の読み込みに失敗しました:\n" + imagePath, "エラー", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 pb.Image = null;
-                if (currentImage != null) { currentImage.Dispose(); currentImage = null; }
+                if (currentImage != null)
+                {
+                    currentImage.Dispose();
+                    currentImage = null;
+                }
             }
         }
 
         private void UpdateLayout()
         {
             if (pictureBoxRight == null || pictureBoxLeft == null || panelList == null || labelInfo == null) return;
+
             int clientWidth = this.ClientSize.Width;
             int clientHeight = this.ClientSize.Height;
             int gap = 2;
+
             int leftImgW = (int)((double)(clientWidth * RatioLeftImg) / TotalRatio);
             int rightImgW = (int)((double)(clientWidth * RatioRightImg) / TotalRatio);
             int listW = clientWidth - leftImgW - rightImgW;
@@ -385,7 +424,9 @@ namespace MangaViewer
             pictureBoxLeft.Bounds = new Rectangle(0, 0, leftImgW - gap, height);
             pictureBoxRight.Bounds = new Rectangle(leftImgW, 0, rightImgW - gap * 2, height);
             panelList.Bounds = new Rectangle(leftImgW + rightImgW, 0, listW, clientHeight);
-            if (listBoxFolders != null) listBoxFolders.Bounds = panelList.ClientRectangle;
+
+            if (listBoxFolders != null) { listBoxFolders.Bounds = panelList.ClientRectangle; }
+
             labelInfo.Location = new Point(10, clientHeight - 25);
         }
 
