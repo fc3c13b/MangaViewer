@@ -256,31 +256,65 @@ namespace MangaViewer
                     if (match.Success && int.TryParse(match.Groups[1].Value, out int xValue) && xValue <= 20)
                         continue;
 
-                    if (minDisplayCountEnabled)
+                    // キャッシュ用 JSON ファイルのパス（フォルダ名.json）
+                    string jsonPath = Path.Combine(dir, $"{folderName}.json");
+                    int imageCount;
+
+                    // 既存の JSON から画像数を読み込む、またはカウントして保存
+                    if (File.Exists(jsonPath))
                     {
-                        string[] imgExtensions = { "*.jpg", "*.jpeg", "*.webp", "*.png" };
-                        int imageCount = 0;
-                        foreach (var ext in imgExtensions)
+                        try
                         {
-                            try { imageCount += Directory.GetFiles(dir, ext, SearchOption.TopDirectoryOnly).Length; } catch { }
+                            var json = File.ReadAllText(jsonPath);
+                            using var doc = JsonDocument.Parse(json);
+                            if (doc.RootElement.TryGetProperty("imageCount", out var icProp) && icProp.ValueKind == JsonValueKind.Number)
+                                imageCount = icProp.GetInt32();
+                            else
+                                imageCount = CountImages(dir); // 値がない場合は再カウント
                         }
-                        if (imageCount < minDisplayCountValue) continue;
+                        catch
+                        {
+                            imageCount = CountImages(dir); // パース失敗時は再カウント
+                        }
                     }
+                    else
+                    {
+                        imageCount = CountImages(dir);
+                        SaveImageCountJson(jsonPath, imageCount);
+                    }
+
+                    if (minDisplayCountEnabled && imageCount < minDisplayCountValue) continue;
 
                     folderList.Add(dir);
                 }
 
+                // ListBox 表示（JSON から画像数を読み込み）
                 listBoxFolders.DataSource = null;
                 listBoxFolders.Items.Clear();
                 foreach (var dir in folderList)
                 {
-                    string[] imgExtensions = { "*.jpg", "*.jpeg", "*.webp", "*.png" };
+                    string folderName = Path.GetFileName(dir);
+                    string jsonPath = Path.Combine(dir, $"{folderName}.json");
                     int imageCount = 0;
-                    foreach (var ext in imgExtensions)
+
+                    if (File.Exists(jsonPath))
                     {
-                        try { imageCount += Directory.GetFiles(dir, ext, SearchOption.TopDirectoryOnly).Length; } catch { }
+                        try
+                        {
+                            var json = File.ReadAllText(jsonPath);
+                            using var doc = JsonDocument.Parse(json);
+                            if (doc.RootElement.TryGetProperty("imageCount", out var icProp) && icProp.ValueKind == JsonValueKind.Number)
+                                imageCount = icProp.GetInt32();
+                        }
+                        catch { imageCount = CountImages(dir); }
                     }
-                    listBoxFolders.Items.Add($"{Path.GetFileName(dir)} -[{imageCount}]");
+                    else
+                    {
+                        imageCount = CountImages(dir);
+                        SaveImageCountJson(jsonPath, imageCount);
+                    }
+
+                    listBoxFolders.Items.Add($"{folderName} -[{imageCount}]");
                 }
 
                 if (folderList.Count > 0)
@@ -290,6 +324,33 @@ namespace MangaViewer
                 }
             }
             catch { folderList.Clear(); currentFolderIndex = -1; }
+        }
+
+        /// <summary>
+        /// 指定フォルダ内の画像数をカウント
+        /// </summary>
+        private int CountImages(string dir)
+        {
+            string[] imgExtensions = { "*.jpg", "*.jpeg", "*.webp", "*.png" };
+            int count = 0;
+            foreach (var ext in imgExtensions)
+            {
+                try { count += Directory.GetFiles(dir, ext, SearchOption.TopDirectoryOnly).Length; } catch { }
+            }
+            return count;
+        }
+
+        /// <summary>
+        /// 画像数を JSON ファイルに保存（{ "imageCount": N }）
+        /// </summary>
+        private void SaveImageCountJson(string jsonPath, int imageCount)
+        {
+            try
+            {
+                var obj = new Dictionary<string, int> { { "imageCount", imageCount } };
+                File.WriteAllText(jsonPath, JsonSerializer.Serialize(obj, new JsonSerializerOptions { WriteIndented = true }));
+            }
+            catch { }
         }
 
         private void InitializeComponent()
