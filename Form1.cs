@@ -60,7 +60,7 @@ namespace MangaViewer
 
         private void OnKey(KeyEventArgs e)
         {
-            if (e.Control && e.KeyCode == Keys.D0)
+            if (e.KeyCode == Keys.D0)
             {
                 using (var dialog = new SettingsDialog())
                 {
@@ -88,7 +88,7 @@ namespace MangaViewer
                     }
                 }
             }
-            else if (e.Control && e.KeyCode == Keys.D1)
+            else if (e.KeyCode == Keys.D1)
             {
                 using (var dialog = new FolderBrowserDialog())
                 {
@@ -305,7 +305,7 @@ namespace MangaViewer
             this.Controls.Add(pictureBoxRight);
             this.Controls.Add(pictureBoxLeft);
 
-            labelInfo = new Label { Text = "フォルダを選択してください (Ctrl+1)", AutoSize = true, ForeColor = Color.White, BackColor = Color.FromArgb(64, 64, 64) };
+            labelInfo = new Label { Text = "フォルダを選択してください (キー1)", AutoSize = true, ForeColor = Color.White, BackColor = Color.FromArgb(64, 64, 64) };
             this.Controls.Add(labelInfo);
 
             panelList = new Panel { BackColor = Color.FromArgb(30, 30, 30), BorderStyle = BorderStyle.FixedSingle };
