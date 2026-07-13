@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
+using SkiaSharp;
 
 namespace MangaViewer
 {
@@ -390,15 +391,40 @@ namespace MangaViewer
 
             try
             {
-                using (var stream = new FileStream(imagePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+                string ext = Path.GetExtension(imagePath).ToLowerInvariant();
+                
+                // WebP ファイルは SkiaSharp でデコード
+                if (ext == ".webp")
                 {
-                    currentImage = new Bitmap(stream);
+                    var bytes = File.ReadAllBytes(imagePath);
+                    using var skImage = SKImage.FromEncodedData(bytes);
+                    using var skPm = skImage.Encode(SKEncodedImageFormat.Png, 100);
+                    using var ms = new MemoryStream(skPm.ToArray());
+                    currentImage = new Bitmap(ms);
                 }
+                else
+                {
+                    using (var stream = new FileStream(imagePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+                    {
+                        currentImage = new Bitmap(stream);
+                    }
+                }
+                
                 pb.Image = currentImage;
             }
             catch (OutOfMemoryException)
             {
                 MessageBox.Show("画像の読み込みに失敗しました:\n" + imagePath, "エラー", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                pb.Image = null;
+                if (currentImage != null)
+                {
+                    currentImage.Dispose();
+                    currentImage = null;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("画像の読み込みに失敗しました:\n" + imagePath + "\n\n" + ex.Message, "エラー", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 pb.Image = null;
                 if (currentImage != null)
                 {

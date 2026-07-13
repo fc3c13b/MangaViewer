@@ -13,3 +13,13 @@ c:\source\repos\MangaViewer\obj\Debug\net8.0-windows\refint\MangaViewer.dll
 c:\source\repos\MangaViewer\obj\Debug\net8.0-windows\MangaViewer.pdb
 c:\source\repos\MangaViewer\obj\Debug\net8.0-windows\MangaViewer.genruntimeconfig.cache
 c:\source\repos\MangaViewer\obj\Debug\net8.0-windows\ref\MangaViewer.dll
+c:\source\repos\MangaViewer\bin\Debug\net8.0-windows\SkiaSharp.dll
+c:\source\repos\MangaViewer\bin\Debug\net8.0-windows\runtimes\osx\native\libSkiaSharp.dylib
+c:\source\repos\MangaViewer\bin\Debug\net8.0-windows\runtimes\win-arm64\native\libSkiaSharp.dll
+c:\source\repos\MangaViewer\bin\Debug\net8.0-windows\runtimes\win-arm64\native\libSkiaSharp.pdb
+c:\source\repos\MangaViewer\bin\Debug\net8.0-windows\runtimes\win-x64\native\libSkiaSharp.dll
+c:\source\repos\MangaViewer\bin\Debug\net8.0-windows\runtimes\win-x64\native\libSkiaSharp.pdb
+c:\source\repos\MangaViewer\bin\Debug\net8.0-windows\runtimes\win-x86\native\libSkiaSharp.dll
+c:\source\repos\MangaViewer\bin\Debug\net8.0-windows\runtimes\win-x86\native\libSkiaSharp.pdb
+c:\source\repos\MangaViewer\obj\Debug\net8.0-windows\MangaViewer.csproj.AssemblyReference.cache
+c:\source\repos\MangaViewer\obj\Debug\net8.0-windows\MangaVie.132E94FD.Up2Date
