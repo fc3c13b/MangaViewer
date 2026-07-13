@@ -139,10 +139,10 @@ namespace MangaViewer
                 if (currentFolderIndex > 0)
                 {
                     currentFolderIndex--;
-                    listBoxFolders.SelectedIndex = currentFolderIndex;
                     LoadAndSortImages(folderList[currentFolderIndex]);
                     currentIndex = 0;
                     DisplayTwoImages(currentIndex);
+                    listBoxFolders.SetSelected(currentFolderIndex, true);
                 }
             }
             else if (e.KeyCode == Keys.Down && folderList.Count > 0)
@@ -150,10 +150,10 @@ namespace MangaViewer
                 if (currentFolderIndex < folderList.Count - 1)
                 {
                     currentFolderIndex++;
-                    listBoxFolders.SelectedIndex = currentFolderIndex;
                     LoadAndSortImages(folderList[currentFolderIndex]);
                     currentIndex = 0;
                     DisplayTwoImages(currentIndex);
+                    listBoxFolders.SetSelected(currentFolderIndex, true);
                 }
             }
         }
