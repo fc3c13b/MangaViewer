@@ -136,6 +136,7 @@ namespace MangaViewer
             }
             else if (e.KeyCode == Keys.Up && folderList.Count > 0)
             {
+                e.Handled = true;
                 if (currentFolderIndex > 0)
                 {
                     currentFolderIndex--;
@@ -147,6 +148,7 @@ namespace MangaViewer
             }
             else if (e.KeyCode == Keys.Down && folderList.Count > 0)
             {
+                e.Handled = true;
                 if (currentFolderIndex < folderList.Count - 1)
                 {
                     currentFolderIndex++;
@@ -452,24 +454,12 @@ namespace MangaViewer
 
             try
             {
-                string ext = Path.GetExtension(imagePath).ToLowerInvariant();
-                
-                // WebP ファイルは SkiaSharp でデコード
-                if (ext == ".webp")
-                {
-                    var bytes = File.ReadAllBytes(imagePath);
-                    using var skImage = SKImage.FromEncodedData(bytes);
-                    using var skPm = skImage.Encode(SKEncodedImageFormat.Png, 100);
-                    using var ms = new MemoryStream(skPm.ToArray());
-                    currentImage = new Bitmap(ms);
-                }
-                else
-                {
-                    using (var stream = new FileStream(imagePath, FileMode.Open, FileAccess.Read, FileShare.Read))
-                    {
-                        currentImage = new Bitmap(stream);
-                    }
-                }
+                // SkiaSharp ですべての画像フォーマットをデコード（GDI+より広い互換性）
+                var bytes = File.ReadAllBytes(imagePath);
+                using var skImage = SKImage.FromEncodedData(bytes);
+                using var skPm = skImage.Encode(SKEncodedImageFormat.Png, 100);
+                using var ms = new MemoryStream(skPm.ToArray());
+                currentImage = new Bitmap(ms);
                 
                 pb.Image = currentImage;
             }

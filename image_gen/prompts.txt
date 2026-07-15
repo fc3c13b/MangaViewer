@@ -1,0 +1,17 @@
+# プロンプト設定ファイル
+# 形式: 画像名:プロンプト
+# *: で始まる行は全画像に共通のプロンプトとして使われる
+# # で始まる行はコメント
+
+# 例1: キャラクターポーズの描き起こし（個別プロンプト）
+# pose01.png:manga style, beautiful girl, standing pose, school uniform, detailed background, masterpiece, best quality, anime illustration
+
+# 例2: 全画像に共通のスタイルを適用する場合
+*:manga style, anime illustration, high resolution, detailed line art, vibrant colors
+
+# 拡張子対応一覧
+# .png, .jpg, .jpeg, .webp が対象
+
+# 実際の使い方（参考）：
+# inputs/ に元画像を配置し、それぞれのファイル名に対応するプロンプトを書く
+# または「*:」形式で全画像に共通のスタイルプロンプトだけ書くことも可能
