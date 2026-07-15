@@ -38,6 +38,9 @@ namespace MangaViewer
         private bool minDisplayCountEnabled = false;
         private int minDisplayCountValue = 20;
 
+        // 最小評価値（0-10, デフォルト8）
+        private int minEvaluationValue = 8;
+
         public Form1()
         {
             InitializeComponent();
@@ -230,6 +233,11 @@ namespace MangaViewer
                     int val = countProp.GetInt32();
                     if (val >= 2 && val <= 100) minDisplayCountValue = val;
                 }
+                if (doc.RootElement.TryGetProperty("MinEvaluation", out var evalProp) && evalProp.ValueKind == JsonValueKind.Number)
+                {
+                    int val = evalProp.GetInt32();
+                    if (val >= 0 && val <= 10) minEvaluationValue = val;
+                }
             }
             catch { }
         }
@@ -303,6 +311,8 @@ namespace MangaViewer
                         { try { obj["MinDisplayCountEnabled"] = ep.GetBoolean().ToString(); } catch { } }
                         if (doc.RootElement.TryGetProperty("MinDisplayCount", out var cp) && cp.ValueKind == JsonValueKind.Number)
                             obj["MinDisplayCount"] = cp.GetInt32().ToString();
+                        if (doc.RootElement.TryGetProperty("MinEvaluation", out var evp) && evp.ValueKind == JsonValueKind.Number)
+                            obj["MinEvaluation"] = evp.GetInt32().ToString();
                     } catch { }
                 }
                 File.WriteAllText(SettingsFilePath, JsonSerializer.Serialize(obj, new JsonSerializerOptions { WriteIndented = true }));

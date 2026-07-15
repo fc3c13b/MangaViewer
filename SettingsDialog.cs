@@ -23,6 +23,10 @@ namespace MangaViewer
         private NumericUpDown numMinDisplayCount = null!;
         private Label labelMinDisplayUnit = null!;
 
+        // 最小評価値設定用コントロール
+        private NumericUpDown numMinEvaluation = null!;
+        private Label labelMinEvaluation = null!;
+
         // 設定ファイルパス（Form1 と共通）
         private static string SettingsFilePath => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "setting.json");
 
@@ -36,9 +40,15 @@ namespace MangaViewer
         /// </summary>
         public int MinDisplayCountValue => (int)numMinDisplayCount.Value;
 
+        /// <summary>
+        /// 最小評価値の値（0-10, デフォルト8）
+        /// </summary>
+        public int MinEvaluationValue => (int)numMinEvaluation.Value;
+
         // デフォルト値
         private const int DefaultMinDisplayCount = 20;
         private const bool DefaultMinDisplayEnabled = false;
+        private const int DefaultMinEvaluation = 8;
 
         public SettingsDialog()
         {
@@ -102,6 +112,30 @@ namespace MangaViewer
             };
             this.Controls.Add(labelMinDisplayUnit);
 
+            // 最小評価値 ラベル
+            labelMinEvaluation = new Label
+            {
+                Text = "最小評価値：",
+                AutoSize = true,
+                ForeColor = Color.White,
+                Font = new System.Drawing.Font("Meiryo UI", 10F),
+                Location = new System.Drawing.Point(20, 100),
+            };
+            this.Controls.Add(labelMinEvaluation);
+
+            // 最小評価値 NumericUpDown
+            numMinEvaluation = new NumericUpDown
+            {
+                Minimum = 0,
+                Maximum = 10,
+                Value = DefaultMinEvaluation,
+                Location = new System.Drawing.Point(160, 98),
+                Size = new System.Drawing.Size(80, 25),
+                BackColor = Color.FromArgb(60, 60, 60),
+                ForeColor = Color.White,
+            };
+            this.Controls.Add(numMinEvaluation);
+
             // バージョン表示ラベル
             string version = System.Reflection.Assembly.GetExecutingAssembly()
                 .GetName().Version?.ToString() ?? "unknown";
@@ -152,6 +186,7 @@ namespace MangaViewer
         {
             bool enabled = DefaultMinDisplayEnabled;
             int count = DefaultMinDisplayCount;
+            int minEval = DefaultMinEvaluation;
 
             if (File.Exists(SettingsFilePath))
             {
@@ -173,30 +208,40 @@ namespace MangaViewer
                             count = val;
                     }
 
+                    if (doc.RootElement.TryGetProperty("MinEvaluation", out var evalProp)
+                        && evalProp.ValueKind == JsonValueKind.Number)
+                    {
+                        int val = evalProp.GetInt32();
+                        if (val >= 0 && val <= 10)
+                            minEval = val;
+                    }
+
                     // 設定値が存在しなかった場合はデフォルト値を保存
                     bool enabledExists = doc.RootElement.TryGetProperty("MinDisplayCountEnabled", out _);
                     bool countExists = doc.RootElement.TryGetProperty("MinDisplayCount", out _);
+                    bool evalExists = doc.RootElement.TryGetProperty("MinEvaluation", out _);
 
-                    if (!enabledExists || !countExists)
+                    if (!enabledExists || !countExists || !evalExists)
                     {
-                        SaveSettingsToFile(DefaultMinDisplayEnabled, DefaultMinDisplayCount);
+                        SaveSettingsToFile(DefaultMinDisplayEnabled, DefaultMinDisplayCount, DefaultMinEvaluation);
                     }
                 }
                 catch
                 {
                     // 読み込み失敗時はデフォルト値を使用 + デフォルト保存
-                    SaveSettingsToFile(DefaultMinDisplayEnabled, DefaultMinDisplayCount);
+                    SaveSettingsToFile(DefaultMinDisplayEnabled, DefaultMinDisplayCount, DefaultMinEvaluation);
                 }
             }
             else
             {
                 // ファイルがない場合はデフォルト値で新規作成
-                SaveSettingsToFile(DefaultMinDisplayEnabled, DefaultMinDisplayCount);
+                SaveSettingsToFile(DefaultMinDisplayEnabled, DefaultMinDisplayCount, DefaultMinEvaluation);
             }
 
             // UI に反映
             chkMinDisplayCount.Checked = enabled;
             numMinDisplayCount.Value = count;
+            numMinEvaluation.Value = minEval;
         }
 
         /// <summary>
@@ -206,8 +251,9 @@ namespace MangaViewer
         {
             bool enabled = chkMinDisplayCount.Checked;
             int count = (int)numMinDisplayCount.Value;
+            int minEval = (int)numMinEvaluation.Value;
 
-            SaveSettingsToFile(enabled, count);
+            SaveSettingsToFile(enabled, count, minEval);
             this.DialogResult = DialogResult.OK;
             this.Close();
         }
@@ -215,7 +261,7 @@ namespace MangaViewer
         /// <summary>
         /// 設定値を setting.json に保存する（LastRootFolder は保持）
         /// </summary>
-        private void SaveSettingsToFile(bool enabled, int count)
+        private void SaveSettingsToFile(bool enabled, int count, int minEval)
         {
             try
             {
@@ -235,6 +281,7 @@ namespace MangaViewer
 
                 obj["MinDisplayCountEnabled"] = enabled;
                 obj["MinDisplayCount"] = count;
+                obj["MinEvaluation"] = minEval;
 
                 var options = new JsonSerializerOptions
                 {
