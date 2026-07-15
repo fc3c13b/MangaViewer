@@ -162,6 +162,32 @@ namespace MangaViewer
                 }
                 else if (imagePaths.Count == 1) { DisplayTwoImages(0); }
             }
+            // Ctrl + テンキーで評価値保存（画像表示中のみ）
+            else if ((Control.ModifierKeys & Keys.Control) != 0 && imagePaths.Count > 0)
+            {
+                int rating = e.KeyCode switch
+                {
+                    Keys.NumPad0 => 0,
+                    Keys.NumPad1 => 1,
+                    Keys.NumPad2 => 2,
+                    Keys.NumPad3 => 3,
+                    Keys.NumPad4 => 4,
+                    Keys.NumPad5 => 5,
+                    Keys.NumPad6 => 6,
+                    Keys.NumPad7 => 7,
+                    Keys.NumPad8 => 8,
+                    Keys.NumPad9 => 9,
+                    Keys.Add => 10,    // テンキー +
+                    Keys.Subtract => -1, // テンキー -
+                    _ => int.MinValue   // 無効なキー
+                };
+
+                if (rating != int.MinValue)
+                {
+                    e.Handled = true;
+                    SaveRatingToFolder(currentFolder, rating);
+                }
+            }
             else if (e.KeyCode == Keys.Up && folderList.Count > 0)
             {
                 e.Handled = true;
@@ -394,6 +420,39 @@ namespace MangaViewer
             try
             {
                 var obj = new Dictionary<string, int> { { "imageCount", imageCount } };
+                File.WriteAllText(jsonPath, JsonSerializer.Serialize(obj, new JsonSerializerOptions { WriteIndented = true }));
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// フォルダの評価値を JSON ファイルに保存（既存のJSONにratingを追加・更新）
+        /// </summary>
+        private void SaveRatingToFolder(string folderPath, int rating)
+        {
+            try
+            {
+                string folderName = Path.GetFileName(folderPath);
+                string jsonPath = Path.Combine(folderPath, $"{folderName}.json");
+
+                var obj = new Dictionary<string, object>();
+
+                // 既存のJSONがあれば読み込んでマージ
+                if (File.Exists(jsonPath))
+                {
+                    try
+                    {
+                        var existingJson = File.ReadAllText(jsonPath);
+                        using var doc = JsonDocument.Parse(existingJson);
+                        // Dictionaryに既存プロパティをコピー（画像数など）
+                        if (doc.RootElement.TryGetProperty("imageCount", out var icProp) && icProp.ValueKind == JsonValueKind.Number)
+                            obj["imageCount"] = icProp.GetInt32();
+                    }
+                    catch { }
+                }
+
+                obj["rating"] = rating;
+
                 File.WriteAllText(jsonPath, JsonSerializer.Serialize(obj, new JsonSerializerOptions { WriteIndented = true }));
             }
             catch { }
