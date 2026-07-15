@@ -67,24 +67,7 @@ namespace MangaViewer
                     if (dialog.ShowDialog(this) == DialogResult.OK)
                     {
                         LoadSettingsFromFile();
-                        if (!string.IsNullOrEmpty(currentFolder) && Directory.Exists(currentFolder))
-                        {
-                            BuildSubfolderList(currentFolder);
-                            if (folderList.Count > 0)
-                            {
-                                currentFolderIndex = 0;
-                                LoadAndSortImages(folderList[currentFolderIndex]);
-                            }
-                            else
-                            {
-                                folderList.Clear();
-                                currentFolderIndex = -1;
-                                LoadAndSortImages(currentFolder);
-                            }
-                            currentIndex = 0;
-                            DisplayTwoImages(currentIndex);
-                            listBoxFolders.SelectedIndex = currentFolderIndex;
-                        }
+                        // 設定値のみ更新し、現在の表示状態（フォルダリスト・画像）は維持
                     }
                 }
             }

@@ -6,7 +6,7 @@
   "compilationOptions": {},
   "targets": {
     ".NETCoreApp,Version=v8.0": {
-      "MangaViewer/2.9.0": {
+      "MangaViewer/3.0.0": {
         "dependencies": {
           "SkiaSharp": "4.150.0"
         },
@@ -72,7 +72,7 @@
     }
   },
   "libraries": {
-    "MangaViewer/2.9.0": {
+    "MangaViewer/3.0.0": {
       "type": "project",
       "serviceable": false,
       "sha512": ""
