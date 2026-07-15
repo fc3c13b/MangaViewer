@@ -62,12 +62,57 @@ namespace MangaViewer
         {
             if (e.KeyCode == Keys.D0)
             {
+                // 変更前後で最小表示枚数設定が異なるか判定
+                bool prevEnabled = minDisplayCountEnabled;
+                int prevValue = minDisplayCountValue;
+
                 using (var dialog = new SettingsDialog())
                 {
                     if (dialog.ShowDialog(this) == DialogResult.OK)
                     {
                         LoadSettingsFromFile();
-                        // 設定値のみ更新し、現在の表示状態（フォルダリスト・画像）は維持
+
+                        // 最小表示枚数設定が変更された場合はフォルダリストを再フィルタ
+                        if (minDisplayCountEnabled != prevEnabled || minDisplayCountValue != prevValue)
+                        {
+                            string rootPath = GetRootFolder();
+                            BuildSubfolderList(rootPath);
+
+                            // 現在のフォルダが新しいリストに含まれているか確認
+                            int newIdx = -1;
+                            for (int i = 0; i < folderList.Count; i++)
+                            {
+                                if (folderList[i] == currentFolder)
+                                { newIdx = i; break; }
+                            }
+
+                            if (newIdx >= 0)
+                            {
+                                // 現在のフォルダがフィルタに一致：表示状態を維持
+                                currentFolderIndex = newIdx;
+                                listBoxFolders.SelectedIndex = newIdx;
+                            }
+                            else
+                            {
+                                // 現在のフォルダがフィルタ外になった：最初のフォルダを選択
+                                if (folderList.Count > 0)
+                                {
+                                    currentFolderIndex = 0;
+                                    LoadAndSortImages(folderList[0]);
+                                    currentIndex = 0;
+                                    DisplayTwoImages(0);
+                                    listBoxFolders.SelectedIndex = 0;
+                                }
+                                else
+                                {
+                                    folderList.Clear();
+                                    currentFolderIndex = -1;
+                                    pictureBoxRight.Image = null;
+                                    pictureBoxLeft.Image = null;
+                                    labelInfo.Text = "表示可能なフォルダがありません。";
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -196,6 +241,25 @@ namespace MangaViewer
             currentIndex = 0;
             DisplayTwoImages(currentIndex);
             listBoxFolders.SelectedIndex = currentFolderIndex;
+        }
+
+        /// <summary>
+        /// 最後のルートフォルダを setting.json から取得
+        /// </summary>
+        private string GetRootFolder()
+        {
+            try
+            {
+                if (File.Exists(SettingsFilePath))
+                {
+                    var json = File.ReadAllText(SettingsFilePath);
+                    using var doc = JsonDocument.Parse(json);
+                    if (doc.RootElement.TryGetProperty("LastRootFolder", out var prop) && prop.ValueKind == JsonValueKind.String)
+                        return prop.ToString();
+                }
+            }
+            catch { }
+            return Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
         }
 
         private void SaveRootFolder(string rootPath)
