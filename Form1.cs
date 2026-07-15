@@ -254,9 +254,6 @@ namespace MangaViewer
                 foreach (var dir in sorted)
                 {
                     string folderName = Path.GetFileName(dir);
-                    var match = Regex.Match(folderName, @"-\s*(\d+)\s*\]$");
-                    if (match.Success && int.TryParse(match.Groups[1].Value, out int xValue) && xValue <= 20)
-                        continue;
 
                     // キャッシュ用 JSON ファイルのパス（フォルダ名.json）
                     string jsonPath = Path.Combine(dir, $"{folderName}.json");
@@ -285,7 +282,7 @@ namespace MangaViewer
                         SaveImageCountJson(jsonPath, imageCount);
                     }
 
-                    if (minDisplayCountEnabled && imageCount < minDisplayCountValue) continue;
+                    if (imageCount < minDisplayCountValue) continue;
 
                     folderList.Add(dir);
                 }
