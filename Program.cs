@@ -3,8 +3,10 @@ using System.Windows.Forms;
 
 namespace MangaViewer
 {
-    static class Program
+    class Program
     {
+        public const string AppVersion = "3.0.0";
+
         [STAThread]
         static void Main()
         {
