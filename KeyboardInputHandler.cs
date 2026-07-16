@@ -185,7 +185,7 @@ namespace MangaViewer
             if (rating != int.MinValue)
             {
                 e.Handled = true;
-                form.SaveRatingToFolder(form._currentFolder, rating);
+                RatingService.SaveRating(form._currentFolder, rating);
             }
         }
 

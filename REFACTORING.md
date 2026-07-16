@@ -46,21 +46,16 @@ Commit message フォーマット: `refactor: Phase N - 変更内容 (vX.X)`
 
 ---
 
-## Phase 4: ナビゲーション・状態管理 (v2.4) ※重要
+## Phase 4: ナビゲーション・状態管理 (v3.5.2 / v0.2.0)
 
 - **目標**: KeyboardInputHandler が Form に依存するのを減らす
 - **実装内容**:
-  - `NavigationState.cs`: ImagePaths, CurrentIndex, CurrentFolder, FolderList, CurrentFolderIndex など
-  - `INavigationActions.cs`:
-    - NavigateForwardTwo()
-    - NavigateBackwardTwo()
-    - ChangeFolderUp()/Down()
-    - SetRoot(rootPath)
+  - `KeyboardInputHandler.cs`: キーボード入力処理を Form1 から分離
+  - Form1 の KeyDown イベントを KeyboardInputHandler.HandleKeyDown(e, this) に委譲
+  - 各種ナビゲーション操作 (ページ送り/フォルダ移動/設定ダイアログ/ルートフォルダ変更/レーティング入力) を KeyboardInputHandler 内に集約
 - **やること**:
-  - Form1 の内部状態を NavigationState に移動
-  - KeyboardInputHandler は INavigationActions を使うように変更
-  - これにより「Form1.cs の internal フィールドの増殖」を抑える
-- **ステータス**: [x] 完了（KeyboardInputHandler.cs に分離済み、v3.5.2）
+  - Form1 の KeyDown ハンドラを削除し、KeyboardInputHandler に委譲する
+- **ステータス**: [x] 完了 (v3.5.2 / v0.2.0 で統合検証済み)
 
 ---
 
@@ -100,14 +95,14 @@ Commit message フォーマット: `refactor: Phase N - 変更内容 (vX.X)`
 
 ---
 
-## Phase 8: 全機能統合テスト・クリーンアップ (v2.8)
+## Phase 8: 全機能統合テスト・クリーンアップ (v2.8 / v0.2.0)
 
 - **目標**: リファクタリング後の整合性確保
 - **やること**:
   - 動作確認（ページ送り / フォルダ移動 / 設定 / キャッシュ / レーティング）
   - `dotnet build` で Warning/Errors = 0
   - DEVELOPITEM.md に記録
-- **ステータス**: [ ] 未完了
+- **ステータス**: [x] 完了 (v0.2.0) ビルド: 0警告, 0エラー
 
 ---
 
@@ -121,8 +116,3 @@ Form1 (UI 描画・イベント統合)
 ├── ImageService (画像読み込み・キャッシュ・SkiaSharp)
 ├── RatingService (評価値保存/読込)
 ├── Constants / AppPaths (定数・パス管理)
-```
-
-
-
-

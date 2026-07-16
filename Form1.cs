@@ -136,10 +136,6 @@ namespace MangaViewer
             _imagePaths = folderService.LoadAndSortImages(folderPath);
         }
 
-        internal void SaveRatingToFolder(string folderPath, int rating)
-        {
-            FolderService.SaveRatingToFolder(folderPath, rating);
-        }
 
         private void InitializeComponent()
         {
