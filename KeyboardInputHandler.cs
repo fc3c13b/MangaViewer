@@ -55,19 +55,21 @@ namespace MangaViewer
 
         private static void HandleSettingsDialog(Form1 form)
         {
-            bool prevEnabled = form._minDisplayCountEnabled;
-            int prevValue = form._minDisplayCountValue;
+            bool prevEnabled = form._settings.MinDisplayCountEnabled;
+            int prevValue = form._settings.MinDisplayCount;
 
             using (var dialog = new SettingsDialog())
             {
                 if (dialog.ShowDialog(form) == DialogResult.OK)
                 {
-                    form.LoadSettingsFromFile();
+                    form._settings = SettingsManager.Load();
 
                     // 最小表示枚数設定が変更された場合はフォルダリストを再フィルタ
-                    if (form._minDisplayCountEnabled != prevEnabled || form._minDisplayCountValue != prevValue)
+                    if (form._settings.MinDisplayCountEnabled != prevEnabled || form._settings.MinDisplayCount != prevValue)
                     {
-                        string rootPath = form.GetRootFolder();
+                        string rootPath = string.IsNullOrEmpty(form._settings.LastRootFolder)
+                            ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
+                            : form._settings.LastRootFolder;
                         form.BuildSubfolderList(rootPath);
 
                         // 現在のフォルダが新しいリストに含まれているか確認
@@ -114,7 +116,8 @@ namespace MangaViewer
                 if (dialog.ShowDialog() == DialogResult.OK)
                 {
                     string rootPath = dialog.SelectedPath;
-                    form.SaveRootFolder(rootPath);
+                    form._settings.LastRootFolder = rootPath;
+                    SettingsManager.Save(form._settings);
                     form.BuildSubfolderList(rootPath);
 
                     if (form._folderList.Count > 0)

@@ -64,6 +64,12 @@
 ## Phase 27: キーボード入力処理をKeyboardInputHandlerに分離 / T28 (v3.5.2)
 - Commit: 16fc244
 
+## Phase 28: 設定管理をSettingsManagerに分離 / T29 (v3.5.3)
+- Commit: 40719c6
+
+## Phase 30: 画像読み込み・キャッシュ処理をImageServiceに分離 / T30 (v3.6.0)
+- Commit: （コミット後に更新）
+
 ---
 
 ## 変更履歴（DEVELOPTASK）
@@ -88,6 +94,8 @@
 | 2026-07-16 | v3.5.0    | T27    | 6c396f8       | バージョン表示を Program.AppVersion で一元管理化    |
 | 2026-07-16 | v3.5.1    | -      | b8ad0bb       | 各種修正・コード品質向上（ビルド順序指定、NuGet警告抑制、インデント整理）    |
 | 2026-07-16 | v3.5.2    | T28    | 16fc244       | キーボード入力処理をKeyboardInputHandlerに分離                  |
+| 2026-07-16 | v3.5.3    | T29    | 40719c6       | 設定管理をSettingsManagerに分離（Form1から重複ロジック削除、KeyboardInputHandlerを_settings参照に更新、FolderService分離）            |
+| 2026-07-16 | v3.6.0    | T30    | （コミット後に更新）     | 画像読み込み・キャッシュ処理をImageServiceに分離（SkiaSharpデコード・LRUキャッシュ・Dispose一箇所に集中）            |
 
 ---
 ## バージョンルール

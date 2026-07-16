@@ -5,7 +5,7 @@ namespace MangaViewer
 {
     class Program
     {
-        public const string AppVersion = "3.5.1";
+        public const string AppVersion = "3.6.0";
 
         [STAThread]
         static void Main()
