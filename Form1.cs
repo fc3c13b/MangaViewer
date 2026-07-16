@@ -337,29 +337,53 @@ namespace MangaViewer
                     .OrderBy(d => Path.GetFileName(d), StringComparer.OrdinalIgnoreCase)
                     .ToList();
 
-                // 1回のパスでJSONを読み込み、フィルタ＋ListBox表示の両方に使用
-                var folderData = new List<(string path, int imageCount)>();
+                // 第一段階: JSONキャッシュからimageCountを一括取得
+                var cacheResult = new Dictionary<string, int>();
+                var toCount = new List<(string dir, string jsonPath)>();
 
                 foreach (var dir in sorted)
                 {
                     string folderName = Path.GetFileName(dir);
                     string jsonPath = Path.Combine(dir, $"{folderName}.json");
-
-                    // ReadFolderJsonでimageCount/ratingを1回のI/Oで取得
                     var (imageCount, _) = ReadFolderJson(jsonPath);
 
-                    // imageCountが0の場合（JSONに値がない、またはファイル不存在）→実際にカウントして保存
-                    if (imageCount == 0)
+                    if (imageCount > 0)
                     {
-                        imageCount = CountImages(dir);
-                        SaveImageCountJson(jsonPath, imageCount);
+                        cacheResult[dir] = imageCount;
                     }
+                    else
+                    {
+                        toCount.Add((dir, jsonPath));
+                    }
+                }
+
+                // 第二段階: キャッシュ未存在のフォルダをPLINQで並列カウント
+                if (toCount.Count > 0)
+                {
+                    var results = toCount.AsParallel()
+                        .WithDegreeOfParallelism(Environment.ProcessorCount)
+                        .Select(item => new { item.dir, item.jsonPath, Count = CountImages(item.dir) })
+                        .ToList();
+
+                    foreach (var r in results)
+                    {
+                        cacheResult[r.dir] = r.Count;
+                        SaveImageCountJson(r.jsonPath, r.Count);
+                    }
+                }
+
+                // 第三段階: フィルタ＋ListBox表示用データ作成
+                var folderData = new List<(string path, int imageCount)>();
+
+                foreach (var dir in sorted)
+                {
+                    int ic = cacheResult.TryGetValue(dir, out var v) ? v : 0;
 
                     // フィルタ基準未満のフォルダは除外
-                    if (imageCount < minDisplayCountValue) continue;
+                    if (ic < minDisplayCountValue) continue;
 
                     folderList.Add(dir);
-                    folderData.Add((dir, imageCount));
+                    folderData.Add((dir, ic));
                 }
 
                 // ListBox 表示（folderDataのキャッシュを使用し、JSONを2度読む必要なし）
