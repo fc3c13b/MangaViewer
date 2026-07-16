@@ -31,6 +31,10 @@ namespace MangaViewer
         private Image? currentImageRight = null;
         private Image? currentImageLeft = null;
 
+        // Image cache for preloading
+        private System.Collections.Concurrent.ConcurrentDictionary<string, Bitmap> imageCache = new();
+        private const int MaxCacheSize = 200;
+
         private const int RatioLeftImg = 36;
         private const int RatioRightImg = 36;
         private const int RatioList = 28;
@@ -311,7 +315,7 @@ namespace MangaViewer
                         var existingJson = File.ReadAllText(SettingsFilePath);
                         using var doc = JsonDocument.Parse(existingJson);
                         if (doc.RootElement.TryGetProperty("MinDisplayCountEnabled", out var ep))
-                        { try { obj["MinDisplayCountEnabled"] = ep.GetBoolean().ToString(); } catch { } }
+                            { try { obj["MinDisplayCountEnabled"] = ep.GetBoolean().ToString(); } catch { } }
                         if (doc.RootElement.TryGetProperty("MinDisplayCount", out var cp) && cp.ValueKind == JsonValueKind.Number)
                             obj["MinDisplayCount"] = cp.GetInt32().ToString();
                         if (doc.RootElement.TryGetProperty("MinEvaluation", out var evp) && evp.ValueKind == JsonValueKind.Number)
@@ -554,6 +558,18 @@ namespace MangaViewer
             LoadImageIntoPictureBox(pictureBoxRight, ref currentImageRight, startIndex < imagePaths.Count ? imagePaths[startIndex] : null);
             LoadImageIntoPictureBox(pictureBoxLeft, ref currentImageLeft, (startIndex + 1) < imagePaths.Count ? imagePaths[startIndex + 1] : null);
             UpdateInfoLabel(startIndex);
+
+            // Preload next 2 images into cache in background
+            int nextIdx = startIndex + 2;
+            int nextNextIdx = startIndex + 3;
+            if (nextIdx < imagePaths.Count || nextNextIdx < imagePaths.Count)
+            {
+                Task.Run(() =>
+                {
+                    if (nextIdx < imagePaths.Count) LoadOrGetCachedImage(imagePaths[nextIdx]);
+                    if (nextNextIdx < imagePaths.Count) LoadOrGetCachedImage(imagePaths[nextNextIdx]);
+                });
+            }
         }
 
         private void UpdateInfoLabel(int startIndex)
@@ -577,6 +593,33 @@ namespace MangaViewer
             }
         }
 
+        private Bitmap LoadOrGetCachedImage(string imagePath)
+        {
+            // Cache hit: return cloned bitmap for display
+            if (imageCache.TryGetValue(imagePath, out var cached))
+            {
+                return new Bitmap(cached);
+            }
+
+            // Decode image using SkiaSharp
+            var bytes = File.ReadAllBytes(imagePath);
+            using var skImage = SKImage.FromEncodedData(bytes);
+            using var skPm = skImage.Encode(SKEncodedImageFormat.Png, 100);
+            using var ms = new MemoryStream(skPm.ToArray());
+            var bitmap = new Bitmap(ms);
+
+            // Store in cache (evict if full)
+            if (imageCache.Count >= MaxCacheSize)
+            {
+                string oldestKey = imageCache.Keys.First();
+                if (imageCache.TryRemove(oldestKey, out var oldBitmap))
+                    oldBitmap.Dispose();
+            }
+            imageCache[imagePath] = new Bitmap(bitmap);
+
+            return bitmap;
+        }
+
         private void LoadImageIntoPictureBox(PictureBox pb, ref Image? currentImage, string? imagePath)
         {
             if (currentImage != null)
@@ -593,13 +636,7 @@ namespace MangaViewer
 
             try
             {
-                // SkiaSharp ですべての画像フォーマットをデコード（GDI+より広い互換性）
-                var bytes = File.ReadAllBytes(imagePath);
-                using var skImage = SKImage.FromEncodedData(bytes);
-                using var skPm = skImage.Encode(SKEncodedImageFormat.Png, 100);
-                using var ms = new MemoryStream(skPm.ToArray());
-                currentImage = new Bitmap(ms);
-
+                currentImage = LoadOrGetCachedImage(imagePath);
                 pb.Image = currentImage;
             }
             catch (OutOfMemoryException)
@@ -622,6 +659,13 @@ namespace MangaViewer
                     currentImage = null;
                 }
             }
+        }
+
+        private void ClearCache()
+        {
+            foreach (var bmp in imageCache.Values)
+                bmp.Dispose();
+            imageCache.Clear();
         }
 
         private void UpdateLayout()
@@ -648,6 +692,7 @@ namespace MangaViewer
 
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
+            ClearCache();
             if (currentImageRight != null) { currentImageRight.Dispose(); currentImageRight = null; }
             if (currentImageLeft != null) { currentImageLeft.Dispose(); currentImageLeft = null; }
             base.OnFormClosing(e);
