@@ -327,6 +327,10 @@ namespace MangaViewer
             folderList.Clear();
             currentFolderIndex = -1;
 
+            // UIに「読込中」メッセージを表示し、画面を更新
+            labelInfo.Text = "フォルダ一覧を読み込み中...";
+            Application.DoEvents();
+
             LoadSettingsFromFile();
 
             try
@@ -401,7 +405,17 @@ namespace MangaViewer
                     currentFolderIndex = 0;
                 }
             }
-            catch { folderList.Clear(); currentFolderIndex = -1; }
+            catch 
+            { 
+                folderList.Clear(); 
+                currentFolderIndex = -1; 
+            }
+            finally
+            {
+                // 読込完了後にラベルを元に戻し画面更新
+                labelInfo.Text = "";
+                Application.DoEvents();
+            }
         }
 
         /// <summary>

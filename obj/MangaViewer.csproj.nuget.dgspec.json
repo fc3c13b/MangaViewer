@@ -5,7 +5,7 @@
   },
   "projects": {
     "c:\\source\\repos\\MangaViewer\\MangaViewer.csproj": {
-      "version": "3.5.0",
+      "version": "0.1.3",
       "restore": {
         "projectUniqueName": "c:\\source\\repos\\MangaViewer\\MangaViewer.csproj",
         "projectName": "MangaViewer",
