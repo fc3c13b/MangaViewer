@@ -334,69 +334,38 @@ namespace MangaViewer
                     .OrderBy(d => Path.GetFileName(d), StringComparer.OrdinalIgnoreCase)
                     .ToList();
 
+                // 1回のパスでJSONを読み込み、フィルタ＋ListBox表示の両方に使用
+                var folderData = new List<(string path, int imageCount)>();
+
                 foreach (var dir in sorted)
                 {
                     string folderName = Path.GetFileName(dir);
-
-                    // キャッシュ用 JSON ファイルのパス（フォルダ名.json）
                     string jsonPath = Path.Combine(dir, $"{folderName}.json");
-                    int imageCount;
 
-                    // 既存の JSON から画像数を読み込む、またはカウントして保存
-                    if (File.Exists(jsonPath))
-                    {
-                        try
-                        {
-                            var json = File.ReadAllText(jsonPath);
-                            using var doc = JsonDocument.Parse(json);
-                            if (doc.RootElement.TryGetProperty("imageCount", out var icProp) && icProp.ValueKind == JsonValueKind.Number)
-                                imageCount = icProp.GetInt32();
-                            else
-                                imageCount = CountImages(dir); // 値がない場合は再カウント
-                        }
-                        catch
-                        {
-                            imageCount = CountImages(dir); // パース失敗時は再カウント
-                        }
-                    }
-                    else
+                    // ReadFolderJsonでimageCount/ratingを1回のI/Oで取得
+                    var (imageCount, _) = ReadFolderJson(jsonPath);
+
+                    // imageCountが0の場合（JSONに値がない、またはファイル不存在）→実際にカウントして保存
+                    if (imageCount == 0)
                     {
                         imageCount = CountImages(dir);
                         SaveImageCountJson(jsonPath, imageCount);
                     }
 
+                    // フィルタ基準未満のフォルダは除外
                     if (imageCount < minDisplayCountValue) continue;
 
                     folderList.Add(dir);
+                    folderData.Add((dir, imageCount));
                 }
 
-                // ListBox 表示（JSON から画像数を読み込み）
+                // ListBox 表示（folderDataのキャッシュを使用し、JSONを2度読む必要なし）
                 listBoxFolders.DataSource = null;
                 listBoxFolders.Items.Clear();
-                foreach (var dir in folderList)
+                foreach (var (path, ic) in folderData)
                 {
-                    string folderName = Path.GetFileName(dir);
-                    string jsonPath = Path.Combine(dir, $"{folderName}.json");
-                    int imageCount = 0;
-
-                    if (File.Exists(jsonPath))
-                    {
-                        try
-                        {
-                            var json = File.ReadAllText(jsonPath);
-                            using var doc = JsonDocument.Parse(json);
-                            if (doc.RootElement.TryGetProperty("imageCount", out var icProp) && icProp.ValueKind == JsonValueKind.Number)
-                                imageCount = icProp.GetInt32();
-                        }
-                        catch { imageCount = CountImages(dir); }
-                    }
-                    else
-                    {
-                        imageCount = CountImages(dir);
-                        SaveImageCountJson(jsonPath, imageCount);
-                    }
-
-                    listBoxFolders.Items.Add($"{folderName} -[{imageCount}]");
+                    string folderName = Path.GetFileName(path);
+                    listBoxFolders.Items.Add($"{folderName} -[{ic}]");
                 }
 
                 if (folderList.Count > 0)
@@ -423,6 +392,32 @@ namespace MangaViewer
         }
 
         /// <summary>
+        /// フォルダのJSONメタデータを1回のファイルI/Oで読み込む（imageCount, rating）。
+        /// 10,000フォルダ以上のケースでも最小のオーバーヘッドに抑える。
+        /// </summary>
+        private (int imageCount, int rating) ReadFolderJson(string jsonPath)
+        {
+            int imageCount = 0;
+            int rating = -1;
+
+            if (!File.Exists(jsonPath))
+                return (imageCount, rating);
+
+            try
+            {
+                var json = File.ReadAllText(jsonPath);
+                using var doc = JsonDocument.Parse(json);
+                if (doc.RootElement.TryGetProperty("imageCount", out var ic) && ic.ValueKind == JsonValueKind.Number)
+                    imageCount = ic.GetInt32();
+                if (doc.RootElement.TryGetProperty("rating", out var r) && r.ValueKind == JsonValueKind.Number)
+                    rating = r.GetInt32();
+            }
+            catch { }
+
+            return (imageCount, rating);
+        }
+
+        /// <summary>
         /// 画像数を JSON ファイルに保存（{ "imageCount": N }）
         /// </summary>
         private void SaveImageCountJson(string jsonPath, int imageCount)
@@ -445,23 +440,12 @@ namespace MangaViewer
                 string folderName = Path.GetFileName(folderPath);
                 string jsonPath = Path.Combine(folderPath, $"{folderName}.json");
 
-                var obj = new Dictionary<string, object>();
+                // ReadFolderJsonで既存値を1回で取得
+                var (imageCount, _) = ReadFolderJson(jsonPath);
 
-                // 既存のJSONがあれば読み込んでマージ
-                if (File.Exists(jsonPath))
-                {
-                    try
-                    {
-                        var existingJson = File.ReadAllText(jsonPath);
-                        using var doc = JsonDocument.Parse(existingJson);
-                        // Dictionaryに既存プロパティをコピー（画像数など）
-                        if (doc.RootElement.TryGetProperty("imageCount", out var icProp) && icProp.ValueKind == JsonValueKind.Number)
-                            obj["imageCount"] = icProp.GetInt32();
-                    }
-                    catch { }
-                }
-
-                obj["rating"] = rating;
+                var obj = new Dictionary<string, object> { { "rating", rating } };
+                if (imageCount > 0)
+                    obj["imageCount"] = imageCount;
 
                 File.WriteAllText(jsonPath, JsonSerializer.Serialize(obj, new JsonSerializerOptions { WriteIndented = true }));
             }
