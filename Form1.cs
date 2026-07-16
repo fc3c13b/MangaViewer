@@ -1,10 +1,13 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using SkiaSharp;
 
@@ -378,17 +381,18 @@ namespace MangaViewer
         }
 
         /// <summary>
-        /// 指定フォルダ内の画像数をカウント
+        /// 指定フォルダ内の画像数をカウント（1回のディスクI/Oで完了）
         /// </summary>
         private int CountImages(string dir)
         {
-            string[] imgExtensions = { "*.jpg", "*.jpeg", "*.webp", "*.png" };
-            int count = 0;
-            foreach (var ext in imgExtensions)
+            try
             {
-                try { count += Directory.GetFiles(dir, ext, SearchOption.TopDirectoryOnly).Length; } catch { }
+                var extensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".jpg", ".jpeg", ".webp", ".png" };
+                return Directory.EnumerateFiles(dir, "*.*")
+                    .Where(f => extensions.Contains(Path.GetExtension(f)))
+                    .Count();
             }
-            return count;
+            catch { return 0; }
         }
 
         /// <summary>
@@ -557,7 +561,7 @@ namespace MangaViewer
                 using var skPm = skImage.Encode(SKEncodedImageFormat.Png, 100);
                 using var ms = new MemoryStream(skPm.ToArray());
                 currentImage = new Bitmap(ms);
-                
+
                 pb.Image = currentImage;
             }
             catch (OutOfMemoryException)
