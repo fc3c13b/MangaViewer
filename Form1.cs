@@ -15,18 +15,18 @@ namespace MangaViewer
 {
     public partial class Form1 : Form
     {
-        private PictureBox pictureBoxLeft = null!;
-        private PictureBox pictureBoxRight = null!;
+        internal PictureBox pictureBoxLeft = null!;
+        internal PictureBox pictureBoxRight = null!;
         private Panel panelList = null!;
-        private ListBox listBoxFolders = null!;
-        private Label labelInfo = null!;
+        internal ListBox listBoxFolders = null!;
+        internal Label labelInfo = null!;
 
-        private List<string> imagePaths = new List<string>();
-        private int currentIndex = 0;
-        private string currentFolder = "";
+        internal List<string> _imagePaths = new List<string>();
+        internal int _currentIndex = 0;
+        internal string _currentFolder = "";
 
-        private List<string> folderList = new List<string>();
-        private int currentFolderIndex = -1;
+        internal List<string> _folderList = new List<string>();
+        internal int _currentFolderIndex = -1;
 
         private Image? currentImageRight = null;
         private Image? currentImageLeft = null;
@@ -38,12 +38,11 @@ namespace MangaViewer
         private const int RatioLeftImg = 36;
         private const int RatioRightImg = 36;
         private const int RatioList = 28;
-        private const int TotalRatio = RatioLeftImg + RatioRightImg + RatioList;
+        internal const int TotalRatio = RatioLeftImg + RatioRightImg + RatioList;
 
-        private static string SettingsFilePath => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "setting.json");
-
-        private bool minDisplayCountEnabled = false;
-        private int minDisplayCountValue = 20;
+        // 最小表示枚数設定
+        internal bool _minDisplayCountEnabled = false;
+        internal int _minDisplayCountValue = 20;
 
         // 最小評価値（0-10, デフォルト8）
         private int minEvaluationValue = 8;
@@ -52,201 +51,21 @@ namespace MangaViewer
         {
             InitializeComponent();
             this.KeyPreview = true;
-            this.KeyDown += (s, e) => OnKey(e);
+            // KeyDownイベントをKeyboardInputHandlerに委譲
+            this.KeyDown += (s, e) => KeyboardInputHandler.HandleKeyDown(e, this);
 
             listBoxFolders.SelectedIndexChanged += (s, e) =>
             {
-                if (listBoxFolders.SelectedIndex >= 0 && listBoxFolders.SelectedIndex < folderList.Count)
+                if (listBoxFolders.SelectedIndex >= 0 && listBoxFolders.SelectedIndex < _folderList.Count)
                 {
-                    currentFolderIndex = listBoxFolders.SelectedIndex;
-                    LoadAndSortImages(folderList[currentFolderIndex]);
-                    currentIndex = 0;
-                    DisplayTwoImages(currentIndex);
+                    _currentFolderIndex = listBoxFolders.SelectedIndex;
+                    LoadAndSortImages(_folderList[_currentFolderIndex]);
+                    _currentIndex = 0;
+                    DisplayTwoImages(_currentIndex);
                 }
             };
 
             this.Load += (s, e) => RestoreLastRootFolder();
-        }
-
-        private void OnKey(KeyEventArgs e)
-        {
-            if (e.KeyCode == Keys.D0)
-            {
-                // 変更前後で最小表示枚数設定が異なるか判定
-                bool prevEnabled = minDisplayCountEnabled;
-                int prevValue = minDisplayCountValue;
-
-                using (var dialog = new SettingsDialog())
-                {
-                    if (dialog.ShowDialog(this) == DialogResult.OK)
-                    {
-                        LoadSettingsFromFile();
-
-                        // 最小表示枚数設定が変更された場合はフォルダリストを再フィルタ
-                        if (minDisplayCountEnabled != prevEnabled || minDisplayCountValue != prevValue)
-                        {
-                            string rootPath = GetRootFolder();
-                            BuildSubfolderList(rootPath);
-
-                            // 現在のフォルダが新しいリストに含まれているか確認
-                            int newIdx = -1;
-                            for (int i = 0; i < folderList.Count; i++)
-                            {
-                                if (folderList[i] == currentFolder)
-                                { newIdx = i; break; }
-                            }
-
-                            if (newIdx >= 0)
-                            {
-                                // 現在のフォルダがフィルタに一致：表示状態を維持
-                                currentFolderIndex = newIdx;
-                                listBoxFolders.SelectedIndex = newIdx;
-                            }
-                            else
-                            {
-                                // 現在のフォルダがフィルタ外になった：最初のフォルダを選択
-                                if (folderList.Count > 0)
-                                {
-                                    currentFolderIndex = 0;
-                                    LoadAndSortImages(folderList[0]);
-                                    currentIndex = 0;
-                                    DisplayTwoImages(0);
-                                    listBoxFolders.SelectedIndex = 0;
-                                }
-                                else
-                                {
-                                    folderList.Clear();
-                                    currentFolderIndex = -1;
-                                    pictureBoxRight.Image = null;
-                                    pictureBoxLeft.Image = null;
-                                    labelInfo.Text = "表示可能なフォルダがありません。";
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            else if (e.KeyCode == Keys.D1)
-            {
-                using (var dialog = new FolderBrowserDialog())
-                {
-                    if (dialog.ShowDialog() == DialogResult.OK)
-                    {
-                        string rootPath = dialog.SelectedPath;
-                        SaveRootFolder(rootPath);
-                        BuildSubfolderList(rootPath);
-                        if (folderList.Count > 0)
-                        {
-                            currentFolderIndex = 0;
-                            LoadAndSortImages(folderList[currentFolderIndex]);
-                        }
-                        else
-                        {
-                            folderList.Clear();
-                            currentFolderIndex = -1;
-                            LoadAndSortImages(rootPath);
-                        }
-                        currentIndex = 0;
-                        DisplayTwoImages(currentIndex);
-                        listBoxFolders.SelectedIndex = currentFolderIndex;
-                    }
-                }
-            }
-            else if (e.KeyCode == Keys.Right)
-            {
-                if (imagePaths.Count >= 2)
-                {
-                    currentIndex -= 2;
-                    if (currentIndex < 0) currentIndex = 0;
-                    DisplayTwoImages(currentIndex);
-                }
-            }
-            else if (e.KeyCode == Keys.Left)
-            {
-                if (imagePaths.Count >= 2)
-                {
-                    currentIndex += 2;
-                    int maxIndex = imagePaths.Count - (imagePaths.Count % 2 == 0 ? 2 : 1);
-                    if (currentIndex > maxIndex) currentIndex = maxIndex;
-                    DisplayTwoImages(currentIndex);
-                }
-                else if (imagePaths.Count == 1) { DisplayTwoImages(0); }
-            }
-            // Ctrl + テンキーで評価値保存（画像表示中のみ）
-            else if ((Control.ModifierKeys & Keys.Control) != 0 && imagePaths.Count > 0)
-            {
-                int rating = e.KeyCode switch
-                {
-                    Keys.NumPad0 => 0,
-                    Keys.NumPad1 => 1,
-                    Keys.NumPad2 => 2,
-                    Keys.NumPad3 => 3,
-                    Keys.NumPad4 => 4,
-                    Keys.NumPad5 => 5,
-                    Keys.NumPad6 => 6,
-                    Keys.NumPad7 => 7,
-                    Keys.NumPad8 => 8,
-                    Keys.NumPad9 => 9,
-                    Keys.Add => 10,    // テンキー +
-                    Keys.Subtract => -1, // テンキー -
-                    _ => int.MinValue   // 無効なキー
-                };
-
-                if (rating != int.MinValue)
-                {
-                    e.Handled = true;
-                    SaveRatingToFolder(currentFolder, rating);
-                }
-            }
-            else if (e.KeyCode == Keys.Up && folderList.Count > 0)
-            {
-                e.Handled = true;
-                if (currentFolderIndex > 0)
-                {
-                    currentFolderIndex--;
-                    LoadAndSortImages(folderList[currentFolderIndex]);
-                    currentIndex = 0;
-                    DisplayTwoImages(currentIndex);
-                    listBoxFolders.SetSelected(currentFolderIndex, true);
-                }
-            }
-            else if (e.KeyCode == Keys.Down && folderList.Count > 0)
-            {
-                e.Handled = true;
-                if (currentFolderIndex < folderList.Count - 1)
-                {
-                    currentFolderIndex++;
-                    LoadAndSortImages(folderList[currentFolderIndex]);
-                    currentIndex = 0;
-                    DisplayTwoImages(currentIndex);
-                    listBoxFolders.SetSelected(currentFolderIndex, true);
-                }
-            }
-        }
-
-        private void LoadSettingsFromFile()
-        {
-            if (!File.Exists(SettingsFilePath)) return;
-            try
-            {
-                var json = File.ReadAllText(SettingsFilePath);
-                using var doc = JsonDocument.Parse(json);
-                if (doc.RootElement.TryGetProperty("MinDisplayCountEnabled", out var enabledProp))
-                {
-                    try { minDisplayCountEnabled = enabledProp.GetBoolean(); } catch { }
-                }
-                if (doc.RootElement.TryGetProperty("MinDisplayCount", out var countProp) && countProp.ValueKind == JsonValueKind.Number)
-                {
-                    int val = countProp.GetInt32();
-                    if (val >= 2 && val <= 100) minDisplayCountValue = val;
-                }
-                if (doc.RootElement.TryGetProperty("MinEvaluation", out var evalProp) && evalProp.ValueKind == JsonValueKind.Number)
-                {
-                    int val = evalProp.GetInt32();
-                    if (val >= 0 && val <= 10) minEvaluationValue = val;
-                }
-            }
-            catch { }
         }
 
         private void RestoreLastRootFolder()
@@ -268,26 +87,26 @@ namespace MangaViewer
             if (string.IsNullOrEmpty(rootPath) || !Directory.Exists(rootPath)) return;
 
             BuildSubfolderList(rootPath);
-            if (folderList.Count > 0)
+            if (_folderList.Count > 0)
             {
-                currentFolderIndex = 0;
-                LoadAndSortImages(folderList[currentFolderIndex]);
+                _currentFolderIndex = 0;
+                LoadAndSortImages(_folderList[_currentFolderIndex]);
             }
             else
             {
-                folderList.Clear();
-                currentFolderIndex = -1;
+                _folderList.Clear();
+                _currentFolderIndex = -1;
                 LoadAndSortImages(rootPath);
             }
-            currentIndex = 0;
-            DisplayTwoImages(currentIndex);
-            listBoxFolders.SelectedIndex = currentFolderIndex;
+            _currentIndex = 0;
+            DisplayTwoImages(_currentIndex);
+            listBoxFolders.SelectedIndex = _currentFolderIndex;
         }
 
         /// <summary>
         /// 最後のルートフォルダを setting.json から取得
         /// </summary>
-        private string GetRootFolder()
+        internal string GetRootFolder()
         {
             try
             {
@@ -303,7 +122,7 @@ namespace MangaViewer
             return Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
         }
 
-        private void SaveRootFolder(string rootPath)
+        internal void SaveRootFolder(string rootPath)
         {
             try
             {
@@ -326,10 +145,10 @@ namespace MangaViewer
             } catch { }
         }
 
-        private void BuildSubfolderList(string rootPath)
+        internal void BuildSubfolderList(string rootPath)
         {
-            folderList.Clear();
-            currentFolderIndex = -1;
+            _folderList.Clear();
+            _currentFolderIndex = -1;
 
             // UIに「読込中」メッセージを表示し、画面を更新
             labelInfo.Text = "フォルダ一覧を読み込み中...";
@@ -347,7 +166,6 @@ namespace MangaViewer
 
                 // 第一段階: JSONキャッシュからimageCountを一括取得
                 var cacheResult = new Dictionary<string, int>();
-                var toCount = new List<(string dir, string jsonPath)>();
 
                 foreach (var dir in sorted)
                 {
@@ -361,22 +179,10 @@ namespace MangaViewer
                     }
                     else
                     {
-                        toCount.Add((dir, jsonPath));
-                    }
-                }
-
-                // 第二段階: キャッシュ未存在のフォルダをPLINQで並列カウント
-                if (toCount.Count > 0)
-                {
-                    var results = toCount.AsParallel()
-                        .WithDegreeOfParallelism(Environment.ProcessorCount)
-                        .Select(item => new { item.dir, item.jsonPath, Count = CountImages(item.dir) })
-                        .ToList();
-
-                    foreach (var r in results)
-                    {
-                        cacheResult[r.dir] = r.Count;
-                        SaveImageCountJson(r.jsonPath, r.Count);
+                        // キャッシュ未存在の場合は直接カウント
+                        int count = CountImages(dir);
+                        cacheResult[dir] = count;
+                        SaveImageCountJson(jsonPath, count);
                     }
                 }
 
@@ -387,10 +193,10 @@ namespace MangaViewer
                 {
                     int ic = cacheResult.TryGetValue(dir, out var v) ? v : 0;
 
-                    // フィルタ基準未満のフォルダは除外
-                    if (ic < minDisplayCountValue) continue;
+                    // フィルタ基準未満のフォルダは除外（有効な場合のみ）
+                    if (_minDisplayCountEnabled && ic < _minDisplayCountValue) continue;
 
-                    folderList.Add(dir);
+                    _folderList.Add(dir);
                     folderData.Add((dir, ic));
                 }
 
@@ -403,16 +209,16 @@ namespace MangaViewer
                     listBoxFolders.Items.Add($"{folderName} -[{ic}]");
                 }
 
-                if (folderList.Count > 0)
+                if (_folderList.Count > 0)
                 {
                     listBoxFolders.SelectedIndex = 0;
-                    currentFolderIndex = 0;
+                    _currentFolderIndex = 0;
                 }
             }
-            catch 
-            { 
-                folderList.Clear(); 
-                currentFolderIndex = -1; 
+            catch
+            {
+                _folderList.Clear();
+                _currentFolderIndex = -1;
             }
             finally
             {
@@ -439,7 +245,6 @@ namespace MangaViewer
 
         /// <summary>
         /// フォルダのJSONメタデータを1回のファイルI/Oで読み込む（imageCount, rating）。
-        /// 10,000フォルダ以上のケースでも最小のオーバーヘッドに抑える。
         /// </summary>
         private (int imageCount, int rating) ReadFolderJson(string jsonPath)
         {
@@ -479,7 +284,7 @@ namespace MangaViewer
         /// <summary>
         /// フォルダの評価値を JSON ファイルに保存（既存のJSONにratingを追加・更新）
         /// </summary>
-        private void SaveRatingToFolder(string folderPath, int rating)
+        internal void SaveRatingToFolder(string folderPath, int rating)
         {
             try
             {
@@ -494,6 +299,31 @@ namespace MangaViewer
                     obj["imageCount"] = imageCount;
 
                 File.WriteAllText(jsonPath, JsonSerializer.Serialize(obj, new JsonSerializerOptions { WriteIndented = true }));
+            }
+            catch { }
+        }
+
+        internal void LoadSettingsFromFile()
+        {
+            if (!File.Exists(SettingsFilePath)) return;
+            try
+            {
+                var json = File.ReadAllText(SettingsFilePath);
+                using var doc = JsonDocument.Parse(json);
+                if (doc.RootElement.TryGetProperty("MinDisplayCountEnabled", out var enabledProp))
+                {
+                    try { _minDisplayCountEnabled = enabledProp.GetBoolean(); } catch { }
+                }
+                if (doc.RootElement.TryGetProperty("MinDisplayCount", out var countProp) && countProp.ValueKind == JsonValueKind.Number)
+                {
+                    int val = countProp.GetInt32();
+                    if (val >= 2 && val <= 100) _minDisplayCountValue = val;
+                }
+                if (doc.RootElement.TryGetProperty("MinEvaluation", out var evalProp) && evalProp.ValueKind == JsonValueKind.Number)
+                {
+                    int val = evalProp.GetInt32();
+                    if (val >= 0 && val <= 10) minEvaluationValue = val;
+                }
             }
             catch { }
         }
@@ -529,17 +359,17 @@ namespace MangaViewer
             this.Resize += (s, e) => UpdateLayout();
         }
 
-        private void LoadAndSortImages(string folderPath)
+        internal void LoadAndSortImages(string folderPath)
         {
-            currentFolder = folderPath;
-            imagePaths.Clear();
+            _currentFolder = folderPath;
+            _imagePaths.Clear();
             string[] extensions = { "*.jpg", "*.jpeg", "*.webp", "*.png" };
             var allFiles = new List<string>();
             foreach (var ext in extensions)
             {
                 try { allFiles.AddRange(Directory.GetFiles(folderPath, ext, SearchOption.TopDirectoryOnly)); } catch { }
             }
-            imagePaths = allFiles.OrderBy(f => ExtractNumberFromFileName(f)).ToList();
+            _imagePaths = allFiles.OrderBy(f => ExtractNumberFromFileName(f)).ToList();
         }
 
         private int ExtractNumberFromFileName(string filePath)
@@ -550,41 +380,41 @@ namespace MangaViewer
             return 0;
         }
 
-        private void DisplayTwoImages(int startIndex)
+        internal void DisplayTwoImages(int startIndex)
         {
-            if (imagePaths.Count == 0)
+            if (_imagePaths.Count == 0)
             { pictureBoxRight.Image = null; pictureBoxLeft.Image = null; labelInfo.Text = "表示可能な画像がありません。"; return; }
 
-            LoadImageIntoPictureBox(pictureBoxRight, ref currentImageRight, startIndex < imagePaths.Count ? imagePaths[startIndex] : null);
-            LoadImageIntoPictureBox(pictureBoxLeft, ref currentImageLeft, (startIndex + 1) < imagePaths.Count ? imagePaths[startIndex + 1] : null);
+            LoadImageIntoPictureBox(pictureBoxRight, ref currentImageRight, startIndex < _imagePaths.Count ? _imagePaths[startIndex] : null);
+            LoadImageIntoPictureBox(pictureBoxLeft, ref currentImageLeft, (startIndex + 1) < _imagePaths.Count ? _imagePaths[startIndex + 1] : null);
             UpdateInfoLabel(startIndex);
 
             // Preload next 2 images into cache in background
             int nextIdx = startIndex + 2;
             int nextNextIdx = startIndex + 3;
-            if (nextIdx < imagePaths.Count || nextNextIdx < imagePaths.Count)
+            if (nextIdx < _imagePaths.Count || nextNextIdx < _imagePaths.Count)
             {
                 Task.Run(() =>
                 {
-                    if (nextIdx < imagePaths.Count) LoadOrGetCachedImage(imagePaths[nextIdx]);
-                    if (nextNextIdx < imagePaths.Count) LoadOrGetCachedImage(imagePaths[nextNextIdx]);
+                    if (nextIdx < _imagePaths.Count) LoadOrGetCachedImage(_imagePaths[nextIdx]);
+                    if (nextNextIdx < _imagePaths.Count) LoadOrGetCachedImage(_imagePaths[nextNextIdx]);
                 });
             }
         }
 
         private void UpdateInfoLabel(int startIndex)
         {
-            if (imagePaths.Count == 0) return;
-            int rightPageNum = ExtractNumberFromFileName(imagePaths[startIndex]);
+            if (_imagePaths.Count == 0) return;
+            int rightPageNum = ExtractNumberFromFileName(_imagePaths[startIndex]);
             int spreadIndex = startIndex / 2 + 1;
-            int totalSpreads = (imagePaths.Count + 1) / 2;
-            string folderName = Path.GetFileName(currentFolder);
+            int totalSpreads = (_imagePaths.Count + 1) / 2;
+            string folderName = Path.GetFileName(_currentFolder);
             string folderInfo = !string.IsNullOrEmpty(folderName) ? $"[{folderName}] " : "";
-            string folderIndexInfo = folderList.Count > 1 ? $"{currentFolderIndex + 1}/{folderList.Count}話 " : "";
+            string folderIndexInfo = _folderList.Count > 1 ? $"{_currentFolderIndex + 1}/{_folderList.Count}話 " : "";
 
-            if (startIndex + 1 < imagePaths.Count)
+            if (startIndex + 1 < _imagePaths.Count)
             {
-                int leftPageNum = ExtractNumberFromFileName(imagePaths[startIndex + 1]);
+                int leftPageNum = ExtractNumberFromFileName(_imagePaths[startIndex + 1]);
                 labelInfo.Text = folderInfo + folderIndexInfo + $"右: {rightPageNum} | 左: {leftPageNum} | {spreadIndex}/{totalSpreads} ページ組";
             }
             else
@@ -697,5 +527,7 @@ namespace MangaViewer
             if (currentImageLeft != null) { currentImageLeft.Dispose(); currentImageLeft = null; }
             base.OnFormClosing(e);
         }
+
+        private static string SettingsFilePath => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "setting.json");
     }
 }
