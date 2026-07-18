@@ -47,6 +47,13 @@ namespace MangaViewer
 
         #endregion
 
+        #region バージョン
+
+        /// <summary>アプリケーションバージョン（一か所管理）</summary>
+        public const string AppVersion = "Ver3.7.1";
+
+        #endregion
+
         #region 拡張子フィルタ
 
         /// <summary>サポートする画像ファイルの拡張子</summary>

@@ -132,7 +132,7 @@ namespace MangaViewer
             // バージョン表示ラベル
             labelVersion = new Label
             {
-                Text = $"アプリバージョン: {Program.AppVersion}",
+                Text = $"アプリバージョン: {Constants.AppVersion}",
                 AutoSize = true,
                 ForeColor = Color.LightGray,
                 Font = new System.Drawing.Font("Meiryo UI", 10F),
