@@ -93,6 +93,14 @@ namespace MangaViewer
             // キーボード入力処理の設定
             this.KeyPreview = true;
             this.KeyDown += (s, e) => KeyboardInputHandler.HandleKeyDown(e, this);
+            
+            // PreviewKeyDown で矢印キーを IsInputKey に設定し、OSのキーリピート遅延を回避
+            this.PreviewKeyDown += (s, e) =>
+            {
+                if (e.KeyCode == Keys.Up || e.KeyCode == Keys.Down ||
+                    e.KeyCode == Keys.Left || e.KeyCode == Keys.Right)
+                    e.IsInputKey = true;
+            };
         }
 
         private void Form1_Load(object? sender, EventArgs e)
