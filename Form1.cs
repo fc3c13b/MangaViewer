@@ -152,7 +152,9 @@ namespace MangaViewer
                 {
                     _folderList.Add(entry.Path);
                     string folderName = Path.GetFileName(entry.Path);
-                    listBoxFolders.Items.Add($"{folderName} -[{entry.ImageCount}]");
+                    int rating = RatingService.ReadRating(entry.Path);
+                    string ratingPrefix = rating >= 0 ? $"[{rating}] " : "";
+                    listBoxFolders.Items.Add($"{ratingPrefix}{folderName} -[{entry.ImageCount}]");
                 }
 
                 if (_folderList.Count > 0)
