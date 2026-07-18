@@ -83,6 +83,11 @@ namespace MangaViewer
         private readonly ImageService _imageService = new ImageService();
 
         /// <summary>
+        /// Folder service for folder scanning, filtering, and cache management.
+        /// </summary>
+        private FolderService? _folderService;
+
+        /// <summary>
         /// Constructor for Form1. Initializes components and subscribes to Load event.
         /// </summary>
         public Form1()
@@ -133,21 +138,21 @@ namespace MangaViewer
             Application.DoEvents();
 
             _settings = SettingsManager.Load();
-            var folderService = new FolderService(_settings);
+            _folderService = new FolderService(_settings);
 
             try
             {
-                _folderList = folderService.BuildSubfolderList(rootPath);
-
-                // ListBox 表示用データ作成
-                var folderData = folderService.GetFolderDisplayData(rootPath);
-
+                // BuildFolderIndex を1回だけ呼び出し、_folderList と ListBox表示を同時更新
+                var entries = _folderService.BuildFolderIndex(rootPath);
+                _folderList.Clear();
                 listBoxFolders.DataSource = null;
                 listBoxFolders.Items.Clear();
-                foreach (var (fp, ic) in folderData)
+
+                foreach (var entry in entries)
                 {
-                    string folderName = Path.GetFileName(fp);
-                    listBoxFolders.Items.Add($"{folderName} -[{ic}]");
+                    _folderList.Add(entry.Path);
+                    string folderName = Path.GetFileName(entry.Path);
+                    listBoxFolders.Items.Add($"{folderName} -[{entry.ImageCount}]");
                 }
 
                 if (_folderList.Count > 0)
@@ -172,8 +177,9 @@ namespace MangaViewer
         internal void LoadAndSortImages(string folderPath)
         {
             _currentFolder = folderPath;
-            var folderService = new FolderService(_settings);
-            _imagePaths = folderService.LoadAndSortImages(folderPath);
+            if (_folderService == null)
+                _folderService = new FolderService(_settings);
+            _imagePaths = _folderService.LoadAndSortImages(folderPath);
         }
 
         private void InitializeComponent()

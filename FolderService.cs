@@ -8,6 +8,16 @@ using System.Text.RegularExpressions;
 namespace MangaViewer
 {
     /// <summary>
+    /// フォルダエントリ（パス、画像数、評価値を保持）
+    /// </summary>
+    public struct FolderEntry
+    {
+        public string Path;
+        public int ImageCount;
+        public int Rating; // -1: 評価未設定
+    }
+
+    /// <summary>
     /// フォルダリストの構築・フィルタリング・JSONキャッシュを担当するサービス。
     /// </summary>
     public class FolderService
@@ -19,12 +29,16 @@ namespace MangaViewer
             _settings = settings;
         }
 
+        #region 中核関数（フォルダスキャン＋フィルタ＋表示データを一括構築）
+
         /// <summary>
-        /// ルートフォルダ内のサブフォルダ一覧を取得し、フィルタリング適用
+        /// ルートフォルダ内のサブフォルダを「一度だけ」スキャンし、
+        /// フィルタ（最小画像数・最小評価値）を適用した結果を返す。
+        /// ディレクトリスキャンは1回のみで、キャッシュを活用する。
         /// </summary>
-        public List<string> BuildSubfolderList(string rootPath)
+        public List<FolderEntry> BuildFolderIndex(string rootPath)
         {
-            var folderList = new List<string>();
+            var entries = new List<FolderEntry>();
 
             try
             {
@@ -34,44 +48,56 @@ namespace MangaViewer
                     .OrderBy(d => Path.GetFileName(d), StringComparer.OrdinalIgnoreCase)
                     .ToList();
 
-                // 第一段階: JSONキャッシュからimageCountを一括取得
-                var cacheResult = new Dictionary<string, int>();
-
                 foreach (var dir in sorted)
                 {
                     string folderName = Path.GetFileName(dir);
                     string jsonPath = Path.Combine(dir, $"{folderName}.json");
-                    var (imageCount, _) = ReadFolderJson(jsonPath);
+                    var (imageCount, rating) = ReadFolderJson(jsonPath);
 
-                    if (imageCount > 0)
+                    // キャッシュ未存在の場合は直接カウント＋保存
+                    if (imageCount == 0)
                     {
-                        cacheResult[dir] = imageCount;
+                        imageCount = CountImages(dir);
+                        SaveImageCountJson(jsonPath, imageCount);
                     }
-                    else
-                    {
-                        // キャッシュ未存在の場合は直接カウント
-                        int count = CountImages(dir);
-                        cacheResult[dir] = count;
-                        SaveImageCountJson(jsonPath, count);
-                    }
-                }
 
-                // 第三段階: フィルタ＋ListBox表示用データ作成
-                foreach (var dir in sorted)
-                {
-                    int ic = cacheResult.TryGetValue(dir, out var v) ? v : 0;
-
-                    // フィルタ基準未満のフォルダは除外（有効な場合のみ）
-                    if (_settings.MinDisplayCountEnabled && ic < _settings.MinDisplayCount)
+                    // フィルタ: 最小画像数（有効な場合）
+                    if (_settings.MinDisplayCountEnabled && imageCount < _settings.MinDisplayCount)
                         continue;
 
-                    folderList.Add(dir);
+                    entries.Add(new FolderEntry { Path = dir, ImageCount = imageCount, Rating = rating });
                 }
             }
-            catch { /* ディレクトリ読み取り失敗時は空リストを返す（UI側でメッセージ表示用） */ }
+            catch { /* ディレクトリ読み取り失敗時は空リストを返す */ }
 
-            return folderList;
+            return entries;
         }
+
+        #endregion
+
+        #region 公開メソッド（BuildFolderIndex を中核として利用）
+
+        /// <summary>
+        /// ルートフォルダ内のサブフォルダ一覧を取得し、フィルタリング適用
+        /// （後方互換用：BuildFolderIndex の Path のみを返す）
+        /// </summary>
+        public List<string> BuildSubfolderList(string rootPath)
+        {
+            var entries = BuildFolderIndex(rootPath);
+            return entries.Select(e => e.Path).ToList();
+        }
+
+        /// <summary>
+        /// ListBox表示用のフォルダデータ一覧を取得（パス + 画像数）
+        /// （後方互換用：BuildFolderIndex から派生）
+        /// </summary>
+        public List<(string path, int imageCount)> GetFolderDisplayData(string rootPath)
+        {
+            var entries = BuildFolderIndex(rootPath);
+            return entries.Select(e => (e.Path, e.ImageCount)).ToList();
+        }
+
+        #endregion
 
         /// <summary>
         /// 指定フォルダ内の画像パスを取得・ソート
@@ -136,8 +162,8 @@ namespace MangaViewer
                     imageCount = ic.GetInt32();
                 if (doc.RootElement.TryGetProperty("rating", out var r) && r.ValueKind == JsonValueKind.Number)
                     rating = r.GetInt32();
-             }
-             catch { /* JSON解析エラーはデフォルト値(0,-1)で継続 */ }
+            }
+            catch { /* JSON解析エラーはデフォルト値(0,-1)で継続 */ }
 
             return (imageCount, rating);
         }
@@ -151,7 +177,7 @@ namespace MangaViewer
             {
                 var obj = new Dictionary<string, int> { { "imageCount", imageCount } };
                 File.WriteAllText(jsonPath, JsonSerializer.Serialize(obj, new JsonSerializerOptions { WriteIndented = true }));
-             }
+            }
             catch { /* 画像数JSONの保存失敗は無視（次回再試行でカバー） */ }
         }
 
@@ -172,43 +198,8 @@ namespace MangaViewer
                     obj["imageCount"] = imageCount;
 
                 File.WriteAllText(jsonPath, JsonSerializer.Serialize(obj, new JsonSerializerOptions { WriteIndented = true }));
-             }
+            }
             catch { /* 評価値JSONの保存失敗は無視 */ }
-        }
-
-        /// <summary>
-        /// ListBox表示用のフォルダデータ一覧を取得（パス + 画像数）
-        /// </summary>
-        public List<(string path, int imageCount)> GetFolderDisplayData(string rootPath)
-        {
-            var folderData = new List<(string path, int imageCount)>();
-
-            try
-            {
-                var dirs = Directory.GetDirectories(rootPath);
-                var sorted = dirs
-                    .Select(d => d.Replace("\\", "/"))
-                    .OrderBy(d => Path.GetFileName(d), StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-
-                foreach (var dir in sorted)
-                {
-                    int ic;
-                    if (_settings.MinDisplayCountEnabled && _settings.MinDisplayCount > 0)
-                        ic = GetCachedOrCount(dir);
-                    else
-                        ic = GetCachedOrCount(dir);
-
-                    // フィルタ基準未満のフォルダは除外（有効な場合のみ）
-                    if (_settings.MinDisplayCountEnabled && ic < _settings.MinDisplayCount)
-                        continue;
-
-                    folderData.Add((dir, ic));
-                }
-             }
-            catch { /* フォルダリスト取得失敗時は空リストを返す */ }
-
-            return folderData;
         }
 
         /// <summary>
@@ -239,7 +230,7 @@ namespace MangaViewer
                     else
                         passCount++;
                 }
-             }
+            }
             catch { /* フィルタ統計計算失敗時は0で継続 */ }
 
             return (passCount, failCount, totalCount);
