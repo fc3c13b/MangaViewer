@@ -335,8 +335,8 @@ namespace MangaViewer
 
         public void ShowSettingsDialog()
         {
-            bool prevEnabled = _settings.MinDisplayCountEnabled;
-            int prevValue = _settings.MinDisplayCount;
+            int prevMinDisplayCount = _settings.MinDisplayCount;
+            int prevMinEvaluation = _settings.MinEvaluation;
 
             using (var dialog = new SettingsDialog())
             {
@@ -344,8 +344,8 @@ namespace MangaViewer
                 {
                     _settings = SettingsManager.Load();
 
-                    // 最小表示枚数設定が変更された場合はフォルダリストを再フィルタ
-                    if (_settings.MinDisplayCountEnabled != prevEnabled || _settings.MinDisplayCount != prevValue)
+                    // 最小表示枚数または最小評価値が変更された場合はフォルダリストを再フィルタ
+                    if (_settings.MinDisplayCount != prevMinDisplayCount || _settings.MinEvaluation != prevMinEvaluation)
                     {
                         string rootPath = string.IsNullOrEmpty(_settings.LastRootFolder)
                             ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)

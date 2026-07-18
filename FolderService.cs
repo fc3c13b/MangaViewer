@@ -61,8 +61,8 @@ namespace MangaViewer
                         SaveImageCountJson(jsonPath, imageCount);
                     }
 
-                    // フィルタ: 最小画像数（有効な場合）
-                    if (_settings.MinDisplayCountEnabled && imageCount < _settings.MinDisplayCount)
+                    // フィルタ: 最小画像数（MinDisplayCount > 0 の場合に有効）
+                    if (_settings.MinDisplayCount > 0 && imageCount < _settings.MinDisplayCount)
                         continue;
 
                     // フィルタ: 最小評価値（MinEvaluation > 0 の場合に有効）
@@ -230,7 +230,7 @@ namespace MangaViewer
 
                     totalCount++;
 
-                    if (_settings.MinDisplayCountEnabled && imageCount < _settings.MinDisplayCount)
+                    if (_settings.MinDisplayCount > 0 && imageCount < _settings.MinDisplayCount)
                         failCount++;
                     else
                         passCount++;
