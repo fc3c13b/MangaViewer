@@ -20,16 +20,16 @@ namespace MangaViewer
         }
 
         /// <summary>
-        /// ルートフォルダのサブフォルダを取得し、最小表示枚数でフィルタリング。
+        /// ルートフォルダ内のサブフォルダ一覧を取得し、フィルタリング適用
         /// </summary>
         public List<string> BuildSubfolderList(string rootPath)
         {
-            var dirs = new List<string>();
-            
+            var folderList = new List<string>();
+
             try
             {
-                var allDirs = Directory.GetDirectories(rootPath);
-                var sorted = allDirs
+                var dirs = Directory.GetDirectories(rootPath);
+                var sorted = dirs
                     .Select(d => d.Replace("\\", "/"))
                     .OrderBy(d => Path.GetFileName(d), StringComparer.OrdinalIgnoreCase)
                     .ToList();
@@ -56,58 +56,21 @@ namespace MangaViewer
                     }
                 }
 
-                // 第二段階: フィルタ適用＋結果作成
+                // 第三段階: フィルタ＋ListBox表示用データ作成
                 foreach (var dir in sorted)
                 {
                     int ic = cacheResult.TryGetValue(dir, out var v) ? v : 0;
 
                     // フィルタ基準未満のフォルダは除外（有効な場合のみ）
-                    if (_settings.MinDisplayCountEnabled && ic < _settings.MinDisplayCount) continue;
+                    if (_settings.MinDisplayCountEnabled && ic < _settings.MinDisplayCount)
+                        continue;
 
-                    dirs.Add(dir);
+                    folderList.Add(dir);
                 }
             }
-            catch { /* エラー時は空リストを返す */ }
+            catch { }
 
-            return dirs;
-        }
-
-        /// <summary>
-        /// フォルダ表示用のデータを作成（フォルダ名 + 画像数）
-        /// </summary>
-        public List<(string path, int imageCount)> GetFolderDisplayData(string rootPath)
-        {
-            var result = new List<(string path, int imageCount)>();
-
-            try
-            {
-                var dirs = Directory.GetDirectories(rootPath);
-                var sorted = dirs
-                    .Select(d => d.Replace("\\", "/"))
-                    .OrderBy(d => Path.GetFileName(d), StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-
-                foreach (var dir in sorted)
-                {
-                    string folderName = Path.GetFileName(dir);
-                    string jsonPath = Path.Combine(dir, $"{folderName}.json");
-                    var (imageCount, _) = ReadFolderJson(jsonPath);
-
-                    if (imageCount == 0)
-                    {
-                        imageCount = CountImages(dir);
-                        SaveImageCountJson(jsonPath, imageCount);
-                    }
-
-                    // フィルタ基準未満のフォルダは除外（有効な場合のみ）
-                    if (_settings.MinDisplayCountEnabled && imageCount < _settings.MinDisplayCount) continue;
-
-                    result.Add((dir, imageCount));
-                }
-            }
-            catch { /* エラー時は空リストを返す */ }
-
-            return result;
+            return folderList;
         }
 
         /// <summary>
@@ -116,7 +79,7 @@ namespace MangaViewer
         public List<string> LoadAndSortImages(string folderPath)
         {
             var imagePaths = new List<string>();
-            
+
             string[] extensions = { "*.jpg", "*.jpeg", "*.webp", "*.png" };
             var allFiles = new List<string>();
             foreach (var ext in extensions)
@@ -211,6 +174,89 @@ namespace MangaViewer
                 File.WriteAllText(jsonPath, JsonSerializer.Serialize(obj, new JsonSerializerOptions { WriteIndented = true }));
             }
             catch { }
+        }
+
+        /// <summary>
+        /// ListBox表示用のフォルダデータ一覧を取得（パス + 画像数）
+        /// </summary>
+        public List<(string path, int imageCount)> GetFolderDisplayData(string rootPath)
+        {
+            var folderData = new List<(string path, int imageCount)>();
+
+            try
+            {
+                var dirs = Directory.GetDirectories(rootPath);
+                var sorted = dirs
+                    .Select(d => d.Replace("\\", "/"))
+                    .OrderBy(d => Path.GetFileName(d), StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                foreach (var dir in sorted)
+                {
+                    int ic;
+                    if (_settings.MinDisplayCountEnabled && _settings.MinDisplayCount > 0)
+                        ic = GetCachedOrCount(dir);
+                    else
+                        ic = GetCachedOrCount(dir);
+
+                    // フィルタ基準未満のフォルダは除外（有効な場合のみ）
+                    if (_settings.MinDisplayCountEnabled && ic < _settings.MinDisplayCount)
+                        continue;
+
+                    folderData.Add((dir, ic));
+                }
+            }
+            catch { }
+
+            return folderData;
+        }
+
+        /// <summary>
+        /// フィルタ統計情報を計算（合计数、不합계数、总数）
+        /// </summary>
+        public (int passCount, int failCount, int totalCount) ComputeFilterStats(string rootPath)
+        {
+            int passCount = 0;
+            int failCount = 0;
+            int totalCount = 0;
+
+            try
+            {
+                var dirs = Directory.GetDirectories(rootPath);
+                foreach (var dir in dirs)
+                {
+                    string folderName = Path.GetFileName(dir);
+                    string jsonPath = Path.Combine(dir, $"{folderName}.json");
+                    var (imageCount, _) = ReadFolderJson(jsonPath);
+
+                    if (imageCount == 0)
+                        imageCount = GetCachedOrCount(dir);
+
+                    totalCount++;
+
+                    if (_settings.MinDisplayCountEnabled && imageCount < _settings.MinDisplayCount)
+                        failCount++;
+                    else
+                        passCount++;
+                }
+            }
+            catch { }
+
+            return (passCount, failCount, totalCount);
+        }
+
+        private int GetCachedOrCount(string dir)
+        {
+            string folderName = Path.GetFileName(dir);
+            string jsonPath = Path.Combine(dir, $"{folderName}.json");
+            var (imageCount, _) = ReadFolderJson(jsonPath);
+
+            if (imageCount > 0)
+                return imageCount;
+
+            int count = CountImages(dir);
+            SaveImageCountJson(jsonPath, count);
+            return count;
         }
     }
 }

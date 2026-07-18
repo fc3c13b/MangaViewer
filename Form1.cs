@@ -6,57 +6,92 @@ using System.Windows.Forms;
 
 namespace MangaViewer
 {
-    public partial class Form1 : Form
+    /// <summary>
+    /// The main form for the Manga Viewer application.
+    /// Implements <see cref="INavigationActions"/> for navigation actions.
+    /// </summary>
+    public partial class Form1 : Form, INavigationActions
     {
+        /// <summary>
+        /// PictureBox to display the left manga image.
+        /// </summary>
         internal PictureBox pictureBoxLeft = null!;
+
+        /// <summary>
+        /// PictureBox to display the right manga image.
+        /// </summary>
         internal PictureBox pictureBoxRight = null!;
+
+        /// <summary>
+        /// Panel containing folder list and other controls.
+        /// </summary>
         private Panel panelList = null!;
+
+        /// <summary>
+        /// ListBox to display the list of folders.
+        /// </summary>
         internal ListBox listBoxFolders = null!;
+
+        /// <summary>
+        /// Label to display information about the current folder and image.
+        /// </summary>
         internal Label labelInfo = null!;
 
+        /// <summary>
+        /// List of image paths in the current folder.
+        /// </summary>
         internal List<string> _imagePaths = new List<string>();
+
+        /// <summary>
+        /// Index of the currently displayed image.
+        /// </summary>
         internal int _currentIndex = 0;
+
+        /// <summary>
+        /// Path to the current folder being viewed.
+        /// </summary>
         internal string _currentFolder = "";
 
+        /// <summary>
+        /// List of folders containing manga images.
+        /// </summary>
         internal List<string> _folderList = new List<string>();
+
+        /// <summary>
+        /// Index of the currently selected folder in listBoxFolders.
+        /// </summary>
         internal int _currentFolderIndex = -1;
 
+        /// <summary>
+        /// The image currently displayed on pictureBoxRight.
+        /// </summary>
         private Image? currentImageRight = null;
+
+        /// <summary>
+        /// The image currently displayed on pictureBoxLeft.
+        /// </summary>
         private Image? currentImageLeft = null;
 
-        // Services
-        internal ImageService _imageService = new ImageService();
+        /// <summary>
+        /// Settings instance for configuration management.
+        /// </summary>
+        private Settings _settings = new Settings();
 
-        private const int RatioLeftImg = 36;
-        private const int RatioRightImg = 36;
-        private const int RatioList = 28;
-        internal const int TotalRatio = RatioLeftImg + RatioRightImg + RatioList;
+        /// <summary>
+        /// Image service for loading and caching images.
+        /// </summary>
+        private readonly ImageService _imageService = new ImageService();
 
-        // アプリケーション設定
-        internal Settings _settings = new Settings();
-
+        /// <summary>
+        /// Constructor for Form1. Initializes components and subscribes to Load event.
+        /// </summary>
         public Form1()
         {
             InitializeComponent();
-            this.KeyPreview = true;
-            // KeyDownイベントをKeyboardInputHandlerに委譲
-            this.KeyDown += (s, e) => KeyboardInputHandler.HandleKeyDown(e, this);
-
-            listBoxFolders.SelectedIndexChanged += (s, e) =>
-            {
-                if (listBoxFolders.SelectedIndex >= 0 && listBoxFolders.SelectedIndex < _folderList.Count)
-                {
-                    _currentFolderIndex = listBoxFolders.SelectedIndex;
-                    LoadAndSortImages(_folderList[_currentFolderIndex]);
-                    _currentIndex = 0;
-                    DisplayTwoImages(_currentIndex);
-                }
-            };
-
-            this.Load += (s, e) => RestoreLastRootFolder();
+            this.Load += Form1_Load;
         }
 
-        private void RestoreLastRootFolder()
+        private void Form1_Load(object? sender, EventArgs e)
         {
             _settings = SettingsManager.Load();
 
@@ -64,23 +99,16 @@ namespace MangaViewer
                 ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
                 : _settings.LastRootFolder;
 
-            if (!Directory.Exists(rootPath)) return;
-
             BuildSubfolderList(rootPath);
+
             if (_folderList.Count > 0)
             {
                 _currentFolderIndex = 0;
-                LoadAndSortImages(_folderList[_currentFolderIndex]);
+                LoadAndSortImages(_folderList[0]);
+                _currentIndex = 0;
+                DisplayTwoImages(0);
+                listBoxFolders.SelectedIndex = 0;
             }
-            else
-            {
-                _folderList.Clear();
-                _currentFolderIndex = -1;
-                LoadAndSortImages(rootPath);
-            }
-            _currentIndex = 0;
-            DisplayTwoImages(_currentIndex);
-            listBoxFolders.SelectedIndex = _currentFolderIndex;
         }
 
         internal void BuildSubfolderList(string rootPath)
@@ -104,9 +132,9 @@ namespace MangaViewer
 
                 listBoxFolders.DataSource = null;
                 listBoxFolders.Items.Clear();
-                foreach (var (path, ic) in folderData)
+                foreach (var (fp, ic) in folderData)
                 {
-                    string folderName = Path.GetFileName(path);
+                    string folderName = Path.GetFileName(fp);
                     listBoxFolders.Items.Add($"{folderName} -[{ic}]");
                 }
 
@@ -136,13 +164,12 @@ namespace MangaViewer
             _imagePaths = folderService.LoadAndSortImages(folderPath);
         }
 
-
         private void InitializeComponent()
         {
-            this.Text = "Manga Viewer";
+            this.Text = Constants.AppTitle;
             this.StartPosition = FormStartPosition.CenterScreen;
-            this.Size = new Size(1400, 800);
-            this.MinimumSize = new Size(900, 600);
+            this.Size = new Size(Constants.InitialWidth, Constants.InitialHeight);
+            this.MinimumSize = new Size(Constants.MinWidth, Constants.MinHeight);
             this.BackColor = Color.Black;
 
             pictureBoxRight = new PictureBox { SizeMode = PictureBoxSizeMode.Zoom, BackColor = Color.Black };
@@ -260,8 +287,8 @@ namespace MangaViewer
             int clientHeight = this.ClientSize.Height;
             int gap = 2;
 
-            int leftImgW = (int)((double)(clientWidth * RatioLeftImg) / TotalRatio);
-            int rightImgW = (int)((double)(clientWidth * RatioRightImg) / TotalRatio);
+            int leftImgW = (int)((double)(clientWidth * Constants.RatioLeftImg) / Constants.TotalRatio);
+            int rightImgW = (int)((double)(clientWidth * Constants.RatioRightImg) / Constants.TotalRatio);
             int listW = clientWidth - leftImgW - rightImgW;
             int height = clientHeight - 30;
 
@@ -281,5 +308,139 @@ namespace MangaViewer
             if (currentImageLeft != null) { currentImageLeft.Dispose(); currentImageLeft = null; }
             base.OnFormClosing(e);
         }
+
+        #region INavigationActions インターフェースの実装
+
+        public int ImageCount => _imagePaths.Count;
+        public int FolderListCount => _folderList.Count;
+        public string CurrentFolder => _currentFolder;
+
+        public void ShowSettingsDialog()
+        {
+            bool prevEnabled = _settings.MinDisplayCountEnabled;
+            int prevValue = _settings.MinDisplayCount;
+
+            using (var dialog = new SettingsDialog())
+            {
+                if (dialog.ShowDialog(this) == DialogResult.OK)
+                {
+                    _settings = SettingsManager.Load();
+
+                    // 最小表示枚数設定が変更された場合はフォルダリストを再フィルタ
+                    if (_settings.MinDisplayCountEnabled != prevEnabled || _settings.MinDisplayCount != prevValue)
+                    {
+                        string rootPath = string.IsNullOrEmpty(_settings.LastRootFolder)
+                            ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
+                            : _settings.LastRootFolder;
+                        BuildSubfolderList(rootPath);
+
+                        // 現在のフォルダが新しいリストに含まれているか確認
+                        int newIdx = -1;
+                        for (int i = 0; i < _folderList.Count; i++)
+                        {
+                            if (_folderList[i] == _currentFolder) { newIdx = i; break; }
+                        }
+
+                        if (newIdx >= 0)
+                        {
+                            _currentFolderIndex = newIdx;
+                            listBoxFolders.SelectedIndex = newIdx;
+                        }
+                        else
+                        {
+                            if (_folderList.Count > 0)
+                            {
+                                _currentFolderIndex = 0;
+                                LoadAndSortImages(_folderList[0]);
+                                _currentIndex = 0;
+                                DisplayTwoImages(0);
+                                listBoxFolders.SelectedIndex = 0;
+                            }
+                            else
+                            {
+                                _folderList.Clear();
+                                _currentFolderIndex = -1;
+                                pictureBoxRight.Image = null;
+                                pictureBoxLeft.Image = null;
+                                labelInfo.Text = "表示可能なフォルダがありません。";
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        public void ChangeRootFolder(string rootPath)
+        {
+            _settings.LastRootFolder = rootPath;
+            SettingsManager.Save(_settings);
+            BuildSubfolderList(rootPath);
+
+            if (_folderList.Count > 0)
+            {
+                _currentFolderIndex = 0;
+                LoadAndSortImages(_folderList[_currentFolderIndex]);
+            }
+            else
+            {
+                _folderList.Clear();
+                _currentFolderIndex = -1;
+                LoadAndSortImages(rootPath);
+            }
+            _currentIndex = 0;
+            DisplayTwoImages(_currentIndex);
+            listBoxFolders.SelectedIndex = _currentFolderIndex;
+        }
+
+        public void NavigateBackwardTwoPages()
+        {
+            if (_imagePaths.Count >= 2)
+            {
+                _currentIndex -= 2;
+                if (_currentIndex < 0) _currentIndex = 0;
+                DisplayTwoImages(_currentIndex);
+            }
+        }
+
+        public void NavigateForwardTwoPages()
+        {
+            if (_imagePaths.Count >= 2)
+            {
+                _currentIndex += 2;
+                int maxIndex = _imagePaths.Count - (_imagePaths.Count % 2 == 0 ? 2 : 1);
+                if (_currentIndex > maxIndex) _currentIndex = maxIndex;
+                DisplayTwoImages(_currentIndex);
+            }
+            else if (_imagePaths.Count == 1)
+            {
+                DisplayTwoImages(0);
+            }
+        }
+
+        public void NavigateFolderUp()
+        {
+            if (_currentFolderIndex > 0)
+            {
+                _currentFolderIndex--;
+                LoadAndSortImages(_folderList[_currentFolderIndex]);
+                _currentIndex = 0;
+                DisplayTwoImages(_currentIndex);
+                listBoxFolders.SetSelected(_currentFolderIndex, true);
+            }
+        }
+
+        public void NavigateFolderDown()
+        {
+            if (_currentFolderIndex < _folderList.Count - 1)
+            {
+                _currentFolderIndex++;
+                LoadAndSortImages(_folderList[_currentFolderIndex]);
+                _currentIndex = 0;
+                DisplayTwoImages(_currentIndex);
+                listBoxFolders.SetSelected(_currentFolderIndex, true);
+            }
+        }
+
+        #endregion
     }
 }
