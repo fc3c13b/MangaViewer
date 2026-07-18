@@ -65,6 +65,11 @@ namespace MangaViewer
                     if (_settings.MinDisplayCountEnabled && imageCount < _settings.MinDisplayCount)
                         continue;
 
+                    // フィルタ: 最小評価値（MinEvaluation > 0 の場合に有効）
+                    // rating == -1（未設定）または < 0 は通過する
+                    if (_settings.MinEvaluation > 0 && rating >= 0 && rating < _settings.MinEvaluation)
+                        continue;
+
                     entries.Add(new FolderEntry { Path = dir, ImageCount = imageCount, Rating = rating });
                 }
             }
@@ -270,14 +275,11 @@ namespace MangaViewer
                     string jsonPath = Path.Combine(dir, $"{folderName}.json");
                     var (imageCount, rating) = ReadFolderJson(jsonPath);
 
+                    // キャッシュ未存在の場合はカウント＋保存
                     if (imageCount == 0)
-                        imageCount = GetCachedOrCount(dir);
-
-                    // JSON に評価値がない場合は再読み込み（最新値を取得）
-                    if (rating < 0)
                     {
-                        var (_, r2) = ReadFolderJson(jsonPath);
-                        rating = r2;
+                        imageCount = CountImages(dir);
+                        SaveImageCountJson(jsonPath, imageCount);
                     }
 
                     totalCount++;
@@ -287,14 +289,15 @@ namespace MangaViewer
                         continue;
                     imagePassCount++;
 
-                    // 2段目：評価フィルター（minRating == 0 は無効）
+                    // 2段目：評価フィルター（minRating <= 0 は無効）
+                    // rating == -1（未設定）または < 0 は通過する
                     if (minRating <= 0)
                     {
                         ratingPassCount++;
                         continue;
                     }
-                    double evalValue = rating >= 0 ? rating : 0;
-                    if (evalValue < minRating)
+                    // rating >= 0 で且つ rating < minRating の場合のみ除外
+                    if (rating >= 0 && rating < minRating)
                         continue;
                     ratingPassCount++;
                 }
