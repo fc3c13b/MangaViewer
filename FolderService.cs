@@ -68,7 +68,7 @@ namespace MangaViewer
                     folderList.Add(dir);
                 }
             }
-            catch { }
+            catch { /* ディレクトリ読み取り失敗時は空リストを返す（UI側でメッセージ表示用） */ }
 
             return folderList;
         }
@@ -84,7 +84,7 @@ namespace MangaViewer
             var allFiles = new List<string>();
             foreach (var ext in extensions)
             {
-                try { allFiles.AddRange(Directory.GetFiles(folderPath, ext, SearchOption.TopDirectoryOnly)); } catch { }
+                try { allFiles.AddRange(Directory.GetFiles(folderPath, ext, SearchOption.TopDirectoryOnly)); } catch { /* 拡張子ごとのファイル取得は失敗しても他の拡張子は続行 */ }
             }
             imagePaths = allFiles.OrderBy(f => ExtractNumberFromFileName(f)).ToList();
 
@@ -114,7 +114,7 @@ namespace MangaViewer
                     .Where(f => extensions.Contains(Path.GetExtension(f)))
                     .Count();
             }
-            catch { return 0; }
+            catch { return 0; } /* カウント失敗時は0を返す（フォルダアクセス権限なしなど） */
         }
 
         /// <summary>
@@ -136,8 +136,8 @@ namespace MangaViewer
                     imageCount = ic.GetInt32();
                 if (doc.RootElement.TryGetProperty("rating", out var r) && r.ValueKind == JsonValueKind.Number)
                     rating = r.GetInt32();
-            }
-            catch { }
+             }
+             catch { /* JSON解析エラーはデフォルト値(0,-1)で継続 */ }
 
             return (imageCount, rating);
         }
@@ -151,8 +151,8 @@ namespace MangaViewer
             {
                 var obj = new Dictionary<string, int> { { "imageCount", imageCount } };
                 File.WriteAllText(jsonPath, JsonSerializer.Serialize(obj, new JsonSerializerOptions { WriteIndented = true }));
-            }
-            catch { }
+             }
+            catch { /* 画像数JSONの保存失敗は無視（次回再試行でカバー） */ }
         }
 
         /// <summary>
@@ -172,8 +172,8 @@ namespace MangaViewer
                     obj["imageCount"] = imageCount;
 
                 File.WriteAllText(jsonPath, JsonSerializer.Serialize(obj, new JsonSerializerOptions { WriteIndented = true }));
-            }
-            catch { }
+             }
+            catch { /* 評価値JSONの保存失敗は無視 */ }
         }
 
         /// <summary>
@@ -205,8 +205,8 @@ namespace MangaViewer
 
                     folderData.Add((dir, ic));
                 }
-            }
-            catch { }
+             }
+            catch { /* フォルダリスト取得失敗時は空リストを返す */ }
 
             return folderData;
         }
@@ -239,8 +239,8 @@ namespace MangaViewer
                     else
                         passCount++;
                 }
-            }
-            catch { }
+             }
+            catch { /* フィルタ統計計算失敗時は0で継続 */ }
 
             return (passCount, failCount, totalCount);
         }
