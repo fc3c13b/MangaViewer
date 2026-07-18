@@ -89,6 +89,10 @@ namespace MangaViewer
         {
             InitializeComponent();
             this.Load += Form1_Load;
+            
+            // キーボード入力処理の設定
+            this.KeyPreview = true;
+            this.KeyDown += (s, e) => KeyboardInputHandler.HandleKeyDown(e, this);
         }
 
         private void Form1_Load(object? sender, EventArgs e)
