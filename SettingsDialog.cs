@@ -26,6 +26,15 @@ namespace MangaViewer
         private NumericUpDown numMinEvaluation = null!;
         private Label labelMinEvaluation = null!;
 
+        // フィルター統計表示ラベル
+        private Label lblImageFilterStats = null!;
+        private Label lblRatingFilterStats = null!;
+
+        // ルートフォルダパス（統計計算用）
+        private string RootFolder => GetRootFolder();
+
+        private FolderService _folderService = null!;
+
         // 設定ファイルパス（Form1 と共通）
         private static string SettingsFilePath => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "setting.json");
 
@@ -45,6 +54,7 @@ namespace MangaViewer
 
         public SettingsDialog()
         {
+            _folderService = new FolderService(new Settings());
             InitializeComponent();
         }
 
@@ -105,6 +115,17 @@ namespace MangaViewer
             };
             this.Controls.Add(labelMinDisplayUnit);
 
+            // 最小画像数フィルター統計ラベル（「枚」の右隣）
+            lblImageFilterStats = new Label
+            {
+                Text = "",
+                AutoSize = true,
+                ForeColor = Color.Cyan,
+                Font = new System.Drawing.Font("Meiryo UI", 9F),
+                Location = new System.Drawing.Point(270, 60),
+            };
+            this.Controls.Add(lblImageFilterStats);
+
             // 最小評価値 ラベル
             labelMinEvaluation = new Label
             {
@@ -128,6 +149,17 @@ namespace MangaViewer
                 ForeColor = Color.White,
             };
             this.Controls.Add(numMinEvaluation);
+
+            // 最小評価値フィルター統計ラベル（numMinEvaluation の右隣）
+            lblRatingFilterStats = new Label
+            {
+                Text = "",
+                AutoSize = true,
+                ForeColor = Color.Cyan,
+                Font = new System.Drawing.Font("Meiryo UI", 9F),
+                Location = new System.Drawing.Point(270, 100),
+            };
+            this.Controls.Add(lblRatingFilterStats);
 
             // バージョン表示ラベル
             labelVersion = new Label
@@ -164,8 +196,50 @@ namespace MangaViewer
             this.AcceptButton = btnOk;
             this.CancelButton = btnCancel;
 
+            // ValueChanged イベントでリアルタイム統計更新
+            numMinDisplayCount.ValueChanged += (_, __) => UpdateFilterStats();
+            numMinEvaluation.ValueChanged += (_, __) => UpdateFilterStats();
+
             // 起動時に設定値を読み込む
             LoadSettings();
+        }
+
+        private string GetRootFolder()
+        {
+            try
+            {
+                if (File.Exists(SettingsFilePath))
+                {
+                    var json = File.ReadAllText(SettingsFilePath);
+                    using var doc = JsonDocument.Parse(json);
+                    if (doc.RootElement.TryGetProperty("LastRootFolder", out var prop)
+                        && prop.ValueKind == JsonValueKind.String)
+                    {
+                        string path = prop.ToString();
+                        if (!string.IsNullOrEmpty(path) && Directory.Exists(path))
+                            return path;
+                    }
+                }
+            }
+            catch { /* ルートフォルダ取得失敗時はデフォルトにフォールバック */ }
+            // デフォルト: MyDocuments フォルダ
+            return Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+        }
+
+        /// <summary>
+        /// フィルター統計を更新してUIに表示（非同期で軽量計算）
+        /// </summary>
+        private void UpdateFilterStats()
+        {
+            string root = RootFolder;
+            int minImages = (int)numMinDisplayCount.Value;
+            int minRating = (int)numMinEvaluation.Value;
+
+            // UI スレッドで即座に計算（フォルダ数が多い場合は非同期検討）
+            var (imagePass, total, ratingPass) = _folderService.ComputeDisplayStats(root, minImages, minRating);
+
+            lblImageFilterStats.Text = $"[{imagePass}/{total}]";
+            lblRatingFilterStats.Text = $"[{ratingPass}/{imagePass}]";
         }
 
         /// <summary>
@@ -221,9 +295,12 @@ namespace MangaViewer
                 SaveSettingsToFile(DefaultMinDisplayCount, DefaultMinEvaluation);
             }
 
-            // UI に反映
+            // UI に反映（ValueChanged イベントでUpdateFilterStats が自動呼び出される）
             numMinDisplayCount.Value = count;
             numMinEvaluation.Value = minEval;
+
+            // 設定読み込み後に統計を表示
+            UpdateFilterStats();
         }
 
         /// <summary>

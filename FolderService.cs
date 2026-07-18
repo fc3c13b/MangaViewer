@@ -249,5 +249,59 @@ namespace MangaViewer
             SaveImageCountJson(jsonPath, count);
             return count;
         }
+
+        /// <summary>
+        /// SettingsDialog で使用。指定されたパラメータで2段階フィルタ統計を計算。
+        /// 戻り値：(画像数フィルター通過数, 総フォルダ数, 評価フィルター通過数)
+        /// 評価フィルターは画像数フィルターを通ったフォルダのみを対象とする。
+        /// </summary>
+        public (int imagePassCount, int totalCount, int ratingPassCount) ComputeDisplayStats(string rootPath, int minImages, int minRating)
+        {
+            int imagePassCount = 0;
+            int totalCount = 0;
+            int ratingPassCount = 0;
+
+            try
+            {
+                var dirs = Directory.GetDirectories(rootPath);
+                foreach (var dir in dirs)
+                {
+                    string folderName = Path.GetFileName(dir);
+                    string jsonPath = Path.Combine(dir, $"{folderName}.json");
+                    var (imageCount, rating) = ReadFolderJson(jsonPath);
+
+                    if (imageCount == 0)
+                        imageCount = GetCachedOrCount(dir);
+
+                    // JSON に評価値がない場合は再読み込み（最新値を取得）
+                    if (rating < 0)
+                    {
+                        var (_, r2) = ReadFolderJson(jsonPath);
+                        rating = r2;
+                    }
+
+                    totalCount++;
+
+                    // 1段目：画像数フィルター
+                    if (minImages > 0 && imageCount < minImages)
+                        continue;
+                    imagePassCount++;
+
+                    // 2段目：評価フィルター（minRating == 0 は無効）
+                    if (minRating <= 0)
+                    {
+                        ratingPassCount++;
+                        continue;
+                    }
+                    double evalValue = rating >= 0 ? rating : 0;
+                    if (evalValue < minRating)
+                        continue;
+                    ratingPassCount++;
+                }
+            }
+            catch { /* 失敗時は0で継続 */ }
+
+            return (imagePassCount, totalCount, ratingPassCount);
+        }
     }
 }
