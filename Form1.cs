@@ -218,6 +218,7 @@ namespace MangaViewer
         private void UpdateLayout()
         {
             if (panelList == null || labelInfo == null) return;
+            if (_displayManager == null) return;
 
             int clientWidth = this.ClientSize.Width;
             int clientHeight = this.ClientSize.Height;
