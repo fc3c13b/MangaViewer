@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -11,11 +12,18 @@ namespace MangaViewer
 {
     /// <summary>
     /// 画像の読み込み・キャッシュ・リソース管理を担当するサービス。
+    /// LRU（Least Recently Used）方式でキャッシュを管理。
     /// </summary>
     public class ImageService : IDisposable
     {
-        private readonly ConcurrentDictionary<string, Bitmap> _imageCache = new();
+        private readonly ConcurrentDictionary<string, CacheEntry> _imageCache = new();
         private bool _disposed = false;
+
+        private struct CacheEntry
+        {
+            public Bitmap Bitmap;
+            public DateTime LastAccessed;
+        }
 
         /// <summary>
         /// WebP 拡張子のリスト（SkiaSharp でデコードが必要な形式）。
@@ -29,10 +37,12 @@ namespace MangaViewer
         {
             if (_disposed) throw new ObjectDisposedException(nameof(ImageService));
 
-            // Cache hit: return cloned bitmap for display (使い回し用コピー)
-            if (_imageCache.TryGetValue(imagePath, out var cached))
+            // Cache hit: return cloned bitmap, update access time
+            if (_imageCache.TryGetValue(imagePath, out var entry))
             {
-                return new Bitmap(cached);
+                entry.LastAccessed = DateTime.UtcNow;
+                _imageCache[imagePath] = entry;
+                return new Bitmap(entry.Bitmap);
             }
 
             Bitmap bitmap;
@@ -40,7 +50,6 @@ namespace MangaViewer
 
             if (WebpExtensions.Contains(ext))
             {
-                // WebP は GDI+ でサポートされていないため、SkiaSharp でデコード
 #if USE_SKIA
                 try
                 {
@@ -64,7 +73,6 @@ namespace MangaViewer
             }
             else
             {
-                // JPEG / PNG など: GDI+ で直接デコード（ファイルロック回避のため MemoryStream 経由）
                 try
                 {
                     var bytes = File.ReadAllBytes(imagePath);
@@ -77,16 +85,37 @@ namespace MangaViewer
                 }
             }
 
-            // Store in cache (evict if full)
-            if (_imageCache.Count >= Constants.MaxCacheSize)
+            // Evict LRU entry if cache is full
+            EnsureCacheSpace();
+
+            _imageCache[imagePath] = new CacheEntry
             {
-                string? oldestKey = _imageCache.Keys.FirstOrDefault();
-                if (oldestKey != null && _imageCache.TryRemove(oldestKey, out var oldBitmap))
-                    oldBitmap.Dispose();
-            }
-            _imageCache[imagePath] = new Bitmap(bitmap);
+                Bitmap = new Bitmap(bitmap),
+                LastAccessed = DateTime.UtcNow
+            };
 
             return bitmap;
+        }
+
+        /// <summary>
+        /// キャッシュが一杯の場合、最も長くアクセスされていない画像を削除。
+        /// </summary>
+        private void EnsureCacheSpace()
+        {
+            while (_imageCache.Count >= Constants.MaxCacheSize)
+            {
+                // Find the least recently used entry
+                var oldestKey = _imageCache.Keys
+                    .OrderBy(k => _imageCache[k].LastAccessed)
+                    .FirstOrDefault();
+
+                if (oldestKey == null) break;
+
+                if (_imageCache.TryRemove(oldestKey, out var oldEntry))
+                {
+                    oldEntry.Bitmap.Dispose();
+                }
+            }
         }
 
         /// <summary>
@@ -94,8 +123,8 @@ namespace MangaViewer
         /// </summary>
         public void ClearCache()
         {
-            foreach (var bmp in _imageCache.Values)
-                bmp.Dispose();
+            foreach (var entry in _imageCache.Values)
+                entry.Bitmap.Dispose();
             _imageCache.Clear();
         }
 

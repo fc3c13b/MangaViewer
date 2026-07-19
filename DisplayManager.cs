@@ -112,8 +112,8 @@ namespace MangaViewer
                 LoadImageIntoPictureBox(pictureBoxes[i], ref currentImages![i], imagePath);
             }
 
-            // Preload next batch into cache
-            int prefetchCount = count;
+            // Preload next batch into cache (16枚先読み)
+            const int prefetchCount = 16;
             int nextIdx = startIndex + count;
             if (nextIdx < ImagePaths.Count)
             {
@@ -208,7 +208,7 @@ namespace MangaViewer
             int gap = 2;
             int count = DisplayCount;
 
-            double imageAreaRatio, _;
+            double imageAreaRatio;
             if (count == 2)
             {
                 imageAreaRatio = (double)(Constants.RatioLeftImg + Constants.RatioRightImg) / Constants.TotalRatio;
