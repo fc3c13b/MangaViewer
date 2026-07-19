@@ -12,6 +12,7 @@ namespace MangaViewer
         void NavigateForwardTwoPages();
         void NavigateFolderUp();
         void NavigateFolderDown();
+        void NavigateToNextUnrated();
         int ImageCount { get; }
         int FolderListCount { get; }
         string CurrentFolder { get; }

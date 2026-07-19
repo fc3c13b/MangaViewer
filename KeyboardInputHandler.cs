@@ -86,6 +86,7 @@ namespace MangaViewer
             {
                 e.Handled = true;
                 RatingService.SaveRating(nav.CurrentFolder, rating);
+                nav.NavigateToNextUnrated();
             }
         }
     }

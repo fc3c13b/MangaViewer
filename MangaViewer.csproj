@@ -5,9 +5,10 @@
     <TargetFramework>net8.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
-<Version>3.7.1</Version>
-<AssemblyVersion>3.7.1</AssemblyVersion>
-<FileVersion>3.7.1</FileVersion>
+    <DefineConstants>USE_SKIA</DefineConstants>
+<Version>3.7.2</Version>
+<AssemblyVersion>3.7.2</AssemblyVersion>
+<FileVersion>3.7.2</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>

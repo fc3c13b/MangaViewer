@@ -224,15 +224,15 @@ namespace MangaViewer
             LoadImageIntoPictureBox(pictureBoxLeft, ref currentImageLeft, (startIndex + 1) < _imagePaths.Count ? _imagePaths[startIndex + 1] : null);
             UpdateInfoLabel(startIndex);
 
-            // Preload next 2 images into cache in background
+            // Preload next 4 images into cache in background (prefetch count increased for faster page-turning)
+            int prefetchCount = 4;
             int nextIdx = startIndex + 2;
-            int nextNextIdx = startIndex + 3;
-            if (nextIdx < _imagePaths.Count || nextNextIdx < _imagePaths.Count)
+            if (nextIdx < _imagePaths.Count)
             {
                 System.Threading.Tasks.Task.Run(() =>
                 {
-                    if (nextIdx < _imagePaths.Count) _imageService.LoadOrGetCachedImage(_imagePaths[nextIdx]);
-                    if (nextNextIdx < _imagePaths.Count) _imageService.LoadOrGetCachedImage(_imagePaths[nextNextIdx]);
+                    for (int i = 0; i < prefetchCount && (nextIdx + i) < _imagePaths.Count; i++)
+                        _imageService.LoadOrGetCachedImage(_imagePaths[nextIdx + i]);
                 });
             }
         }
@@ -459,6 +459,24 @@ namespace MangaViewer
                 DisplayTwoImages(_currentIndex);
                 listBoxFolders.SetSelected(_currentFolderIndex, true);
             }
+        }
+
+        public void NavigateToNextUnrated()
+        {
+            // 先頭から未評価（rating == -1）のフォルダを探す
+            for (int i = 0; i < _folderList.Count; i++)
+            {
+                if (RatingService.ReadRating(_folderList[i]) == -1)
+                {
+                    _currentFolderIndex = i;
+                    LoadAndSortImages(_folderList[i]);
+                    _currentIndex = 0;
+                    DisplayTwoImages(0);
+                    listBoxFolders.SelectedIndex = i;
+                    return;
+                }
+            }
+            // 未評価のフォルダが存在しない場合は何もしない
         }
 
         #endregion
