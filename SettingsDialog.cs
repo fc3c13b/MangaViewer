@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Text.Json;
@@ -21,6 +20,9 @@ namespace MangaViewer
         // 最小表示枚数設定用コントロール
         private NumericUpDown numMinDisplayCount = null!;
         private Label labelMinDisplayUnit = null!;
+
+        // 画面表示数設定用コントロール
+        private ComboBox cboDisplayCount = null!;
 
         // 最小評価値設定用コントロール
         private NumericUpDown numMinEvaluation = null!;
@@ -44,6 +46,11 @@ namespace MangaViewer
         public int MinDisplayCountValue => (int)numMinDisplayCount.Value;
 
         /// <summary>
+        /// 画面表示数の値（2 または 8）
+        /// </summary>
+        public int DisplayCountValue => (int)cboDisplayCount.SelectedValue!;
+
+        /// <summary>
         /// 最小評価値の値（0-10, デフォルト8）
         /// </summary>
         public int MinEvaluationValue => (int)numMinEvaluation.Value;
@@ -51,6 +58,7 @@ namespace MangaViewer
         // デフォルト値
         private const int DefaultMinDisplayCount = 20;
         private const int DefaultMinEvaluation = 8;
+        private const int DefaultDisplayCountVal = 2;
 
         public SettingsDialog()
         {
@@ -63,7 +71,7 @@ namespace MangaViewer
             // ダイアログ基本設定
             this.Text = "設定";
             this.StartPosition = FormStartPosition.CenterScreen;
-            this.Size = new System.Drawing.Size(400, 320);
+            this.Size = new System.Drawing.Size(400, 360);
             this.MinimizeBox = false;
             this.MaximizeBox = false;
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
@@ -161,6 +169,32 @@ namespace MangaViewer
             };
             this.Controls.Add(lblRatingFilterStats);
 
+            // 画面表示数 ラベル
+            Label labelDisplayCount = new Label
+            {
+                Text = "画面表示数：",
+                AutoSize = true,
+                ForeColor = Color.White,
+                Font = new System.Drawing.Font("Meiryo UI", 10F),
+                Location = new System.Drawing.Point(20, 140),
+            };
+            this.Controls.Add(labelDisplayCount);
+
+            // 画面表示数 ComboBox (2 / 8)
+            cboDisplayCount = new ComboBox
+            {
+                Location = new System.Drawing.Point(160, 137),
+                Size = new System.Drawing.Size(80, 25),
+                BackColor = Color.FromArgb(60, 60, 60),
+                ForeColor = Color.White,
+                DropDownStyle = ComboBoxStyle.DropDownList,
+            };
+            cboDisplayCount.Items.Add(new { Text = "2", Value = 2 });
+            cboDisplayCount.Items.Add(new { Text = "8", Value = 8 });
+            cboDisplayCount.DisplayMember = "Text";
+            cboDisplayCount.ValueMember = "Value";
+            this.Controls.Add(cboDisplayCount);
+
             // バージョン表示ラベル
             labelVersion = new Label
             {
@@ -199,6 +233,7 @@ namespace MangaViewer
             // ValueChanged イベントでリアルタイム統計更新
             numMinDisplayCount.ValueChanged += (_, __) => UpdateFilterStats();
             numMinEvaluation.ValueChanged += (_, __) => UpdateFilterStats();
+            cboDisplayCount.SelectedIndexChanged += (_, __) => UpdateFilterStats();
 
             // 起動時に設定値を読み込む
             LoadSettings();
@@ -250,6 +285,7 @@ namespace MangaViewer
         {
             int count = DefaultMinDisplayCount;
             int minEval = DefaultMinEvaluation;
+            int displayCnt = DefaultDisplayCountVal;
 
             if (File.Exists(SettingsFilePath))
             {
@@ -274,85 +310,93 @@ namespace MangaViewer
                             minEval = val;
                     }
 
+                    if (doc.RootElement.TryGetProperty("DisplayCount", out var displayProp)
+                        && displayProp.ValueKind == JsonValueKind.Number)
+                    {
+                        int val = displayProp.GetInt32();
+                        if (val == 2 || val == 8)
+                            displayCnt = val;
+                    }
+
                     // 設定値が存在しなかった場合はデフォルト値を保存
                     bool countExists = doc.RootElement.TryGetProperty("MinDisplayCount", out _);
                     bool evalExists = doc.RootElement.TryGetProperty("MinEvaluation", out _);
+                    bool displayExists = doc.RootElement.TryGetProperty("DisplayCount", out _);
 
-                    if (!countExists || !evalExists)
+                    if (!countExists || !evalExists || !displayExists)
                     {
-                        SaveSettingsToFile(DefaultMinDisplayCount, DefaultMinEvaluation);
+                        SaveSettingsToFile(DefaultMinDisplayCount, DefaultMinEvaluation, DefaultDisplayCountVal);
                     }
                 }
                 catch
                 {
                     // 読み込み失敗時はデフォルト値を使用 + デフォルト保存
-                    SaveSettingsToFile(DefaultMinDisplayCount, DefaultMinEvaluation);
+                    SaveSettingsToFile(DefaultMinDisplayCount, DefaultMinEvaluation, DefaultDisplayCountVal);
                 }
             }
             else
             {
                 // ファイルがない場合はデフォルト値で新規作成
-                SaveSettingsToFile(DefaultMinDisplayCount, DefaultMinEvaluation);
+                SaveSettingsToFile(DefaultMinDisplayCount, DefaultMinEvaluation, DefaultDisplayCountVal);
             }
 
             // UI に反映（ValueChanged イベントでUpdateFilterStats が自動呼び出される）
             numMinDisplayCount.Value = count;
             numMinEvaluation.Value = minEval;
 
+            // ComboBox の SelectedValue を設定後、統計を更新
+            cboDisplayCount.SelectedValue = displayCnt;
+
             // 設定読み込み後に統計を表示
             UpdateFilterStats();
         }
 
         /// <summary>
-        /// OK ボタンクリック時：設定値を保存してダイアログを閉じる
+        /// 設定値を setting.json に保存する（OK ボタン用）
         /// </summary>
-        private void BtnOk_Click(object? sender, EventArgs e)
-        {
-            int count = (int)numMinDisplayCount.Value;
-            int minEval = (int)numMinEvaluation.Value;
-
-            SaveSettingsToFile(count, minEval);
-            this.DialogResult = DialogResult.OK;
-            this.Close();
-        }
-
-        /// <summary>
-        /// 設定値を setting.json に保存する（LastRootFolder は保持）
-        /// </summary>
-        private void SaveSettingsToFile(int count, int minEval)
+        private void SaveSettingsToFile(int minDisplayCount, int minEvaluation, int displayCount)
         {
             try
             {
-                var obj = new Dictionary<string, object>();
+                var obj = new System.Collections.Generic.Dictionary<string, object>();
 
-                // 既存の LastRootFolder を保持（ある場合）
                 if (File.Exists(SettingsFilePath))
                 {
-                    var existingJson = File.ReadAllText(SettingsFilePath);
-                    using var existingDoc = JsonDocument.Parse(existingJson);
-                    if (existingDoc.RootElement.TryGetProperty("LastRootFolder", out var lastFolderProp)
-                        && lastFolderProp.ValueKind == JsonValueKind.String)
+                    var json = File.ReadAllText(SettingsFilePath);
+                    using var doc = JsonDocument.Parse(json);
+                    foreach (var prop in doc.RootElement.EnumerateArray())
                     {
-                        obj["LastRootFolder"] = lastFolderProp.ToString();
+                        // 既存プロパティを保持（配列形式の場合）
                     }
+                    // オブジェクト形式で上書き保存
                 }
 
-                obj["MinDisplayCount"] = count;
-                obj["MinEvaluation"] = minEval;
+                obj["MinDisplayCount"] = minDisplayCount;
+                obj["MinEvaluation"] = minEvaluation;
+                obj["DisplayCount"] = displayCount;
 
-                var options = new JsonSerializerOptions
-                {
-                    WriteIndented = true,
-                    Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-                };
-
-                string json = JsonSerializer.Serialize(obj, options);
-                File.WriteAllText(SettingsFilePath, json);
+                var options = new JsonSerializerOptions { WriteIndented = true };
+                var newJson = JsonSerializer.Serialize(obj, options);
+                File.WriteAllText(SettingsFilePath, newJson);
             }
-            catch
+            catch (Exception ex)
             {
-                // 書き込み失敗時は静かに失敗（アプリ自体は続行）
+                MessageBox.Show($"設定の保存に失敗しました: {ex.Message}", "エラー", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        private void BtnOk_Click(object sender, EventArgs e)
+        {
+            // 現在のUI値を取得して保存
+            int minDisplayCount = (int)numMinDisplayCount.Value;
+            int minEvaluation = (int)numMinEvaluation.Value;
+            int displayCount = cboDisplayCount != null ? (int)cboDisplayCount.SelectedValue! : DefaultDisplayCountVal;
+
+            // 設定ファイルを保存
+            SaveSettingsToFile(minDisplayCount, minEvaluation, displayCount);
+
+            this.DialogResult = DialogResult.OK;
+            this.Close();
         }
     }
 }

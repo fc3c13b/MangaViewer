@@ -13,14 +13,9 @@ namespace MangaViewer
     public partial class Form1 : Form, INavigationActions
     {
         /// <summary>
-        /// PictureBox to display the left manga image.
+        /// Display manager for dynamic PictureBox array (2 or 8 images)
         /// </summary>
-        internal PictureBox pictureBoxLeft = null!;
-
-        /// <summary>
-        /// PictureBox to display the right manga image.
-        /// </summary>
-        internal PictureBox pictureBoxRight = null!;
+        internal DisplayManager _displayManager = null!;
 
         /// <summary>
         /// Panel containing folder list and other controls.
@@ -63,16 +58,6 @@ namespace MangaViewer
         internal int _currentFolderIndex = -1;
 
         /// <summary>
-        /// The image currently displayed on pictureBoxRight.
-        /// </summary>
-        private Image? currentImageRight = null;
-
-        /// <summary>
-        /// The image currently displayed on pictureBoxLeft.
-        /// </summary>
-        private Image? currentImageLeft = null;
-
-        /// <summary>
         /// Settings instance for configuration management.
         /// </summary>
         private Settings _settings = new Settings();
@@ -111,6 +96,8 @@ namespace MangaViewer
         private void Form1_Load(object? sender, EventArgs e)
         {
             _settings = SettingsManager.Load();
+            _displayManager = new DisplayManager(this, _settings, _imageService);
+            _displayManager.ImagePaths = _imagePaths;
 
             string rootPath = string.IsNullOrEmpty(_settings.LastRootFolder)
                 ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
@@ -122,8 +109,10 @@ namespace MangaViewer
             {
                 _currentFolderIndex = 0;
                 LoadAndSortImages(_folderList[0]);
+                _displayManager.ImagePaths = _imagePaths;
                 _currentIndex = 0;
-                DisplayTwoImages(0);
+                _displayManager.InitializePictureBoxes();
+                _displayManager.DisplayImages(0);
                 listBoxFolders.SelectedIndex = 0;
             }
         }
@@ -134,7 +123,7 @@ namespace MangaViewer
             _currentFolderIndex = -1;
 
             // UIに「読込中」メッセージを表示し、画面を更新
-            labelInfo.Text = "フォルダ一覧を読み込み中...";
+            labelInfo.Text = "フォルダを読み込み中...";
             Application.DoEvents();
 
             _settings = SettingsManager.Load();
@@ -182,6 +171,7 @@ namespace MangaViewer
             if (_folderService == null)
                 _folderService = new FolderService(_settings);
             _imagePaths = _folderService.LoadAndSortImages(folderPath);
+            _displayManager.ImagePaths = _imagePaths;
         }
 
         private void InitializeComponent()
@@ -192,11 +182,8 @@ namespace MangaViewer
             this.MinimumSize = new Size(Constants.MinWidth, Constants.MinHeight);
             this.BackColor = Color.Black;
 
-            pictureBoxRight = new PictureBox { SizeMode = PictureBoxSizeMode.Zoom, BackColor = Color.Black };
-            pictureBoxLeft = new PictureBox { SizeMode = PictureBoxSizeMode.Zoom, BackColor = Color.Black };
-            this.Controls.Add(pictureBoxRight);
-            this.Controls.Add(pictureBoxLeft);
-
+            // PictureBoxes are created dynamically by DisplayManager.InitializePictureBoxes()
+            
             labelInfo = new Label { Text = "フォルダを選択してください (キー1)", AutoSize = true, ForeColor = Color.White, BackColor = Color.FromArgb(64, 64, 64) };
             this.Controls.Add(labelInfo);
 
@@ -215,117 +202,40 @@ namespace MangaViewer
             this.Resize += (s, e) => UpdateLayout();
         }
 
-        internal void DisplayTwoImages(int startIndex)
+        internal void DisplayImages(int startIndex)
         {
-            if (_imagePaths.Count == 0)
-            { pictureBoxRight.Image = null; pictureBoxLeft.Image = null; labelInfo.Text = "表示可能な画像がありません。"; return; }
-
-            LoadImageIntoPictureBox(pictureBoxRight, ref currentImageRight, startIndex < _imagePaths.Count ? _imagePaths[startIndex] : null);
-            LoadImageIntoPictureBox(pictureBoxLeft, ref currentImageLeft, (startIndex + 1) < _imagePaths.Count ? _imagePaths[startIndex + 1] : null);
-            UpdateInfoLabel(startIndex);
-
-            // Preload next 4 images into cache in background (prefetch count increased for faster page-turning)
-            int prefetchCount = 4;
-            int nextIdx = startIndex + 2;
-            if (nextIdx < _imagePaths.Count)
-            {
-                System.Threading.Tasks.Task.Run(() =>
-                {
-                    for (int i = 0; i < prefetchCount && (nextIdx + i) < _imagePaths.Count; i++)
-                        _imageService.LoadOrGetCachedImage(_imagePaths[nextIdx + i]);
-                });
-            }
-        }
-
-        private void UpdateInfoLabel(int startIndex)
-        {
-            if (_imagePaths.Count == 0) return;
-            int rightPageNum = FolderService.ExtractNumberFromFileName(_imagePaths[startIndex]);
-            int spreadIndex = startIndex / 2 + 1;
-            int totalSpreads = (_imagePaths.Count + 1) / 2;
-            string folderName = Path.GetFileName(_currentFolder);
-            string folderInfo = !string.IsNullOrEmpty(folderName) ? $"[{folderName}] " : "";
-            string folderIndexInfo = _folderList.Count > 1 ? $"{_currentFolderIndex + 1}/{_folderList.Count}話 " : "";
-
-            if (startIndex + 1 < _imagePaths.Count)
-            {
-                int leftPageNum = FolderService.ExtractNumberFromFileName(_imagePaths[startIndex + 1]);
-                labelInfo.Text = folderInfo + folderIndexInfo + $"右: {rightPageNum} | 左: {leftPageNum} | {spreadIndex}/{totalSpreads} ページ組";
-            }
+            _displayManager.ImagePaths = _imagePaths;
+            _displayManager.DisplayImages(startIndex);
+            
+            // Update info label using DisplayManager
+            string infoText = _displayManager.GetInfoText(_currentFolder, _currentFolderIndex, _folderList);
+            if (!string.IsNullOrEmpty(infoText))
+                labelInfo.Text = infoText;
             else
-            {
-                labelInfo.Text = folderInfo + folderIndexInfo + $"右: {rightPageNum} | {spreadIndex}/{totalSpreads} ページ組";
-            }
-        }
-
-        private void LoadImageIntoPictureBox(PictureBox pb, ref Image? currentImage, string? imagePath)
-        {
-            if (currentImage != null)
-            {
-                ImageService.DisposeImage(currentImage);
-                currentImage = null;
-            }
-
-            if (string.IsNullOrEmpty(imagePath) || !File.Exists(imagePath))
-            {
-                pb.Image = null;
-                return;
-            }
-
-            try
-            {
-                currentImage = _imageService.LoadOrGetCachedImage(imagePath);
-                pb.Image = currentImage;
-            }
-            catch (OutOfMemoryException)
-            {
-                MessageBox.Show("画像の読み込みに失敗しました:\n" + imagePath, "エラー", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                pb.Image = null;
-                if (currentImage != null)
-                {
-                    ImageService.DisposeImage(currentImage);
-                    currentImage = null;
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("画像の読み込みに失敗しました:\n" + imagePath + "\n\n" + ex.Message, "エラー", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                pb.Image = null;
-                if (currentImage != null)
-                {
-                    ImageService.DisposeImage(currentImage);
-                    currentImage = null;
-                }
-            }
+                labelInfo.Text = "表示可能な画像がありません。";
         }
 
         private void UpdateLayout()
         {
-            if (pictureBoxRight == null || pictureBoxLeft == null || panelList == null || labelInfo == null) return;
+            if (panelList == null || labelInfo == null) return;
 
             int clientWidth = this.ClientSize.Width;
             int clientHeight = this.ClientSize.Height;
-            int gap = 2;
 
-            int leftImgW = (int)((double)(clientWidth * Constants.RatioLeftImg) / Constants.TotalRatio);
-            int rightImgW = (int)((double)(clientWidth * Constants.RatioRightImg) / Constants.TotalRatio);
-            int listW = clientWidth - leftImgW - rightImgW;
-            int height = clientHeight - 30;
+            var bounds = _displayManager.CalculatePictureBoxBounds(clientWidth, clientHeight, out Rectangle listPanelBounds);
+            
+            for (int i = 0; i < _displayManager.pictureBoxes.Length; i++)
+                _displayManager.pictureBoxes[i].Bounds = bounds[i];
 
-            pictureBoxLeft.Bounds = new Rectangle(0, 0, leftImgW - gap, height);
-            pictureBoxRight.Bounds = new Rectangle(leftImgW, 0, rightImgW - gap * 2, height);
-            panelList.Bounds = new Rectangle(leftImgW + rightImgW, 0, listW, clientHeight);
-
+            panelList.Bounds = listPanelBounds;
             if (listBoxFolders != null) { listBoxFolders.Bounds = panelList.ClientRectangle; }
-
             labelInfo.Location = new Point(10, clientHeight - 25);
         }
 
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
             _imageService.Dispose();
-            if (currentImageRight != null) { currentImageRight.Dispose(); currentImageRight = null; }
-            if (currentImageLeft != null) { currentImageLeft.Dispose(); currentImageLeft = null; }
+            _displayManager?.Dispose();
             base.OnFormClosing(e);
         }
 
@@ -337,6 +247,7 @@ namespace MangaViewer
 
         public void ShowSettingsDialog()
         {
+            int prevDisplayCount = _settings.DisplayCount;
             int prevMinDisplayCount = _settings.MinDisplayCount;
             int prevMinEvaluation = _settings.MinEvaluation;
 
@@ -373,18 +284,24 @@ namespace MangaViewer
                                 _currentFolderIndex = 0;
                                 LoadAndSortImages(_folderList[0]);
                                 _currentIndex = 0;
-                                DisplayTwoImages(0);
+                                DisplayImages(0);
                                 listBoxFolders.SelectedIndex = 0;
                             }
                             else
                             {
                                 _folderList.Clear();
                                 _currentFolderIndex = -1;
-                                pictureBoxRight.Image = null;
-                                pictureBoxLeft.Image = null;
                                 labelInfo.Text = "表示可能なフォルダがありません。";
                             }
                         }
+                    }
+
+                    // DisplayCountが変更された場合はPictureBoxを再構築
+                    if (_settings.DisplayCount != prevDisplayCount)
+                    {
+                        _displayManager.InitializePictureBoxes();
+                        _currentIndex = 0;
+                        DisplayImages(0);
                     }
                 }
             }
@@ -408,32 +325,32 @@ namespace MangaViewer
                 LoadAndSortImages(rootPath);
             }
             _currentIndex = 0;
-            DisplayTwoImages(_currentIndex);
+            DisplayImages(_currentIndex);
             listBoxFolders.SelectedIndex = _currentFolderIndex;
         }
 
         public void NavigateBackwardTwoPages()
         {
-            if (_imagePaths.Count >= 2)
+            if (_imagePaths.Count > 0)
             {
-                _currentIndex -= 2;
+                _currentIndex -= _displayManager.NavigationStep;
                 if (_currentIndex < 0) _currentIndex = 0;
-                DisplayTwoImages(_currentIndex);
+                DisplayImages(_currentIndex);
             }
         }
 
         public void NavigateForwardTwoPages()
         {
-            if (_imagePaths.Count >= 2)
+            if (_imagePaths.Count > 0)
             {
-                _currentIndex += 2;
-                int maxIndex = _imagePaths.Count - (_imagePaths.Count % 2 == 0 ? 2 : 1);
+                _currentIndex += _displayManager.NavigationStep;
+                int maxIndex = _imagePaths.Count - (_imagePaths.Count % _displayManager.DisplayCount == 0 ? _displayManager.DisplayCount : 1);
                 if (_currentIndex > maxIndex) _currentIndex = maxIndex;
-                DisplayTwoImages(_currentIndex);
+                DisplayImages(_currentIndex);
             }
             else if (_imagePaths.Count == 1)
             {
-                DisplayTwoImages(0);
+                DisplayImages(0);
             }
         }
 
@@ -444,7 +361,7 @@ namespace MangaViewer
                 _currentFolderIndex--;
                 LoadAndSortImages(_folderList[_currentFolderIndex]);
                 _currentIndex = 0;
-                DisplayTwoImages(_currentIndex);
+                DisplayImages(_currentIndex);
                 listBoxFolders.SetSelected(_currentFolderIndex, true);
             }
         }
@@ -456,7 +373,7 @@ namespace MangaViewer
                 _currentFolderIndex++;
                 LoadAndSortImages(_folderList[_currentFolderIndex]);
                 _currentIndex = 0;
-                DisplayTwoImages(_currentIndex);
+                DisplayImages(_currentIndex);
                 listBoxFolders.SetSelected(_currentFolderIndex, true);
             }
         }
@@ -471,7 +388,7 @@ namespace MangaViewer
                     _currentFolderIndex = i;
                     LoadAndSortImages(_folderList[i]);
                     _currentIndex = 0;
-                    DisplayTwoImages(0);
+                    DisplayImages(0);
                     listBoxFolders.SelectedIndex = i;
                     return;
                 }
