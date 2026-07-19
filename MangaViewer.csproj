@@ -2,13 +2,10 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net8３．.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
     <DefineConstants>USE_SKIA</DefineConstants>
-<Version>3.7.2</Version>
-<AssemblyVersion>3.7.2</AssemblyVersion>
-<FileVersion>3.7.2</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>
