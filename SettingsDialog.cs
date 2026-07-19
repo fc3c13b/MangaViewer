@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Text.Json;
@@ -21,8 +22,9 @@ namespace MangaViewer
         private NumericUpDown numMinDisplayCount = null!;
         private Label labelMinDisplayUnit = null!;
 
-        // 画面表示数設定用コントロール
-        private ComboBox cboDisplayCount = null!;
+        // 画面表示数設定用コントロール（チェックボックス2つで排他選択）
+        private CheckBox cbDisplay2 = null!;
+        private CheckBox cbDisplay8 = null!;
 
         // 最小評価値設定用コントロール
         private NumericUpDown numMinEvaluation = null!;
@@ -48,7 +50,7 @@ namespace MangaViewer
         /// <summary>
         /// 画面表示数の値（2 または 8）
         /// </summary>
-        public int DisplayCountValue => (int)cboDisplayCount.SelectedValue!;
+        public int DisplayCountValue => cbDisplay2.Checked ? 2 : 8;
 
         /// <summary>
         /// 最小評価値の値（0-10, デフォルト8）
@@ -180,20 +182,29 @@ namespace MangaViewer
             };
             this.Controls.Add(labelDisplayCount);
 
-            // 画面表示数 ComboBox (2 / 8)
-            cboDisplayCount = new ComboBox
+            // 画面表示数チェックボックス（2 / 8 排他選択）
+            cbDisplay2 = new CheckBox
             {
+                Text = "2",
                 Location = new System.Drawing.Point(160, 137),
-                Size = new System.Drawing.Size(80, 25),
-                BackColor = Color.FromArgb(60, 60, 60),
+                AutoSize = true,
                 ForeColor = Color.White,
-                DropDownStyle = ComboBoxStyle.DropDownList,
+                BackColor = Color.FromArgb(40, 40, 40),
+                Checked = true, // デフォルトは2
             };
-            cboDisplayCount.Items.Add(new { Text = "2", Value = 2 });
-            cboDisplayCount.Items.Add(new { Text = "8", Value = 8 });
-            cboDisplayCount.DisplayMember = "Text";
-            cboDisplayCount.ValueMember = "Value";
-            this.Controls.Add(cboDisplayCount);
+            cbDisplay2.Click += (s, e) => { if (cbDisplay2.Checked) cbDisplay8.Checked = false; UpdateFilterStats(); };
+            this.Controls.Add(cbDisplay2);
+
+            cbDisplay8 = new CheckBox
+            {
+                Text = "8",
+                Location = new System.Drawing.Point(220, 137),
+                AutoSize = true,
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(40, 40, 40),
+            };
+            cbDisplay8.Click += (s, e) => { if (cbDisplay8.Checked) cbDisplay2.Checked = false; UpdateFilterStats(); };
+            this.Controls.Add(cbDisplay8);
 
             // バージョン表示ラベル
             labelVersion = new Label
@@ -230,10 +241,9 @@ namespace MangaViewer
             this.AcceptButton = btnOk;
             this.CancelButton = btnCancel;
 
-            // ValueChanged イベントでリアルタイム統計更新
+            // ValueChangedイベントでリアルタイム統計更新
             numMinDisplayCount.ValueChanged += (_, __) => UpdateFilterStats();
             numMinEvaluation.ValueChanged += (_, __) => UpdateFilterStats();
-            cboDisplayCount.SelectedIndexChanged += (_, __) => UpdateFilterStats();
 
             // 起動時に設定値を読み込む
             LoadSettings();
@@ -344,8 +354,19 @@ namespace MangaViewer
             numMinDisplayCount.Value = count;
             numMinEvaluation.Value = minEval;
 
-            // ComboBox の SelectedValue を設定後、統計を更新
-            cboDisplayCount.SelectedValue = displayCnt;
+            // チェックボックスの状態を設定
+            if (displayCnt == 8)
+            {
+                cbDisplay2.Checked = false;
+                cbDisplay8.Checked = true;
+            }
+            else
+            {
+                cbDisplay2.Checked = true;
+                cbDisplay8.Checked = false;
+            }
+
+            // 統計を更新
 
             // 設定読み込み後に統計を表示
             UpdateFilterStats();
@@ -358,19 +379,43 @@ namespace MangaViewer
         {
             try
             {
-                var obj = new System.Collections.Generic.Dictionary<string, object>();
+                // 既存のJSONを読み込んでプロパティを更新
+                var obj = new Dictionary<string, object>();
 
                 if (File.Exists(SettingsFilePath))
                 {
                     var json = File.ReadAllText(SettingsFilePath);
-                    using var doc = JsonDocument.Parse(json);
-                    foreach (var prop in doc.RootElement.EnumerateArray())
+                    // 既存のプロパティを保持（objectとしてデシリアライズ）
+                    try
                     {
-                        // 既存プロパティを保持（配列形式の場合）
+                        var existing = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json);
+                        if (existing != null)
+                        {
+                            foreach (var kvp in existing)
+                            {
+                                // 値の種類に応じて変換
+                                switch (kvp.Value.ValueKind)
+                                {
+                                    case JsonValueKind.String:
+                                        obj[kvp.Key] = kvp.Value.ToString();
+                                        break;
+                                    case JsonValueKind.Number:
+                                        obj[kvp.Key] = kvp.Value.GetDouble();
+                                        break;
+                                    case JsonValueKind.True:
+                                        obj[kvp.Key] = true;
+                                        break;
+                                    case JsonValueKind.False:
+                                        obj[kvp.Key] = false;
+                                        break;
+                                }
+                            }
+                        }
                     }
-                    // オブジェクト形式で上書き保存
+                    catch { /* 既存JSONのパース失敗時は新しいオブジェクトで続行 */ }
                 }
 
+                // 設定値を上書き
                 obj["MinDisplayCount"] = minDisplayCount;
                 obj["MinEvaluation"] = minEvaluation;
                 obj["DisplayCount"] = displayCount;
@@ -390,7 +435,7 @@ namespace MangaViewer
             // 現在のUI値を取得して保存
             int minDisplayCount = (int)numMinDisplayCount.Value;
             int minEvaluation = (int)numMinEvaluation.Value;
-            int displayCount = cboDisplayCount != null ? (int)cboDisplayCount.SelectedValue! : DefaultDisplayCountVal;
+            int displayCount = cbDisplay2.Checked ? 2 : 8;
 
             // 設定ファイルを保存
             SaveSettingsToFile(minDisplayCount, minEvaluation, displayCount);

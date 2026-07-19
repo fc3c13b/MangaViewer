@@ -17,8 +17,13 @@ namespace MangaViewer
         /// <summary>最小評価値（0〜10、これ未満のフォルダを非表示にする基準に使用）</summary>
         public int MinEvaluation { get; set; } = 8;
 
-        /// <summary>画面表示数（2 または 8）</summary>
-        public int DisplayCount { get; set; } = 2;
+        /// <summary>画面表示数（2 または 8 のみ許可）</summary>
+        public int DisplayCount 
+        { 
+            get => _displayCount;
+            set => _displayCount = (value == 2 || value == 8) ? value : 2;
+        }
+        private int _displayCount = 2;
 
         /// <summary>最後に選択したルートフォルダのパス</summary>
         public string LastRootFolder { get; set; } = "";

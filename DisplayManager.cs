@@ -13,7 +13,7 @@ namespace MangaViewer
     public class DisplayManager : IDisposable
     {
         private Form _ownerForm;
-        private Settings _settings;
+        internal Settings _settings;
         private ImageService _imageService;
 
         /// <summary>PictureBox array</summary>
@@ -99,9 +99,15 @@ namespace MangaViewer
                 return;
             }
 
+            // Manga reading order: right-to-left, top-to-bottom
+            // Panel position (col,row) maps to page index: row * cols + (cols - 1 - col)
+            int cols = 4;
             for (int i = 0; i < count; i++)
             {
-                int imgIdx = startIndex + i;
+                int col = i % cols;
+                int row = i / cols;
+                int pageOffset = row * cols + (cols - 1 - col);
+                int imgIdx = startIndex + pageOffset;
                 string? imagePath = imgIdx < ImagePaths.Count ? ImagePaths[imgIdx] : null;
                 LoadImageIntoPictureBox(pictureBoxes[i], ref currentImages![i], imagePath);
             }
@@ -217,7 +223,7 @@ namespace MangaViewer
             int height = clientHeight - 30;
 
             int rows, cols;
-            if (count == 8) { rows = 4; cols = 2; }
+            if (count == 8) { rows = 2; cols = 4; }
             else { rows = 1; cols = 2; }
 
             int pbWidth = (imageTotalWidth - gap * (cols + 1)) / cols;
@@ -241,6 +247,14 @@ namespace MangaViewer
         /// Get the step size for navigation (forward/backward).
         /// </summary>
         public int NavigationStep => DisplayCount;
+
+        /// <summary>
+        /// Update settings reference (called after SettingsDialog OK).
+        /// </summary>
+        public void UpdateSettings(Settings settings)
+        {
+            _settings = settings;
+        }
 
         public void Dispose()
         {

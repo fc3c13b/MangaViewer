@@ -104,6 +104,9 @@ namespace MangaViewer
                 : _settings.LastRootFolder;
 
             BuildSubfolderList(rootPath);
+            
+            // BuildSubfolderList で_settings が再Loadされるので、DisplayManagerにも反映
+            _displayManager.UpdateSettings(_settings);
 
             if (_folderList.Count > 0)
             {
@@ -112,6 +115,8 @@ namespace MangaViewer
                 _displayManager.ImagePaths = _imagePaths;
                 _currentIndex = 0;
                 _displayManager.InitializePictureBoxes();
+                this.PerformLayout();
+                UpdateLayout();
                 _displayManager.DisplayImages(0);
                 listBoxFolders.SelectedIndex = 0;
             }
@@ -257,6 +262,7 @@ namespace MangaViewer
                 if (dialog.ShowDialog(this) == DialogResult.OK)
                 {
                     _settings = SettingsManager.Load();
+                    _displayManager.UpdateSettings(_settings);
 
                     // 最小表示枚数または最小評価値が変更された場合はフォルダリストを再フィルタ
                     if (_settings.MinDisplayCount != prevMinDisplayCount || _settings.MinEvaluation != prevMinEvaluation)
@@ -301,6 +307,7 @@ namespace MangaViewer
                     if (_settings.DisplayCount != prevDisplayCount)
                     {
                         _displayManager.InitializePictureBoxes();
+                        UpdateLayout();
                         _currentIndex = 0;
                         DisplayImages(0);
                     }
@@ -313,6 +320,9 @@ namespace MangaViewer
             _settings.LastRootFolder = rootPath;
             SettingsManager.Save(_settings);
             BuildSubfolderList(rootPath);
+            
+            // BuildSubfolderList で_settings が再Loadされるので、DisplayManagerにも反映
+            _displayManager.UpdateSettings(_settings);
 
             if (_folderList.Count > 0)
             {

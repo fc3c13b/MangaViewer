@@ -50,7 +50,7 @@ namespace MangaViewer
         #region バージョン
 
         /// <summary>アプリケーションバージョン（一か所管理）</summary>
-        public const string AppVersion = "Ver3.9.2";
+        public const string AppVersion = "Ver3.9.3";
 
         #endregion
 

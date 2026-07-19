@@ -48,6 +48,16 @@ namespace MangaViewer
                 if (doc.RootElement.TryGetProperty("LastRootFolder", out var lrp) && lrp.ValueKind == JsonValueKind.String)
                     settings.LastRootFolder = lrp.ToString();
 
+                if (doc.RootElement.TryGetProperty("DisplayCount", out var dp) && dp.ValueKind == JsonValueKind.Number)
+                {
+                    int val = dp.GetInt32();
+                    // 2 または 8 のみ許可。それ以外はデフォルトの 2 にする
+                    if (val == 2 || val == 8)
+                        settings.DisplayCount = val;
+                    else
+                        settings.DisplayCount = 2;
+                }
+
                 return settings;
             }
             catch
@@ -63,13 +73,14 @@ namespace MangaViewer
         {
             try
             {
-                var obj = new Dictionary<string, object>
-                {
-                    { "MinDisplayCountEnabled", settings.MinDisplayCountEnabled },
-                    { "MinDisplayCount", settings.MinDisplayCount },
-                    { "MinEvaluation", settings.MinEvaluation },
-                    { "LastRootFolder", settings.LastRootFolder }
-                };
+                 var obj = new Dictionary<string, object>
+                 {
+                     { "MinDisplayCountEnabled", settings.MinDisplayCountEnabled },
+                     { "MinDisplayCount", settings.MinDisplayCount },
+                     { "MinEvaluation", settings.MinEvaluation },
+                     { "LastRootFolder", settings.LastRootFolder },
+                     { "DisplayCount", settings.DisplayCount }
+                 };
 
                 File.WriteAllText(AppPaths.SettingsFilePath, JsonSerializer.Serialize(obj, JsonOptions));
             }
