@@ -26,9 +26,9 @@ namespace MangaViewer
         }
 
         /// <summary>
-        /// WebP 拡張子のリスト（SkiaSharp でデコードが必要な形式）。
+        /// WebP および SkiaSharp を使用してデコードすべき拡張子のリスト。
         /// </summary>
-        private static readonly string[] WebpExtensions = { ".webp" };
+        private static readonly string[] SupportedSkiaExtensions = { ".webp", ".jpg", ".jpeg", ".png" };
 
         /// <summary>
         /// 指定された画像パスから Bitmap を取得（キャッシュ利用）。
@@ -48,7 +48,7 @@ namespace MangaViewer
             Bitmap bitmap;
             string ext = Path.GetExtension(imagePath).ToLowerInvariant();
 
-            if (WebpExtensions.Contains(ext))
+            if (SupportedSkiaExtensions.Contains(ext))
             {
 #if USE_SKIA
                 try
@@ -56,19 +56,31 @@ namespace MangaViewer
                     var bytes = File.ReadAllBytes(imagePath);
                     using var skImage = SKImage.FromEncodedData(bytes);
                     if (skImage == null)
-                        throw new InvalidDataException($"WebP デコードに失敗しました: {imagePath}");
+                        throw new InvalidDataException($"デコードに失敗しました: {imagePath}");
+
+                    // SkiaSharp でデコードしたものを Bitmap に変換（中間処理として PNG を使用）
                     using var skPm = skImage.Encode(SKEncodedImageFormat.Png, 100);
                     if (skPm == null)
-                        throw new InvalidDataException($"WebP→PNGエンコードに失敗しました: {imagePath}");
+                        throw new InvalidDataException($"エンコードに失敗しました: {imagePath}");
+
                     using var ms = new System.IO.MemoryStream(skPm.ToArray());
                     bitmap = new Bitmap(ms);
                 }
                 catch (Exception ex) when (ex is not InvalidDataException)
                 {
-                    throw new IOException($"WebP 画像の読み込みに失敗しました: {imagePath} ({ex.Message})", ex);
+                    throw new IOException($"画像データの処理中にエラーが発生しました: {imagePath} ({ex.Message})", ex);
                 }
 #else
-                throw new NotSupportedException("SkiaSharp が無効化されているため、WebP はサポートされていません。");
+                try
+                {
+                    var bytes = File.ReadAllBytes(imagePath);
+                    using var ms = new MemoryStream(bytes);
+                    bitmap = new Bitmap(ms);
+                }
+                catch (ArgumentException ex)
+                {
+                    throw new IOException($"画像の読み込みに失敗しました（標準のデコードをサポートしていません）: {imagePath} ({ex.Message})", ex);
+                }
 #endif
             }
             else
@@ -81,7 +93,7 @@ namespace MangaViewer
                 }
                 catch (ArgumentException ex)
                 {
-                    throw new IOException($"画像の読み込みに失敗しました (ファイルが破損しているか、サポートされていない形式です): {imagePath} ({ex.Message})", ex);
+                    throw new IOException($"画像の読み込みに失敗しました（ファイルが破損しているか、サポートされていない形式です）: {imagePath} ({ex.Message})", ex);
                 }
             }
 
