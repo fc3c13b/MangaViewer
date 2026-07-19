@@ -57,6 +57,11 @@ namespace MangaViewer
                     else
                         settings.DisplayCount = 2;
                 }
+                else
+                {
+                    // DisplayCountプロパティが存在しない場合は明示的にデフォルト値を設定
+                    settings.DisplayCount = 2;
+                }
 
                 return settings;
             }

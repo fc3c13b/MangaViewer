@@ -58,9 +58,18 @@ namespace MangaViewer
         internal int _currentFolderIndex = -1;
 
         /// <summary>
-        /// Full-screen display mode toggle (hides labelInfo, maximizes image area).
+        /// Full-screen display mode toggle (FormBorderStyle=None + Maximized).
         /// </summary>
         internal bool _fullScreenMode = false;
+
+        /// <summary>Saved window state for restoring from full-screen.</summary>
+        private FormBorderStyle _savedFormBorderStyle = FormBorderStyle.Sizable;
+
+        /// <summary>Saved window state for restoring from full-screen.</summary>
+        private FormWindowState _savedWindowState = FormWindowState.Normal;
+
+        /// <summary>Saved window size for restoring from full-screen.</summary>
+        private Size _savedSize = new Size(Constants.InitialWidth, Constants.InitialHeight);
 
         /// <summary>
         /// Settings instance for configuration management.
@@ -93,7 +102,8 @@ namespace MangaViewer
             this.PreviewKeyDown += (s, e) =>
             {
                 if (e.KeyCode == Keys.Up || e.KeyCode == Keys.Down ||
-                    e.KeyCode == Keys.Left || e.KeyCode == Keys.Right)
+                    e.KeyCode == Keys.Left || e.KeyCode == Keys.Right ||
+                    e.KeyCode == Keys.Escape)
                     e.IsInputKey = true;
             };
         }
@@ -256,18 +266,39 @@ namespace MangaViewer
 
         /// <summary>
         /// フルサイズモードのトグル（数字キー8で発動）
+        /// 仕様: FormBorderStyle=None + Maximized で画面埋め尽くし
+        /// リストパネルは維持するが極狭に、画像配置ルール（2枚/8枚）はそのまま。
         /// </summary>
         public void ToggleFullScreen()
         {
             _fullScreenMode = !_fullScreenMode;
-            
+
+            if (_fullScreenMode)
+            {
+                // 現在のウィンドウ状態を保存
+                _savedFormBorderStyle = this.FormBorderStyle;
+                _savedWindowState = this.WindowState;
+                _savedSize = this.Size;
+
+                // フルサイズに切り替え（タイトルバーなし＋最大化）
+                this.FormBorderStyle = FormBorderStyle.None;
+                this.WindowState = FormWindowState.Maximized;
+            }
+            else
+            {
+                // 元のウィンドウ状態を復元
+                this.FormBorderStyle = _savedFormBorderStyle;
+                this.WindowState = _savedWindowState;
+                this.Size = _savedSize;
+            }
+
             // labelInfo のテキストを更新
             string infoText = _displayManager.GetInfoText(_currentFolder, _currentFolderIndex, _folderList);
             if (!string.IsNullOrEmpty(infoText))
                 labelInfo.Text = infoText;
             else
                 labelInfo.Text = "表示可能な画像がありません。";
-            
+
             UpdateLayout();
         }
 

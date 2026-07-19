@@ -37,8 +37,9 @@ namespace MangaViewer
             {
                 HandleRatingInput(e, nav);
             }
+            // ESC: フルサイズモード解除（フルサイズ時のみ）
             // D8: フルサイズモードトグル（Shiftなしのみ）
-            else if (e.KeyCode == Keys.D8 && !Shift_Modifier(e))
+            else if (e.KeyCode == Keys.Escape || (e.KeyCode == Keys.D8 && !Shift_Modifier(e)))
             {
                 nav.ToggleFullScreen();
             }
