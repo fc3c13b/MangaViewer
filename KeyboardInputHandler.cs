@@ -37,6 +37,11 @@ namespace MangaViewer
             {
                 HandleRatingInput(e, nav);
             }
+            // D8: フルサイズモードトグル（Shiftなしのみ）
+            else if (e.KeyCode == Keys.D8 && !Shift_Modifier(e))
+            {
+                nav.ToggleFullScreen();
+            }
             // Up: 前のフォルダ
             else if (e.KeyCode == Keys.Up && nav.FolderListCount > 0)
             {
@@ -61,6 +66,11 @@ namespace MangaViewer
                     nav.ChangeRootFolder(rootPath);
                 }
             }
+        }
+
+        private static bool Shift_Modifier(KeyEventArgs e)
+        {
+            return (Control.ModifierKeys & Keys.Shift) != 0;
         }
 
         private static void HandleRatingInput(KeyEventArgs e, INavigationActions nav)

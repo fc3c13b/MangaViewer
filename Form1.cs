@@ -58,6 +58,11 @@ namespace MangaViewer
         internal int _currentFolderIndex = -1;
 
         /// <summary>
+        /// Full-screen display mode toggle (hides labelInfo, maximizes image area).
+        /// </summary>
+        internal bool _fullScreenMode = false;
+
+        /// <summary>
         /// Settings instance for configuration management.
         /// </summary>
         private Settings _settings = new Settings();
@@ -228,14 +233,18 @@ namespace MangaViewer
             int clientWidth = this.ClientSize.Width;
             int clientHeight = this.ClientSize.Height;
 
-            var bounds = _displayManager.CalculatePictureBoxBounds(clientWidth, clientHeight, out Rectangle listPanelBounds);
+            var bounds = _displayManager.CalculatePictureBoxBounds(clientWidth, clientHeight, out Rectangle listPanelBounds, _fullScreenMode);
             
             for (int i = 0; i < _displayManager.pictureBoxes.Length; i++)
                 _displayManager.pictureBoxes[i].Bounds = bounds[i];
 
             panelList.Bounds = listPanelBounds;
             if (listBoxFolders != null) { listBoxFolders.Bounds = panelList.ClientRectangle; }
-            labelInfo.Location = new Point(10, clientHeight - 25);
+            
+            // フルサイズモード時はlabelInfoを非表示、通常時は再表示
+            labelInfo.Visible = !_fullScreenMode;
+            if (!_fullScreenMode)
+                labelInfo.Location = new Point(10, clientHeight - 25);
         }
 
         protected override void OnFormClosing(FormClosingEventArgs e)
@@ -243,6 +252,23 @@ namespace MangaViewer
             _imageService.Dispose();
             _displayManager?.Dispose();
             base.OnFormClosing(e);
+        }
+
+        /// <summary>
+        /// フルサイズモードのトグル（数字キー8で発動）
+        /// </summary>
+        public void ToggleFullScreen()
+        {
+            _fullScreenMode = !_fullScreenMode;
+            
+            // labelInfo のテキストを更新
+            string infoText = _displayManager.GetInfoText(_currentFolder, _currentFolderIndex, _folderList);
+            if (!string.IsNullOrEmpty(infoText))
+                labelInfo.Text = infoText;
+            else
+                labelInfo.Text = "表示可能な画像がありません。";
+            
+            UpdateLayout();
         }
 
         #region INavigationActions インターフェースの実装

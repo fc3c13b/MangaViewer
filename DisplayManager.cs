@@ -203,13 +203,19 @@ namespace MangaViewer
         /// <summary>
         /// Calculate bounds for all PictureBoxes and the folder list panel.
         /// </summary>
-        public Rectangle[] CalculatePictureBoxBounds(int clientWidth, int clientHeight, out Rectangle listPanelBounds)
+        public Rectangle[] CalculatePictureBoxBounds(int clientWidth, int clientHeight, out Rectangle listPanelBounds, bool fullScreenMode = false)
         {
-            int gap = 2;
+            // フルサイズモード時はgap=0、画像領域比率を最大に
+            int gap = fullScreenMode ? 0 : 2;
             int count = DisplayCount;
 
             double imageAreaRatio;
-            if (count == 2)
+            if (fullScreenMode)
+            {
+                // リストパネルは狭く（15%）、残りを画像領域に
+                imageAreaRatio = 0.85;
+            }
+            else if (count == 2)
             {
                 imageAreaRatio = (double)(Constants.RatioLeftImg + Constants.RatioRightImg) / Constants.TotalRatio;
             }

@@ -13,6 +13,7 @@ namespace MangaViewer
         void NavigateFolderUp();
         void NavigateFolderDown();
         void NavigateToNextUnrated();
+        void ToggleFullScreen();
         int ImageCount { get; }
         int FolderListCount { get; }
         string CurrentFolder { get; }
