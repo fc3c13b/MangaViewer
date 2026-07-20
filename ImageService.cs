@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -26,12 +25,14 @@ namespace MangaViewer
         }
 
         /// <summary>
-        /// WebP および SkiaSharp を使用してデコードすべき拡張子のリスト。
+        /// SkiaSharp を優先的に使用する拡張子のリスト。
         /// </summary>
-        private static readonly string[] SupportedSkiaExtensions = { ".webp", ".jpg", ".jpeg", ".png" };
+        private static readonly string[] SkiaPreferredExtensions = { ".webp", ".jpg", ".jpeg" };
 
         /// <summary>
         /// 指定された画像パスから Bitmap を取得（キャッシュ利用）。
+        /// Release/Debug の違いで DLL が正しく見つからない場合でも、
+        /// 可能な限りフォールバックして読み込むようにする。
         /// </summary>
         public Bitmap LoadOrGetCachedImage(string imagePath)
         {
@@ -45,59 +46,66 @@ namespace MangaViewer
                 return new Bitmap(entry.Bitmap);
             }
 
-            Bitmap bitmap;
             string ext = Path.GetExtension(imagePath).ToLowerInvariant();
+            bool useSkiaPreferred = SkiaPreferredExtensions.Contains(ext);
+            Bitmap bitmap;
 
-            if (SupportedSkiaExtensions.Contains(ext))
-            {
+            // 1) SkiaSharp を使用して読み込みを試みる（USE_SKIA が定義されている場合）
 #if USE_SKIA
+            if (useSkiaPreferred)
+            {
                 try
                 {
                     var bytes = File.ReadAllBytes(imagePath);
                     using var skImage = SKImage.FromEncodedData(bytes);
-                    if (skImage == null)
-                        throw new InvalidDataException($"デコードに失敗しました: {imagePath}");
-
-                    // SkiaSharp でデコードしたものを Bitmap に変換（中間処理として PNG を使用）
-                    using var skPm = skImage.Encode(SKEncodedImageFormat.Png, 100);
-                    if (skPm == null)
-                        throw new InvalidDataException($"エンコードに失敗しました: {imagePath}");
-
-                    using var ms = new System.IO.MemoryStream(skPm.ToArray());
-                    bitmap = new Bitmap(ms);
+                    if (skImage != null)
+                    {
+                        // Skia でデコード成功 → PNG 経由で Bitmap に変換
+                        using var skPm = skImage.Encode(SKEncodedImageFormat.Png, 100);
+                        if (skPm != null)
+                        {
+                            using var ms = new MemoryStream(skPm.ToArray());
+                            bitmap = new Bitmap(ms);
+                            AddToCache(imagePath, bitmap);
+                            return bitmap;
+                        }
+                    }
                 }
-                catch (Exception ex) when (ex is not InvalidDataException)
+                catch (TypeLoadException)
                 {
-                    throw new IOException($"画像データの処理中にエラーが発生しました: {imagePath} ({ex.Message})", ex);
+                    // SkiaSharp 関連 DLL のバージョン不一致等で型が見つからない（Release で発生しやすい）
+                    // → GDI+ にフォールバック
                 }
-#else
-                try
+                catch (FileNotFoundException)
                 {
-                    var bytes = File.ReadAllBytes(imagePath);
-                    using var ms = new MemoryStream(bytes);
-                    bitmap = new Bitmap(ms);
+                    // 同様に DLL が見つからない場合はフォールバック
                 }
-                catch (ArgumentException ex)
-                {
-                    throw new IOException($"画像の読み込みに失敗しました（標準のデコードをサポートしていません）: {imagePath} ({ex.Message})", ex);
-                }
+                // それ以外の例外は try/catch を抜けて GDI+ のパスに回る
+            }
 #endif
-            }
-            else
-            {
-                try
-                {
-                    var bytes = File.ReadAllBytes(imagePath);
-                    using var ms = new MemoryStream(bytes);
-                    bitmap = new Bitmap(ms);
-                }
-                catch (ArgumentException ex)
-                {
-                    throw new IOException($"画像の読み込みに失敗しました（ファイルが破損しているか、サポートされていない形式です）: {imagePath} ({ex.Message})", ex);
-                }
-            }
 
-            // Evict LRU entry if cache is full
+            // 2) GDI+（標準）での読み込み（Skia 未使用または失敗したときのフォールバック）
+            try
+            {
+                var bytes = File.ReadAllBytes(imagePath);
+                using var ms = new MemoryStream(bytes);
+                bitmap = new Bitmap(ms);
+                AddToCache(imagePath, bitmap);
+                return bitmap;
+            }
+            catch (ArgumentException ex)
+            {
+                throw new IOException(
+                    $"画像の読み込みに失敗しました（ファイルが破損しているか、サポートされていない形式です）: {imagePath} ({ex.Message})",
+                    ex);
+            }
+        }
+
+        /// <summary>
+        /// キャッシュへ画像を追加。容量超過時は LRU で古いエントリを削除。
+        /// </summary>
+        private void AddToCache(string imagePath, Bitmap bitmap)
+        {
             EnsureCacheSpace();
 
             _imageCache[imagePath] = new CacheEntry
@@ -105,8 +113,6 @@ namespace MangaViewer
                 Bitmap = new Bitmap(bitmap),
                 LastAccessed = DateTime.UtcNow
             };
-
-            return bitmap;
         }
 
         /// <summary>
@@ -116,7 +122,6 @@ namespace MangaViewer
         {
             while (_imageCache.Count >= Constants.MaxCacheSize)
             {
-                // Find the least recently used entry
                 var oldestKey = _imageCache.Keys
                     .OrderBy(k => _imageCache[k].LastAccessed)
                     .FirstOrDefault();

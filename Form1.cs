@@ -110,31 +110,67 @@ namespace MangaViewer
 
         private void Form1_Load(object? sender, EventArgs e)
         {
-            _settings = SettingsManager.Load();
-            _displayManager = new DisplayManager(this, _settings, _imageService);
-            _displayManager.ImagePaths = _imagePaths;
-
-            string rootPath = string.IsNullOrEmpty(_settings.LastRootFolder)
-                ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
-                : _settings.LastRootFolder;
-
-            BuildSubfolderList(rootPath);
-            
-            // BuildSubfolderList で_settings が再Loadされるので、DisplayManagerにも反映
-            _displayManager.UpdateSettings(_settings);
-
-            if (_folderList.Count > 0)
+            try
             {
-                _currentFolderIndex = 0;
-                LoadAndSortImages(_folderList[0]);
+                _settings = SettingsManager.Load();
+                _displayManager = new DisplayManager(this, _settings, _imageService);
                 _displayManager.ImagePaths = _imagePaths;
-                _currentIndex = 0;
-                _displayManager.InitializePictureBoxes();
-                this.PerformLayout();
-                UpdateLayout();
-                _displayManager.DisplayImages(0);
-                listBoxFolders.SelectedIndex = 0;
+
+                string rootPath = string.IsNullOrEmpty(_settings.LastRootFolder)
+                    ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
+                    : _settings.LastRootFolder;
+
+                BuildSubfolderList(rootPath);
+                
+                // BuildSubfolderList で_settings が再Loadされるので、DisplayManagerにも反映
+                _displayManager.UpdateSettings(_settings);
+
+                if (_folderList.Count > 0)
+                {
+                    _currentFolderIndex = 0;
+                    LoadAndSortImages(_folderList[0]);
+                    _displayManager.ImagePaths = _imagePaths;
+                    _currentIndex = 0;
+                    _displayManager.InitializePictureBoxes();
+                    this.PerformLayout();
+                    UpdateLayout();
+                    _displayManager.DisplayImages(0);
+                    listBoxFolders.SelectedIndex = 0;
+                }
             }
+            catch (Exception ex)
+            {
+                // 初期化失敗時でもUIは最低限表示されるようにする
+                EnsureBasicLayout();
+
+                string logFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "error.log");
+                try { File.AppendAllText(logFile, $"Form1_Load error: {ex}{Environment.NewLine}"); } catch { }
+
+                labelInfo.Text = "初期化エラーが発生しました。";
+            }
+        }
+
+        /// <summary>
+        /// 画像読み込み失敗等でも、フォームとリストパネルの基本的なレイアウトを保証する。
+        /// </summary>
+        private void EnsureBasicLayout()
+        {
+            if (this.ClientSize.Width < Constants.MinWidth || this.ClientSize.Height < Constants.MinHeight)
+                this.Size = new Size(Constants.InitialWidth, Constants.InitialHeight);
+
+            int cw = this.ClientSize.Width;
+            int ch = this.ClientSize.Height;
+
+            int listX = (int)(cw * 0.72);
+            int listW = cw - listX;
+
+            panelList.Bounds = new Rectangle(listX, 0, listW, ch);
+            if (listBoxFolders != null)
+                listBoxFolders.Bounds = panelList.ClientRectangle;
+
+            labelInfo.Visible = !_fullScreenMode;
+            if (!_fullScreenMode && labelInfo.Visible)
+                labelInfo.Location = new Point(10, ch - 25);
         }
 
         internal void BuildSubfolderList(string rootPath)
