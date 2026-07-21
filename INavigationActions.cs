@@ -17,5 +17,8 @@ namespace MangaViewer
         int ImageCount { get; }
         int FolderListCount { get; }
         string CurrentFolder { get; }
+
+        void StartSlideshow();
+        void StopSlideshow();
     }
 }

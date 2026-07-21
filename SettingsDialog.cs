@@ -34,6 +34,16 @@ namespace MangaViewer
         private Label lblImageFilterStats = null!;
         private Label lblRatingFilterStats = null!;
 
+        // レイアウト比率設定用コントロール（ノーマル）
+        private TrackBar trbNormalLayoutRatio = null!;
+        private Label labelNormalLayoutRatio = null!;
+        private Label lblNormalLayoutValue = null!;
+
+        // レイアウト比率設定用コントロール（全画面）
+        private TrackBar trbFullScreenLayoutRatio = null!;
+        private Label labelFullScreenLayoutRatio = null!;
+        private Label lblFullScreenLayoutValue = null!;
+
         // ルートフォルダパス（統計計算用）
         private string RootFolder => GetRootFolder();
 
@@ -57,10 +67,22 @@ namespace MangaViewer
         /// </summary>
         public int MinEvaluationValue => (int)numMinEvaluation.Value;
 
+        /// <summary>
+        /// ノーマル表示時の画像領域幅比率（%）
+        /// </summary>
+        public int NormalModeImageAreaPercent => (int)trbNormalLayoutRatio.Value;
+
+        /// <summary>
+        /// 全画面表示時の画像領域幅比率（%）
+        /// </summary>
+        public int FullScreenModeImageAreaPercent => (int)trbFullScreenLayoutRatio.Value;
+
         // デフォルト値
         private const int DefaultMinDisplayCount = 20;
         private const int DefaultMinEvaluation = 8;
         private const int DefaultDisplayCountVal = 2;
+        private const int DefaultNormalModeImageAreaPercent = 72;
+        private const int DefaultFullScreenModeImageAreaPercent = 85;
 
         public SettingsDialog()
         {
@@ -70,10 +92,10 @@ namespace MangaViewer
 
         private void InitializeComponent()
         {
-            // ダイアログ基本設定
+            // ダイアログ基本設定（高さを少し増やしてレイアウト比率用スペース確保）
             this.Text = "設定";
             this.StartPosition = FormStartPosition.CenterScreen;
-            this.Size = new System.Drawing.Size(400, 360);
+            this.Size = new System.Drawing.Size(420, 560);
             this.MinimizeBox = false;
             this.MaximizeBox = false;
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
@@ -87,7 +109,7 @@ namespace MangaViewer
                 ForeColor = Color.White,
                 Font = new System.Drawing.Font("Meiryo UI", 12F, FontStyle.Bold),
             };
-            labelTitle.Location = new System.Drawing.Point(20, 20);
+            labelTitle.Location = new System.Drawing.Point(20, 15);
             this.Controls.Add(labelTitle);
 
             // 最小表示枚数 ラベル
@@ -97,7 +119,7 @@ namespace MangaViewer
                 AutoSize = true,
                 ForeColor = Color.White,
                 Font = new System.Drawing.Font("Meiryo UI", 10F),
-                Location = new System.Drawing.Point(20, 60),
+                Location = new System.Drawing.Point(20, 55),
             };
             this.Controls.Add(labelMinDisplayCount);
 
@@ -107,7 +129,7 @@ namespace MangaViewer
                 Minimum = 2,
                 Maximum = 100,
                 Value = DefaultMinDisplayCount,
-                Location = new System.Drawing.Point(160, 58),
+                Location = new System.Drawing.Point(140, 53),
                 Size = new System.Drawing.Size(80, 25),
                 BackColor = Color.FromArgb(60, 60, 60),
                 ForeColor = Color.White,
@@ -121,7 +143,7 @@ namespace MangaViewer
                 AutoSize = true,
                 ForeColor = Color.LightGray,
                 Font = new System.Drawing.Font("Meiryo UI", 10F),
-                Location = new System.Drawing.Point(245, 62),
+                Location = new System.Drawing.Point(225, 57),
             };
             this.Controls.Add(labelMinDisplayUnit);
 
@@ -132,7 +154,7 @@ namespace MangaViewer
                 AutoSize = true,
                 ForeColor = Color.Cyan,
                 Font = new System.Drawing.Font("Meiryo UI", 9F),
-                Location = new System.Drawing.Point(270, 60),
+                Location = new System.Drawing.Point(250, 57),
             };
             this.Controls.Add(lblImageFilterStats);
 
@@ -143,7 +165,7 @@ namespace MangaViewer
                 AutoSize = true,
                 ForeColor = Color.White,
                 Font = new System.Drawing.Font("Meiryo UI", 10F),
-                Location = new System.Drawing.Point(20, 100),
+                Location = new System.Drawing.Point(20, 95),
             };
             this.Controls.Add(labelMinEvaluation);
 
@@ -153,7 +175,7 @@ namespace MangaViewer
                 Minimum = 0,
                 Maximum = 10,
                 Value = DefaultMinEvaluation,
-                Location = new System.Drawing.Point(160, 98),
+                Location = new System.Drawing.Point(140, 93),
                 Size = new System.Drawing.Size(80, 25),
                 BackColor = Color.FromArgb(60, 60, 60),
                 ForeColor = Color.White,
@@ -167,7 +189,7 @@ namespace MangaViewer
                 AutoSize = true,
                 ForeColor = Color.Cyan,
                 Font = new System.Drawing.Font("Meiryo UI", 9F),
-                Location = new System.Drawing.Point(270, 100),
+                Location = new System.Drawing.Point(250, 97),
             };
             this.Controls.Add(lblRatingFilterStats);
 
@@ -178,7 +200,7 @@ namespace MangaViewer
                 AutoSize = true,
                 ForeColor = Color.White,
                 Font = new System.Drawing.Font("Meiryo UI", 10F),
-                Location = new System.Drawing.Point(20, 140),
+                Location = new System.Drawing.Point(20, 135),
             };
             this.Controls.Add(labelDisplayCount);
 
@@ -186,7 +208,7 @@ namespace MangaViewer
             cbDisplay2 = new CheckBox
             {
                 Text = "2",
-                Location = new System.Drawing.Point(160, 137),
+                Location = new System.Drawing.Point(140, 132),
                 AutoSize = true,
                 ForeColor = Color.White,
                 BackColor = Color.FromArgb(40, 40, 40),
@@ -198,7 +220,7 @@ namespace MangaViewer
             cbDisplay8 = new CheckBox
             {
                 Text = "8",
-                Location = new System.Drawing.Point(220, 137),
+                Location = new System.Drawing.Point(190, 132),
                 AutoSize = true,
                 ForeColor = Color.White,
                 BackColor = Color.FromArgb(40, 40, 40),
@@ -206,7 +228,103 @@ namespace MangaViewer
             cbDisplay8.Click += (s, e) => { if (cbDisplay8.Checked) cbDisplay2.Checked = false; UpdateFilterStats(); };
             this.Controls.Add(cbDisplay8);
 
-            // バージョン表示ラベル
+            // セクション区切り（レイアウト比率）
+            Label labelLayoutSection = new Label
+            {
+                Text = "画像領域の横幅比",
+                AutoSize = true,
+                ForeColor = Color.LimeGreen,
+                Font = new System.Drawing.Font("Meiryo UI", 10F, FontStyle.Bold),
+                Location = new System.Drawing.Point(20, 175),
+            };
+            this.Controls.Add(labelLayoutSection);
+
+            // ノーマル表示：画像領域幅比率（スライダー）
+            labelNormalLayoutRatio = new Label
+            {
+                Text = "ノーマル表示の画像領域幅:",
+                AutoSize = true,
+                ForeColor = Color.White,
+                Font = new System.Drawing.Font("Meiryo UI", 9F),
+                Location = new System.Drawing.Point(20, 200),
+            };
+            this.Controls.Add(labelNormalLayoutRatio);
+
+            trbNormalLayoutRatio = new TrackBar
+            {
+                Minimum = 50,
+                Maximum = 95,
+                Value = DefaultNormalModeImageAreaPercent,
+                TickStyle = TickStyle.None,
+                Location = new System.Drawing.Point(20, 218),
+                Size = new System.Drawing.Size(340, 45),
+            };
+            trbNormalLayoutRatio.Scroll += (s, e) =>
+            {
+                int v = (int)trbNormalLayoutRatio.Value;
+                lblNormalLayoutValue.Text = $"{v}%";
+            };
+            this.Controls.Add(trbNormalLayoutRatio);
+
+            lblNormalLayoutValue = new Label
+            {
+                Text = DefaultNormalModeImageAreaPercent + "%",
+                AutoSize = true,
+                ForeColor = Color.Cyan,
+                Font = new System.Drawing.Font("Meiryo UI", 9F),
+                Location = new System.Drawing.Point(365, 218),
+            };
+            this.Controls.Add(lblNormalLayoutValue);
+
+            // ノーマル説明
+            Label labelNormalHint = new Label
+            {
+                Text = "(残り % はフォルダリスト領域)",
+                AutoSize = true,
+                ForeColor = Color.LightGray,
+                Font = new System.Drawing.Font("Meiryo UI", 8F),
+                Location = new System.Drawing.Point(20, 265),
+            };
+            this.Controls.Add(labelNormalHint);
+
+            // 全画面表示：画像領域幅比率（スライダー）
+            labelFullScreenLayoutRatio = new Label
+            {
+                Text = "全画面表示の画像領域幅:",
+                AutoSize = true,
+                ForeColor = Color.White,
+                Font = new System.Drawing.Font("Meiryo UI", 9F),
+                Location = new System.Drawing.Point(20, 290),
+            };
+            this.Controls.Add(labelFullScreenLayoutRatio);
+
+            trbFullScreenLayoutRatio = new TrackBar
+            {
+                Minimum = 70,
+                Maximum = 98,
+                Value = DefaultFullScreenModeImageAreaPercent,
+                TickStyle = TickStyle.None,
+                Location = new System.Drawing.Point(20, 308),
+                Size = new System.Drawing.Size(340, 45),
+            };
+            trbFullScreenLayoutRatio.Scroll += (s, e) =>
+            {
+                int v = (int)trbFullScreenLayoutRatio.Value;
+                lblFullScreenLayoutValue.Text = $"{v}%";
+            };
+            this.Controls.Add(trbFullScreenLayoutRatio);
+
+            lblFullScreenLayoutValue = new Label
+            {
+                Text = DefaultFullScreenModeImageAreaPercent + "%",
+                AutoSize = true,
+                ForeColor = Color.Cyan,
+                Font = new System.Drawing.Font("Meiryo UI", 9F),
+                Location = new System.Drawing.Point(365, 308),
+            };
+            this.Controls.Add(lblFullScreenLayoutValue);
+
+            // バージョン表示ラベル（下部）
             labelVersion = new Label
             {
                 Text = $"アプリバージョン: {Constants.AppVersion}",
@@ -214,7 +332,7 @@ namespace MangaViewer
                 ForeColor = Color.LightGray,
                 Font = new System.Drawing.Font("Meiryo UI", 10F),
             };
-            labelVersion.Location = new System.Drawing.Point(20, this.ClientSize.Height - 80);
+            labelVersion.Location = new System.Drawing.Point(20, this.ClientSize.Height - 90);
             this.Controls.Add(labelVersion);
 
             // OK ボタン
@@ -222,7 +340,7 @@ namespace MangaViewer
             {
                 Text = "OK",
                 Size = new System.Drawing.Size(100, 30),
-                Location = new System.Drawing.Point(this.ClientSize.Width / 2 - 110, this.ClientSize.Height - 45),
+                Location = new System.Drawing.Point(this.ClientSize.Width / 2 - 120, this.ClientSize.Height - 45),
             };
             btnOk.Click += BtnOk_Click;
             this.Controls.Add(btnOk);
@@ -232,7 +350,7 @@ namespace MangaViewer
             {
                 Text = "キャンセル",
                 Size = new System.Drawing.Size(100, 30),
-                Location = new System.Drawing.Point(this.ClientSize.Width / 2 + 10, this.ClientSize.Height - 45),
+                Location = new System.Drawing.Point(this.ClientSize.Width / 2 + 20, this.ClientSize.Height - 45),
                 DialogResult = DialogResult.Cancel,
             };
             this.Controls.Add(btnCancel);
@@ -296,6 +414,8 @@ namespace MangaViewer
             int count = DefaultMinDisplayCount;
             int minEval = DefaultMinEvaluation;
             int displayCnt = DefaultDisplayCountVal;
+            int normalPercent = DefaultNormalModeImageAreaPercent;
+            int fullScreenPercent = DefaultFullScreenModeImageAreaPercent;
 
             if (File.Exists(SettingsFilePath))
             {
@@ -328,120 +448,134 @@ namespace MangaViewer
                             displayCnt = val;
                     }
 
-                    // 設定値が存在しなかった場合はデフォルト値を保存
+                    // レイアウト比率：存在すれば使用、なければデフォルト
+                    if (doc.RootElement.TryGetProperty("NormalModeImageAreaPercent", out var normalProp)
+                        && normalProp.ValueKind == JsonValueKind.Number)
+                    {
+                        int val = normalProp.GetInt32();
+                        if (val >= 50 && val <= 95)
+                            normalPercent = val;
+                    }
+
+                    if (doc.RootElement.TryGetProperty("FullScreenModeImageAreaPercent", out var fullScreenProp)
+                        && fullScreenProp.ValueKind == JsonValueKind.Number)
+                    {
+                        int val = fullScreenProp.GetInt32();
+                        if (val >= 70 && val <= 98)
+                            fullScreenPercent = val;
+                    }
+
+                    // 設定値が存在しなかった場合はデフォルト値を保存（新旧互換対応）
                     bool countExists = doc.RootElement.TryGetProperty("MinDisplayCount", out _);
                     bool evalExists = doc.RootElement.TryGetProperty("MinEvaluation", out _);
                     bool displayExists = doc.RootElement.TryGetProperty("DisplayCount", out _);
 
                     if (!countExists || !evalExists || !displayExists)
                     {
-                        SaveSettingsToFile(DefaultMinDisplayCount, DefaultMinEvaluation, DefaultDisplayCountVal);
+                        SaveSettingsToFile(
+                            DefaultMinDisplayCount,
+                            DefaultMinEvaluation,
+                            DefaultDisplayCountVal,
+                            DefaultNormalModeImageAreaPercent,
+                            DefaultFullScreenModeImageAreaPercent);
                     }
                 }
                 catch
                 {
                     // 読み込み失敗時はデフォルト値を使用 + デフォルト保存
-                    SaveSettingsToFile(DefaultMinDisplayCount, DefaultMinEvaluation, DefaultDisplayCountVal);
+                    SaveSettingsToFile(
+                        DefaultMinDisplayCount,
+                        DefaultMinEvaluation,
+                        DefaultDisplayCountVal,
+                        DefaultNormalModeImageAreaPercent,
+                        DefaultFullScreenModeImageAreaPercent);
                 }
             }
-            else
-            {
-                // ファイルがない場合はデフォルト値で新規作成
-                SaveSettingsToFile(DefaultMinDisplayCount, DefaultMinEvaluation, DefaultDisplayCountVal);
-            }
 
-            // UI に反映（ValueChanged イベントでUpdateFilterStats が自動呼び出される）
+            // UI に反映
             numMinDisplayCount.Value = count;
-            numMinEvaluation.Value = minEval;
-
-            // チェックボックスの状態を設定
-            if (displayCnt == 8)
-            {
-                cbDisplay2.Checked = false;
-                cbDisplay8.Checked = true;
-            }
-            else
+            cbDisplay2.Checked = displayCnt == 2;
+            cbDisplay8.Checked = displayCnt == 8;
+            if (!cbDisplay2.Checked && !cbDisplay8.Checked)
             {
                 cbDisplay2.Checked = true;
-                cbDisplay8.Checked = false;
             }
+            numMinEvaluation.Value = minEval;
 
-            // 統計を更新
+            // レイアウト比率を反映（範囲制限付き）
+            if (normalPercent >= trbNormalLayoutRatio.Minimum && normalPercent <= trbNormalLayoutRatio.Maximum)
+                trbNormalLayoutRatio.Value = normalPercent;
+            else
+                lblNormalLayoutValue.Text = DefaultNormalModeImageAreaPercent + "%";
 
-            // 設定読み込み後に統計を表示
+            if (fullScreenPercent >= trbFullScreenLayoutRatio.Minimum && fullScreenPercent <= trbFullScreenLayoutRatio.Maximum)
+                trbFullScreenLayoutRatio.Value = fullScreenPercent;
+            else
+                lblFullScreenLayoutValue.Text = DefaultFullScreenModeImageAreaPercent + "%";
+
+            // 初期値でフィルター統計を表示
             UpdateFilterStats();
         }
 
         /// <summary>
-        /// 設定値を setting.json に保存する（OK ボタン用）
+        /// OK ボタン押下処理：新しい設定を保存
         /// </summary>
-        private void SaveSettingsToFile(int minDisplayCount, int minEvaluation, int displayCount)
+        private void BtnOk_Click(object? sender, EventArgs e)
+        {
+            int minDisplayCount = (int)numMinDisplayCount.Value;
+            int minEvaluation = (int)numMinEvaluation.Value;
+            int displayCount = DisplayCountValue; // 2 または 8
+            int normalPercent = NormalModeImageAreaPercent;
+            int fullScreenPercent = FullScreenModeImageAreaPercent;
+
+            SaveSettingsToFile(minDisplayCount, minEvaluation, displayCount, normalPercent, fullScreenPercent);
+
+            this.DialogResult = DialogResult.OK;
+        }
+
+        /// <summary>
+        /// 設定を JSON ファイルに保存（既存キーを保持、必要に応じて上書き）
+        /// </summary>
+        private void SaveSettingsToFile(
+            int minDisplayCount,
+            int minEvaluation,
+            int displayCount,
+            int normalPercent,
+            int fullScreenPercent)
         {
             try
             {
-                // 既存のJSONを読み込んでプロパティを更新
-                var obj = new Dictionary<string, object>();
+                // 既存 JSON を保持（LastRootFolder など他の設定を壊さない）
+                var existing = new Dictionary<string, JsonElement>();
 
                 if (File.Exists(SettingsFilePath))
                 {
                     var json = File.ReadAllText(SettingsFilePath);
-                    // 既存のプロパティを保持（objectとしてデシリアライズ）
-                    try
+                    using (var doc = JsonDocument.Parse(json))
                     {
-                        var existing = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json);
-                        if (existing != null)
+                        foreach (var prop in doc.RootElement.EnumerateObject())
                         {
-                            foreach (var kvp in existing)
-                            {
-                                // 値の種類に応じて変換
-                                switch (kvp.Value.ValueKind)
-                                {
-                                    case JsonValueKind.String:
-                                        obj[kvp.Key] = kvp.Value.ToString();
-                                        break;
-                                    case JsonValueKind.Number:
-                                        obj[kvp.Key] = kvp.Value.GetDouble();
-                                        break;
-                                    case JsonValueKind.True:
-                                        obj[kvp.Key] = true;
-                                        break;
-                                    case JsonValueKind.False:
-                                        obj[kvp.Key] = false;
-                                        break;
-                                }
-                            }
+                            existing[prop.Name] = prop.Value.Clone();
                         }
                     }
-                    catch { /* 既存JSONのパース失敗時は新しいオブジェクトで続行 */ }
                 }
 
-                // 設定値を上書き
-                obj["MinDisplayCount"] = minDisplayCount;
-                obj["MinEvaluation"] = minEvaluation;
-                obj["DisplayCount"] = displayCount;
+                // 新キーを設定
+                existing["MinDisplayCount"] = JsonSerializer.SerializeToElement(minDisplayCount);
+                existing["MinEvaluation"] = JsonSerializer.SerializeToElement(minEvaluation);
+                existing["DisplayCount"] = JsonSerializer.SerializeToElement(displayCount);
+                existing["NormalModeImageAreaPercent"] = JsonSerializer.SerializeToElement(normalPercent);
+                existing["FullScreenModeImageAreaPercent"] = JsonSerializer.SerializeToElement(fullScreenPercent);
 
+                // JSON を再構築（順番は保証されないが問題なし）
                 var options = new JsonSerializerOptions { WriteIndented = true };
-                var newJson = JsonSerializer.Serialize(obj, options);
-                File.WriteAllText(SettingsFilePath, newJson);
+                string resultJson = JsonSerializer.Serialize(existing, options);
+                File.WriteAllText(SettingsFilePath, resultJson);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"設定の保存に失敗しました: {ex.Message}", "エラー", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(this, $"設定の保存に失敗しました：{ex.Message}", "エラー", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-        }
-
-        private void BtnOk_Click(object sender, EventArgs e)
-        {
-            // 現在のUI値を取得して保存
-            int minDisplayCount = (int)numMinDisplayCount.Value;
-            int minEvaluation = (int)numMinEvaluation.Value;
-            int displayCount = cbDisplay2.Checked ? 2 : 8;
-
-            // 設定ファイルを保存
-            SaveSettingsToFile(minDisplayCount, minEvaluation, displayCount);
-
-            this.DialogResult = DialogResult.OK;
-            this.Close();
         }
     }
 }

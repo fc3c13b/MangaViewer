@@ -212,12 +212,13 @@ namespace MangaViewer
             double imageAreaRatio;
             if (fullScreenMode)
             {
-                // リストパネルは狭く（15%）、残りを画像領域に
-                imageAreaRatio = 0.85;
+                // 設定：全画面表示の画像領域幅比率（%）
+                imageAreaRatio = _settings.FullScreenModeImageAreaPercent / 100.0;
             }
             else if (count == 2)
             {
-                imageAreaRatio = (double)(Constants.RatioLeftImg + Constants.RatioRightImg) / Constants.TotalRatio;
+                // 設定：ノーマル表示の画像領域幅比率（%）
+                imageAreaRatio = _settings.NormalModeImageAreaPercent / 100.0;
             }
             else
             {

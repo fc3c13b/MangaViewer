@@ -28,6 +28,15 @@ namespace MangaViewer
         /// <summary>最後に選択したルートフォルダのパス</summary>
         public string LastRootFolder { get; set; } = "";
 
+        /// <summary>スライドショーの間隔（ミリ秒）</summary>
+        public int SlideshowIntervalMs { get; set; } = 2000;
+
+        /// <summary>ノーマル表示時の画像領域幅比率（%、リスト=100-この値）。デフォルト 72%</summary>
+        public int NormalModeImageAreaPercent { get; set; } = 72;
+
+        /// <summary>全画面表示時の画像領域幅比率（%、リスト=100-この値）。デフォルト 85%</summary>
+        public int FullScreenModeImageAreaPercent { get; set; } = 85;
+
         /// <summary>
         /// デフォルト設定（ファイルがない場合に使用）
         /// </summary>
