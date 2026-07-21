@@ -31,10 +31,9 @@ namespace MangaViewer
 
         /// <summary>
         /// 指定された画像パスから Bitmap を取得（キャッシュ利用）。
-        /// Release/Debug の違いで DLL が正しく見つからない場合でも、
-        /// 可能な限りフォールバックして読み込むようにする。
+        /// 破損・ unreadable なファイルの場合は null を返し、アプリを止めない。
         /// </summary>
-        public Bitmap LoadOrGetCachedImage(string imagePath)
+        public Bitmap? LoadOrGetCachedImage(string imagePath)
         {
             if (_disposed) throw new ObjectDisposedException(nameof(ImageService));
 
@@ -43,7 +42,15 @@ namespace MangaViewer
             {
                 entry.LastAccessed = DateTime.UtcNow;
                 _imageCache[imagePath] = entry;
-                return new Bitmap(entry.Bitmap);
+                try
+                {
+                    return new Bitmap(entry.Bitmap);
+                }
+                catch
+                {
+                    // キャッシュのビットマップが壊れている場合、再読み込みを試みる
+                    _ = _imageCache.TryRemove(imagePath, out _);
+                }
             }
 
             string ext = Path.GetExtension(imagePath).ToLowerInvariant();
@@ -78,7 +85,7 @@ namespace MangaViewer
                 }
                 catch (FileNotFoundException)
                 {
-                    // 同様に DLL が見つからない場合はフォールバック
+                    // 同様に DLL がみつからない場合はフォールバック
                 }
                 // それ以外の例外は try/catch を抜けて GDI+ のパスに回る
             }
@@ -93,11 +100,15 @@ namespace MangaViewer
                 AddToCache(imagePath, bitmap);
                 return bitmap;
             }
-            catch (ArgumentException ex)
+            catch (ArgumentException)
             {
-                throw new IOException(
-                    $"画像の読み込みに失敗しました（ファイルが破損しているか、サポートされていない形式です）: {imagePath} ({ex.Message})",
-                    ex);
+                // 形式不正 or 破損 → null で返す（アプリを落とさない）
+                return null;
+            }
+            catch (IOException)
+            {
+                // ファイル読み込みエラー → null で返す
+                return null;
             }
         }
 

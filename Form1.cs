@@ -118,6 +118,19 @@ namespace MangaViewer
             };
         }
 
+        // ListBox がフォーカス中でも Ctrl+Up/Down を確実に捕まえるため、ProcessCmdKey をオーバーライドする。
+        protected override bool ProcessCmdKey(ref Message m, Keys keyData)
+        {
+            if (keyData == (Keys.Control | Keys.Up) || keyData == (Keys.Control | Keys.Down))
+            {
+                var e = new KeyEventArgs(keyData);
+                KeyboardInputHandler.HandleKeyDown(e, this);
+                return true; // 処理済みとしてここで吸収
+            }
+
+            return base.ProcessCmdKey(ref m, keyData);
+        }
+
         private void Form1_Load(object? sender, EventArgs e)
         {
             try
@@ -276,6 +289,20 @@ namespace MangaViewer
                 BorderStyle = BorderStyle.None, Font = new Font("Meiryo UI", 9F),
                 SelectionMode = SelectionMode.One, HorizontalScrollbar = true, TabStop = false,
             };
+            // ListBox がフォーカス中でも Ctrl＋上下を確実に捕捉するため、ListBox の KeyDown から KeyboardInputHandler を呼び出す
+            listBoxFolders.KeyDown += (s, e) => KeyboardInputHandler.HandleKeyDown(e, this);
+
+            // 矢印キー（Ctrl付き含む）が KeyDown に到達するように IsInputKey = true を設定
+            listBoxFolders.PreviewKeyDown += (s, e) =>
+            {
+                Keys code = e.KeyCode;
+                if (code == Keys.Up || code == Keys.Down ||
+                    code == Keys.Left || code == Keys.Right)
+                {
+                    e.IsInputKey = true;
+                }
+            };
+
             panelList.Controls.Add(listBoxFolders);
 
             UpdateLayout();
@@ -507,6 +534,21 @@ namespace MangaViewer
                 DisplayImages(_currentIndex);
                 listBoxFolders.SetSelected(_currentFolderIndex, true);
             }
+        }
+
+        public void NavigateFolderBy(int delta)
+        {
+            if (_folderList.Count == 0) return;
+            int newIndex = _currentFolderIndex + delta;
+            if (newIndex < 0) newIndex = 0;
+            if (newIndex >= _folderList.Count) newIndex = _folderList.Count - 1;
+            if (newIndex == _currentFolderIndex) return;
+
+            _currentFolderIndex = newIndex;
+            LoadAndSortImages(_folderList[_currentFolderIndex]);
+            _currentIndex = 0;
+            DisplayImages(0);
+            listBoxFolders.SetSelected(_currentFolderIndex, true);
         }
 
         public void NavigateToNextUnrated()

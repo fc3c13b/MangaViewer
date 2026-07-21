@@ -466,18 +466,29 @@ namespace MangaViewer
                     }
 
                     // 設定値が存在しなかった場合はデフォルト値を保存（新旧互換対応）
+                    // ※既にレイアウト比率が設定されている場合、そちらは保持する
                     bool countExists = doc.RootElement.TryGetProperty("MinDisplayCount", out _);
                     bool evalExists = doc.RootElement.TryGetProperty("MinEvaluation", out _);
                     bool displayExists = doc.RootElement.TryGetProperty("DisplayCount", out _);
+                    bool normalExists = doc.RootElement.TryGetProperty("NormalModeImageAreaPercent", out _);
+                    bool fullScreenExists = doc.RootElement.TryGetProperty("FullScreenModeImageAreaPercent", out _);
 
                     if (!countExists || !evalExists || !displayExists)
                     {
+                        // 既存のレイアウト比率が有効であればそれを引き継ぐ（上書き防止）
+                        int keepNormal = normalExists && normalPercent >= trbNormalLayoutRatio.Minimum && normalPercent <= trbNormalLayoutRatio.Maximum
+                            ? normalPercent
+                            : DefaultNormalModeImageAreaPercent;
+                        int keepFullScreen = fullScreenExists && fullScreenPercent >= trbFullScreenLayoutRatio.Minimum && fullScreenPercent <= trbFullScreenLayoutRatio.Maximum
+                            ? fullScreenPercent
+                            : DefaultFullScreenModeImageAreaPercent;
+
                         SaveSettingsToFile(
                             DefaultMinDisplayCount,
                             DefaultMinEvaluation,
                             DefaultDisplayCountVal,
-                            DefaultNormalModeImageAreaPercent,
-                            DefaultFullScreenModeImageAreaPercent);
+                            keepNormal,
+                            keepFullScreen);
                     }
                 }
                 catch

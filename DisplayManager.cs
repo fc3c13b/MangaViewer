@@ -20,7 +20,7 @@ namespace MangaViewer
         internal PictureBox[] pictureBoxes;
 
         /// <summary>Current images displayed in each PictureBox</summary>
-        private Image[]? currentImages;
+        private Image?[] currentImages;
 
         /// <summary>Number of images to display (2 or 8)</summary>
         public int DisplayCount => _settings.DisplayCount;
@@ -37,7 +37,7 @@ namespace MangaViewer
             _settings = settings;
             _imageService = imageService;
             pictureBoxes = new PictureBox[0];
-            currentImages = null;
+            currentImages = Array.Empty<Image?>();
         }
 
         /// <summary>
@@ -49,7 +49,7 @@ namespace MangaViewer
             DisposePictureBoxes();
             int count = DisplayCount;
             pictureBoxes = new PictureBox[count];
-            currentImages = new Image[count];
+            currentImages = new Image?[count];
 
             for (int i = 0; i < count; i++)
             {
@@ -175,11 +175,22 @@ namespace MangaViewer
 
             try
             {
-                currentImage = _imageService.LoadOrGetCachedImage(imagePath);
-                pb.Image = currentImage;
+                var img = _imageService.LoadOrGetCachedImage(imagePath);
+                // LoadOrGetCachedImage may return null for invalid/corrupted images.
+                if (img != null)
+                {
+                    currentImage = img;
+                    pb.Image = currentImage;
+                }
+                else
+                {
+                    // Show blank/black panel instead of crashing.
+                    pb.Image = null;
+                }
             }
             catch (OutOfMemoryException)
             {
+                // Unsupported or too large image: show error once, then continue.
                 MessageBox.Show("画像の読み込みに失敗しました:\n" + imagePath, "エラー", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 pb.Image = null;
                 if (currentImage != null)
@@ -190,6 +201,7 @@ namespace MangaViewer
             }
             catch (Exception ex)
             {
+                // Unexpected error: show dialog but do not crash.
                 MessageBox.Show("画像の読み込みに失敗しました:\n" + imagePath + "\n\n" + ex.Message, "エラー", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 pb.Image = null;
                 if (currentImage != null)
@@ -267,7 +279,7 @@ namespace MangaViewer
         {
             if (pictureBoxes != null)
                 DisposePictureBoxes();
-            currentImages = null;
+            currentImages = Array.Empty<Image?>();
         }
     }
 }

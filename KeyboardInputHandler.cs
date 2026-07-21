@@ -32,16 +32,27 @@ namespace MangaViewer
             {
                 nav.NavigateForwardTwoPages();
             }
-            // Ctrl + テンキー: 評価値保存
-            else if ((Control.ModifierKeys & Keys.Control) != 0 && nav.ImageCount > 0)
-            {
-                HandleRatingInput(e, nav);
-            }
-            // ESC: フルサイズモード解除（フルサイズ時のみ）
-            // D8: フルサイズモードトグル（Shiftなしのみ）
-            else if (e.KeyCode == Keys.Escape || (e.KeyCode == Keys.D8 && !Shift_Modifier(e)))
+            // ESC / D8: フルサイズモードトグル（ESC または D8）
+            else if (e.KeyCode == Keys.Escape || e.KeyCode == Keys.D8)
             {
                 nav.ToggleFullScreen();
+            }
+            // S: スライドショー開始/停止
+            else if (e.KeyCode == Keys.S)
+            {
+                ToggleSlideshow(nav);
+            }
+            // Ctrl + Up: 5つ上に移動（前のフォルダ）
+            else if (e.Control && e.KeyCode == Keys.Up && nav.FolderListCount > 0)
+            {
+                e.Handled = true;
+                nav.NavigateFolderBy(-5);
+            }
+            // Ctrl + Down: 5つ下に移動（次のフォルダ）
+            else if (e.Control && e.KeyCode == Keys.Down && nav.FolderListCount > 0)
+            {
+                e.Handled = true;
+                nav.NavigateFolderBy(5);
             }
             // Up: 前のフォルダ
             else if (e.KeyCode == Keys.Up && nav.FolderListCount > 0)
@@ -55,6 +66,11 @@ namespace MangaViewer
                 e.Handled = true;
                 nav.NavigateFolderDown();
             }
+            // Ctrl + テンキー: 評価値保存
+            else if (e.Control && nav.ImageCount > 0)
+            {
+                HandleRatingInput(e, nav);
+            }
         }
 
         private static void HandleRootFolderChange(INavigationActions nav)
@@ -67,11 +83,6 @@ namespace MangaViewer
                     nav.ChangeRootFolder(rootPath);
                 }
             }
-        }
-
-        private static bool Shift_Modifier(KeyEventArgs e)
-        {
-            return (Control.ModifierKeys & Keys.Shift) != 0;
         }
 
         private static void HandleRatingInput(KeyEventArgs e, INavigationActions nav)
@@ -98,6 +109,20 @@ namespace MangaViewer
                 e.Handled = true;
                 RatingService.SaveRating(nav.CurrentFolder, rating);
                 nav.NavigateToNextUnrated();
+            }
+        }
+
+        private static void ToggleSlideshow(INavigationActions nav)
+        {
+            // Start/stop slideshow via interface.
+            // Form1 should implement the concrete behavior using a Timer and settings.
+            if (nav.IsSlideshowRunning)
+            {
+                nav.StopSlideshow();
+            }
+            else
+            {
+                nav.StartSlideshow();
             }
         }
     }
