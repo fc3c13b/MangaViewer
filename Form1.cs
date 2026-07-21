@@ -63,10 +63,10 @@ namespace MangaViewer
         internal bool _fullScreenMode = false;
 
         /// <summary>Saved window state for restoring from full-screen.</summary>
-        private FormBorderStyle _savedFormBorderStyle = FormBorderStyle.Sizable;
-
-        /// <summary>Saved window state for restoring from full-screen.</summary>
         private FormWindowState _savedWindowState = FormWindowState.Normal;
+
+        /// <summary>Saved form border style for restoring from full-screen.</summary>
+        private FormBorderStyle _savedFormBorderStyle = FormBorderStyle.Sizable;
 
         /// <summary>Saved window size for restoring from full-screen.</summary>
         private Size _savedSize = new Size(Constants.InitialWidth, Constants.InitialHeight);
@@ -85,6 +85,16 @@ namespace MangaViewer
         /// Folder service for folder scanning, filtering, and cache management.
         /// </summary>
         private FolderService? _folderService;
+
+        /// <summary>
+        /// Slideshow timer to automatically advance images.
+        /// </summary>
+        private Timer? _slideshowTimer;
+
+        /// <summary>
+        /// Whether the slideshow is currently running.
+        /// </summary>
+        public bool IsSlideshowRunning => _slideshowTimer?.Enabled ?? false;
 
         /// <summary>
         /// Constructor for Form1. Initializes components and subscribes to Load event.
@@ -112,7 +122,20 @@ namespace MangaViewer
         {
             try
             {
-                _settings = SettingsManager.Load();
+                var (loadedSettings, errors) = SettingsManager.LoadWithValidation();
+                _settings = loadedSettings;
+
+                if (errors.Count > 0)
+                {
+                    MessageBox.Show(
+                        this,
+                        "設定に不正な値が含まれているため、該当項目はデフォルト値を使用します。" + Environment.NewLine +
+                            Environment.NewLine +
+                            string.Join(Environment.NewLine, errors),
+                        "設定エラー",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                }
                 _displayManager = new DisplayManager(this, _settings, _imageService);
                 _displayManager.ImagePaths = _imagePaths;
 
@@ -182,8 +205,9 @@ namespace MangaViewer
             labelInfo.Text = "フォルダを読み込み中...";
             Application.DoEvents();
 
-            _settings = SettingsManager.Load();
-            _folderService = new FolderService(_settings);
+            // BuildSubfolderList 内で不要な再Loadを抑え、既存インメモリ設定を使用する
+            if (_folderService == null)
+                _folderService = new FolderService(_settings);
 
             try
             {
@@ -295,6 +319,8 @@ namespace MangaViewer
 
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
+            _slideshowTimer?.Stop();
+            _slideshowTimer?.Dispose();
             _imageService.Dispose();
             _displayManager?.Dispose();
             base.OnFormClosing(e);
@@ -354,7 +380,8 @@ namespace MangaViewer
             {
                 if (dialog.ShowDialog(this) == DialogResult.OK)
                 {
-                    _settings = SettingsManager.Load();
+                    // ダイアログから戻った後にもファイル再Loadせず、SettingsDialogで適用されたインメモリ設定を使用する
+                    // これにより「一度Load失敗→デフォルト」で値が消える問題を回避
                     _displayManager.UpdateSettings(_settings);
 
                     // 最小表示枚数または最小評価値が変更された場合はフォルダリストを再フィルタ
@@ -498,6 +525,54 @@ namespace MangaViewer
                 }
             }
             // 未評価のフォルダが存在しない場合は何もしない
+        }
+
+        #endregion
+
+        #region Slideshow implementation
+
+        public void StartSlideshow()
+        {
+            if (_imagePaths.Count == 0)
+                return;
+
+            if (_slideshowTimer == null)
+            {
+                _slideshowTimer = new Timer();
+                _slideshowTimer.Interval = Math.Max(500, _settings.SlideshowIntervalMs);
+                _slideshowTimer.Tick += SlideshowTimer_Tick;
+            }
+
+            // Reload settings in case interval was changed externally
+            _slideshowTimer.Interval = Math.Max(500, _settings.SlideshowIntervalMs);
+            _slideshowTimer.Start();
+        }
+
+        public void StopSlideshow()
+        {
+            if (_slideshowTimer != null)
+                _slideshowTimer.Stop();
+        }
+
+        private void SlideshowTimer_Tick(object? sender, EventArgs e)
+        {
+            // If current folder has no images, stop slideshow.
+            if (_imagePaths.Count == 0)
+            {
+                StopSlideshow();
+                return;
+            }
+
+            int step = _displayManager.NavigationStep;
+
+            // Advance index.
+            _currentIndex += step;
+
+            // If we reached or passed the end, loop back to start.
+            if (_currentIndex >= _imagePaths.Count)
+                _currentIndex = 0;
+
+            DisplayImages(_currentIndex);
         }
 
         #endregion
