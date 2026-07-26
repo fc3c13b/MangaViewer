@@ -161,17 +161,16 @@ namespace MangaViewer
                 // BuildSubfolderList で_settings が再Loadされるので、DisplayManagerにも反映
                 _displayManager.UpdateSettings(_settings);
 
-                if (_folderList.Count > 0)
+                if (_folderList.Count > 0 && _currentFolderIndex >= 0)
                 {
-                    _currentFolderIndex = 0;
-                    LoadAndSortImages(_folderList[0]);
+                    LoadAndSortImages(_folderList[_currentFolderIndex]);
                     _displayManager.ImagePaths = _imagePaths;
                     _currentIndex = 0;
                     _displayManager.InitializePictureBoxes();
                     this.PerformLayout();
                     UpdateLayout();
                     _displayManager.DisplayImages(0);
-                    listBoxFolders.SelectedIndex = 0;
+                    listBoxFolders.SelectedIndex = _currentFolderIndex;
                 }
             }
             catch (Exception ex)
@@ -230,19 +229,26 @@ namespace MangaViewer
                 listBoxFolders.DataSource = null;
                 listBoxFolders.Items.Clear();
 
-                foreach (var entry in entries)
+                int firstUnratedIndex = -1;
+
+                for (int i = 0; i < entries.Count; i++)
                 {
+                    var entry = entries[i];
                     _folderList.Add(entry.Path);
                     string folderName = Path.GetFileName(entry.Path);
                     int rating = RatingService.ReadRating(entry.Path);
                     string ratingPrefix = rating >= 0 ? $"[{rating}] " : "";
                     listBoxFolders.Items.Add($"{ratingPrefix}{folderName} -[{entry.ImageCount}]");
+
+                    if (firstUnratedIndex < 0 && rating < 0)
+                        firstUnratedIndex = i;
                 }
 
                 if (_folderList.Count > 0)
                 {
-                    listBoxFolders.SelectedIndex = 0;
-                    _currentFolderIndex = 0;
+                    int initialIndex = firstUnratedIndex >= 0 ? firstUnratedIndex : 0;
+                    listBoxFolders.SelectedIndex = initialIndex;
+                    _currentFolderIndex = initialIndex;
                 }
             }
             catch
@@ -467,24 +473,26 @@ namespace MangaViewer
             _settings.LastRootFolder = rootPath;
             SettingsManager.Save(_settings);
             BuildSubfolderList(rootPath);
-            
+
             // BuildSubfolderList で_settings が再Loadされるので、DisplayManagerにも反映
             _displayManager.UpdateSettings(_settings);
 
-            if (_folderList.Count > 0)
+            if (_folderList.Count > 0 && _currentFolderIndex >= 0)
             {
-                _currentFolderIndex = 0;
                 LoadAndSortImages(_folderList[_currentFolderIndex]);
+                _currentIndex = 0;
+                DisplayImages(_currentIndex);
+                listBoxFolders.SelectedIndex = _currentFolderIndex;
             }
-            else
+            else if (_folderList.Count == 0)
             {
                 _folderList.Clear();
                 _currentFolderIndex = -1;
                 LoadAndSortImages(rootPath);
+                _currentIndex = 0;
+                DisplayImages(_currentIndex);
+                labelInfo.Text = "表示可能なフォルダがありません。";
             }
-            _currentIndex = 0;
-            DisplayImages(_currentIndex);
-            listBoxFolders.SelectedIndex = _currentFolderIndex;
         }
 
         public void NavigateBackwardTwoPages()
