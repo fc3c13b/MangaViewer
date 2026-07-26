@@ -33,9 +33,14 @@ namespace MangaViewer
                 nav.NavigateForwardTwoPages();
             }
             // ESC / D8: フルサイズモードトグル（ESC または D8）
+            // 複数ハンドラが重ならないよう Handled を使用する
             else if (e.KeyCode == Keys.Escape || e.KeyCode == Keys.D8)
             {
-                nav.ToggleFullScreen();
+                if (!e.Handled)
+                {
+                    e.Handled = true;
+                    nav.ToggleFullScreen();
+                }
             }
             // S: スライドショー開始/停止
             else if (e.KeyCode == Keys.S)
