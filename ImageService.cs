@@ -25,9 +25,15 @@ namespace MangaViewer
         }
 
         /// <summary>
-        /// SkiaSharp を優先的に使用する拡張子のリスト。
+        /// SkiaSharp を優先的に使用する拡張子のリスト（判定用）。
+        /// ただし、マジックナンバーで WebP と判明した場合は拡張子に関わらず Skia を優先する。
         /// </summary>
         private static readonly string[] SkiaPreferredExtensions = { ".webp", ".jpg", ".jpeg" };
+
+        /// <summary>
+        /// 拡張子の補正用ロック（ファイルリネームの排他制御）。
+        /// </summary>
+        private static readonly object _renameLock = new();
 
         /// <summary>
         /// 指定された画像パスから Bitmap を取得（キャッシュ利用）。
@@ -54,17 +60,31 @@ namespace MangaViewer
             }
 
             string ext = Path.GetExtension(imagePath).ToLowerInvariant();
-            bool useSkiaPreferred = SkiaPreferredExtensions.Contains(ext);
-            Bitmap bitmap;
 
-            // 1) SkiaSharp を使用して読み込みを試みる（USE_SKIA が定義されている場合）
+            // 1) まずファイルを全量メモリに読み込み（オープン中のリネーム失敗を防ぐ）
+            byte[] fileBytes;
+            try
+            {
+                fileBytes = File.ReadAllBytes(imagePath);
+            }
+            catch (IOException)
+            {
+                return null;
+            }
+
+            // 2) マジックナンバーから実際の形式を判定
+            string actualFormat = DetectImageFormatFromBytes(fileBytes);
+
+            bool useSkiaPreferred = SkiaPreferredExtensions.Contains(ext) || actualFormat == "webp";
+            Bitmap? bitmap = null;
+
+            // 3) SkiaSharp を使用して読み込みを試みる（USE_SKIA が定義されている場合）
 #if USE_SKIA
-            if (useSkiaPreferred)
+            if (useSkiaPreferred && bitmap == null)
             {
                 try
                 {
-                    var bytes = File.ReadAllBytes(imagePath);
-                    using var skImage = SKImage.FromEncodedData(bytes);
+                    using var skImage = SKImage.FromEncodedData(fileBytes);
                     if (skImage != null)
                     {
                         // Skia でデコード成功 → PNG 経由で Bitmap に変換
@@ -73,8 +93,6 @@ namespace MangaViewer
                         {
                             using var ms = new MemoryStream(skPm.ToArray());
                             bitmap = new Bitmap(ms);
-                            AddToCache(imagePath, bitmap);
-                            return bitmap;
                         }
                     }
                 }
@@ -87,29 +105,36 @@ namespace MangaViewer
                 {
                     // 同様に DLL がみつからない場合はフォールバック
                 }
-                // それ以外の例外は try/catch を抜けて GDI+ のパスに回る
             }
 #endif
 
-            // 2) GDI+（標準）での読み込み（Skia 未使用または失敗したときのフォールバック）
-            try
+            // 4) Skia で失敗した場合は GDI+（標準）で読み込みを試みる
+            if (bitmap == null)
             {
-                var bytes = File.ReadAllBytes(imagePath);
-                using var ms = new MemoryStream(bytes);
-                bitmap = new Bitmap(ms);
-                AddToCache(imagePath, bitmap);
-                return bitmap;
+                try
+                {
+                    using var ms = new MemoryStream(fileBytes);
+                    bitmap = new Bitmap(ms);
+                }
+                catch (ArgumentException)
+                {
+                    // 形式不正 or 破損 → null（アプリを落とさない）
+                }
+                catch (OutOfMemoryException)
+                {
+                    // GDI+ では「サポートされていない形式」も OutOfMemoryException を投げる場合がある
+                }
             }
-            catch (ArgumentException)
+
+            if (bitmap == null)
             {
-                // 形式不正 or 破損 → null で返す（アプリを落とさない）
                 return null;
             }
-            catch (IOException)
-            {
-                // ファイル読み込みエラー → null で返す
-                return null;
-            }
+
+            // 5) 画像読み込み成功後、キャッシュ登録
+            AddToCache(imagePath, bitmap);
+
+            return bitmap;
         }
 
         /// <summary>
@@ -162,6 +187,33 @@ namespace MangaViewer
         public static void DisposeImage(Image? image)
         {
             image?.Dispose();
+        }
+
+        /// <summary>
+        /// ファイルのマジックナンバーから実際の画像形式を判定する。
+        /// </summary>
+        private static string DetectImageFormatFromBytes(byte[] data)
+        {
+            if (data == null || data.Length < 16)
+                return "unknown";
+
+            // PNG: 89 50 4E 47 ...
+            if (data[0] == 0x89 && data[1] == 0x50 && data[2] == 0x4E && data[3] == 0x47)
+                return "png";
+
+            // JPEG: FF D8 FF
+            if (data.Length >= 3 && data[0] == 0xFF && data[1] == 0xD8 && data[2] == 0xFF)
+                return "jpeg";
+
+            // WebP: RIFF .... WEBP
+            if (data.Length >= 12 &&
+                data[0] == 'R' && data[1] == 'I' && data[2] == 'F' && data[3] == 'F' &&
+                data[8] == 'W' && data[9] == 'E' && data[10] == 'B' && data[11] == 'P')
+            {
+                return "webp";
+            }
+
+            return "unknown";
         }
 
         public void Dispose()
