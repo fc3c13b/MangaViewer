@@ -559,6 +559,22 @@ namespace MangaViewer
             listBoxFolders.SetSelected(_currentFolderIndex, true);
         }
 
+        // フォルダリストを指定量だけジャンプ移動（Alt±50 など用）
+        public void NavigateFolders(int delta)
+        {
+            if (_folderList.Count == 0 || _currentFolderIndex < 0) return;
+            int newIndex = _currentFolderIndex + delta;
+            if (newIndex < 0) newIndex = 0;
+            if (newIndex >= _folderList.Count) newIndex = _folderList.Count - 1;
+            if (newIndex == _currentFolderIndex) return;
+
+            _currentFolderIndex = newIndex;
+            LoadAndSortImages(_folderList[_currentFolderIndex]);
+            _currentIndex = 0;
+            DisplayImages(0);
+            listBoxFolders.SetSelected(_currentFolderIndex, true);
+        }
+
         public void NavigateToNextUnrated()
         {
             // 先頭から未評価（rating == -1）のフォルダを探す

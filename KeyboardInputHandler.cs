@@ -47,26 +47,38 @@ namespace MangaViewer
             {
                 ToggleSlideshow(nav);
             }
+            // Alt + Up: 50個上へジャンプ（フォルダリスト）
+            else if (e.Alt && !e.Control && e.KeyCode == Keys.Up && nav.FolderListCount > 0)
+            {
+                e.Handled = true;
+                nav.NavigateFolders(-50);
+            }
+            // Alt + Down: 50個下へジャンプ（フォルダリスト）
+            else if (e.Alt && !e.Control && e.KeyCode == Keys.Down && nav.FolderListCount > 0)
+            {
+                e.Handled = true;
+                nav.NavigateFolders(50);
+            }
             // Ctrl + Up: 5つ上に移動（前のフォルダ）
-            else if (e.Control && e.KeyCode == Keys.Up && nav.FolderListCount > 0)
+            else if (e.Control && !e.Alt && e.KeyCode == Keys.Up && nav.FolderListCount > 0)
             {
                 e.Handled = true;
                 nav.NavigateFolderBy(-5);
             }
             // Ctrl + Down: 5つ下に移動（次のフォルダ）
-            else if (e.Control && e.KeyCode == Keys.Down && nav.FolderListCount > 0)
+            else if (e.Control && !e.Alt && e.KeyCode == Keys.Down && nav.FolderListCount > 0)
             {
                 e.Handled = true;
                 nav.NavigateFolderBy(5);
             }
             // Up: 前のフォルダ
-            else if (e.KeyCode == Keys.Up && nav.FolderListCount > 0)
+            else if (!e.Alt && !e.Control && e.KeyCode == Keys.Up && nav.FolderListCount > 0)
             {
                 e.Handled = true;
                 nav.NavigateFolderUp();
             }
             // Down: 次のフォルダ
-            else if (e.KeyCode == Keys.Down && nav.FolderListCount > 0)
+            else if (!e.Alt && !e.Control && e.KeyCode == Keys.Down && nav.FolderListCount > 0)
             {
                 e.Handled = true;
                 nav.NavigateFolderDown();
