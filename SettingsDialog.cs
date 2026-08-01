@@ -34,15 +34,11 @@ namespace MangaViewer
         private Label lblImageFilterStats = null!;
         private Label lblRatingFilterStats = null!;
 
-        // レイアウト比率設定用コントロール（ノーマル）
-        private TrackBar trbNormalLayoutRatio = null!;
-        private Label labelNormalLayoutRatio = null!;
-        private Label lblNormalLayoutValue = null!;
+        // レイアウト比率設定用コントロール（ノーマル）：数値入力
+        private NumericUpDown numNormalLayoutRatio = null!;
 
-        // レイアウト比率設定用コントロール（全画面）
-        private TrackBar trbFullScreenLayoutRatio = null!;
-        private Label labelFullScreenLayoutRatio = null!;
-        private Label lblFullScreenLayoutValue = null!;
+        // レイアウト比率設定用コントロール（全画面）：数値入力
+        private NumericUpDown numFullScreenLayoutRatio = null!;
 
         // ルートフォルダパス（統計計算用）
         private string RootFolder => GetRootFolder();
@@ -70,12 +66,12 @@ namespace MangaViewer
         /// <summary>
         /// ノーマル表示時の画像領域幅比率（%）
         /// </summary>
-        public int NormalModeImageAreaPercent => (int)trbNormalLayoutRatio.Value;
+        public int NormalModeImageAreaPercent => (int)numNormalLayoutRatio.Value;
 
         /// <summary>
         /// 全画面表示時の画像領域幅比率（%）
         /// </summary>
-        public int FullScreenModeImageAreaPercent => (int)trbFullScreenLayoutRatio.Value;
+        public int FullScreenModeImageAreaPercent => (int)numFullScreenLayoutRatio.Value;
 
         // デフォルト値
         private const int DefaultMinDisplayCount = 20;
@@ -92,10 +88,10 @@ namespace MangaViewer
 
         private void InitializeComponent()
         {
-            // ダイアログ基本設定（高さを少し増やしてレイアウト比率用スペース確保）
+            // ダイアログ基本設定
             this.Text = "設定";
             this.StartPosition = FormStartPosition.CenterScreen;
-            this.Size = new System.Drawing.Size(420, 560);
+            this.Size = new System.Drawing.Size(420, 500);
             this.MinimizeBox = false;
             this.MaximizeBox = false;
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
@@ -239,8 +235,8 @@ namespace MangaViewer
             };
             this.Controls.Add(labelLayoutSection);
 
-            // ノーマル表示：画像領域幅比率（スライダー）
-            labelNormalLayoutRatio = new Label
+            // ノーマル表示：画像領域幅比率（数値入力）
+            Label labelNormalLayoutRatioHint = new Label
             {
                 Text = "ノーマル表示の画像領域幅:",
                 AutoSize = true,
@@ -248,33 +244,29 @@ namespace MangaViewer
                 Font = new System.Drawing.Font("Meiryo UI", 9F),
                 Location = new System.Drawing.Point(20, 200),
             };
-            this.Controls.Add(labelNormalLayoutRatio);
+            this.Controls.Add(labelNormalLayoutRatioHint);
 
-            trbNormalLayoutRatio = new TrackBar
+            numNormalLayoutRatio = new NumericUpDown
             {
                 Minimum = 50,
                 Maximum = 95,
                 Value = DefaultNormalModeImageAreaPercent,
-                TickStyle = TickStyle.None,
-                Location = new System.Drawing.Point(20, 218),
-                Size = new System.Drawing.Size(340, 45),
+                Location = new System.Drawing.Point(170, 198),
+                Size = new System.Drawing.Size(80, 25),
+                BackColor = Color.FromArgb(60, 60, 60),
+                ForeColor = Color.White,
             };
-            trbNormalLayoutRatio.Scroll += (s, e) =>
-            {
-                int v = (int)trbNormalLayoutRatio.Value;
-                lblNormalLayoutValue.Text = $"{v}%";
-            };
-            this.Controls.Add(trbNormalLayoutRatio);
+            this.Controls.Add(numNormalLayoutRatio);
 
-            lblNormalLayoutValue = new Label
+            Label labelNormalPercentUnit = new Label
             {
-                Text = DefaultNormalModeImageAreaPercent + "%",
+                Text = "%",
                 AutoSize = true,
-                ForeColor = Color.Cyan,
+                ForeColor = Color.LightGray,
                 Font = new System.Drawing.Font("Meiryo UI", 9F),
-                Location = new System.Drawing.Point(365, 218),
+                Location = new System.Drawing.Point(255, 202),
             };
-            this.Controls.Add(lblNormalLayoutValue);
+            this.Controls.Add(labelNormalPercentUnit);
 
             // ノーマル説明
             Label labelNormalHint = new Label
@@ -283,46 +275,42 @@ namespace MangaViewer
                 AutoSize = true,
                 ForeColor = Color.LightGray,
                 Font = new System.Drawing.Font("Meiryo UI", 8F),
-                Location = new System.Drawing.Point(20, 265),
+                Location = new System.Drawing.Point(20, 230),
             };
             this.Controls.Add(labelNormalHint);
 
-            // 全画面表示：画像領域幅比率（スライダー）
-            labelFullScreenLayoutRatio = new Label
+            // 全画面表示：画像領域幅比率（数値入力）
+            Label labelFullScreenLayoutRatioHint = new Label
             {
                 Text = "全画面表示の画像領域幅:",
                 AutoSize = true,
                 ForeColor = Color.White,
                 Font = new System.Drawing.Font("Meiryo UI", 9F),
-                Location = new System.Drawing.Point(20, 290),
+                Location = new System.Drawing.Point(20, 265),
             };
-            this.Controls.Add(labelFullScreenLayoutRatio);
+            this.Controls.Add(labelFullScreenLayoutRatioHint);
 
-            trbFullScreenLayoutRatio = new TrackBar
+            numFullScreenLayoutRatio = new NumericUpDown
             {
                 Minimum = 70,
                 Maximum = 98,
                 Value = DefaultFullScreenModeImageAreaPercent,
-                TickStyle = TickStyle.None,
-                Location = new System.Drawing.Point(20, 308),
-                Size = new System.Drawing.Size(340, 45),
+                Location = new System.Drawing.Point(170, 263),
+                Size = new System.Drawing.Size(80, 25),
+                BackColor = Color.FromArgb(60, 60, 60),
+                ForeColor = Color.White,
             };
-            trbFullScreenLayoutRatio.Scroll += (s, e) =>
-            {
-                int v = (int)trbFullScreenLayoutRatio.Value;
-                lblFullScreenLayoutValue.Text = $"{v}%";
-            };
-            this.Controls.Add(trbFullScreenLayoutRatio);
+            this.Controls.Add(numFullScreenLayoutRatio);
 
-            lblFullScreenLayoutValue = new Label
+            Label labelFullPercentUnit = new Label
             {
-                Text = DefaultFullScreenModeImageAreaPercent + "%",
+                Text = "%",
                 AutoSize = true,
-                ForeColor = Color.Cyan,
+                ForeColor = Color.LightGray,
                 Font = new System.Drawing.Font("Meiryo UI", 9F),
-                Location = new System.Drawing.Point(365, 308),
+                Location = new System.Drawing.Point(255, 267),
             };
-            this.Controls.Add(lblFullScreenLayoutValue);
+            this.Controls.Add(labelFullPercentUnit);
 
             // バージョン表示ラベル（下部）
             labelVersion = new Label
@@ -466,29 +454,18 @@ namespace MangaViewer
                     }
 
                     // 設定値が存在しなかった場合はデフォルト値を保存（新旧互換対応）
-                    // ※既にレイアウト比率が設定されている場合、そちらは保持する
                     bool countExists = doc.RootElement.TryGetProperty("MinDisplayCount", out _);
                     bool evalExists = doc.RootElement.TryGetProperty("MinEvaluation", out _);
                     bool displayExists = doc.RootElement.TryGetProperty("DisplayCount", out _);
-                    bool normalExists = doc.RootElement.TryGetProperty("NormalModeImageAreaPercent", out _);
-                    bool fullScreenExists = doc.RootElement.TryGetProperty("FullScreenModeImageAreaPercent", out _);
 
                     if (!countExists || !evalExists || !displayExists)
                     {
-                        // 既存のレイアウト比率が有効であればそれを引き継ぐ（上書き防止）
-                        int keepNormal = normalExists && normalPercent >= trbNormalLayoutRatio.Minimum && normalPercent <= trbNormalLayoutRatio.Maximum
-                            ? normalPercent
-                            : DefaultNormalModeImageAreaPercent;
-                        int keepFullScreen = fullScreenExists && fullScreenPercent >= trbFullScreenLayoutRatio.Minimum && fullScreenPercent <= trbFullScreenLayoutRatio.Maximum
-                            ? fullScreenPercent
-                            : DefaultFullScreenModeImageAreaPercent;
-
                         SaveSettingsToFile(
                             DefaultMinDisplayCount,
                             DefaultMinEvaluation,
                             DefaultDisplayCountVal,
-                            keepNormal,
-                            keepFullScreen);
+                            normalPercent,   // 既存値があればそのまま
+                            fullScreenPercent);
                     }
                 }
                 catch
@@ -514,15 +491,11 @@ namespace MangaViewer
             numMinEvaluation.Value = minEval;
 
             // レイアウト比率を反映（範囲制限付き）
-            if (normalPercent >= trbNormalLayoutRatio.Minimum && normalPercent <= trbNormalLayoutRatio.Maximum)
-                trbNormalLayoutRatio.Value = normalPercent;
-            else
-                lblNormalLayoutValue.Text = DefaultNormalModeImageAreaPercent + "%";
+            if (normalPercent >= (int)numNormalLayoutRatio.Minimum && normalPercent <= (int)numNormalLayoutRatio.Maximum)
+                numNormalLayoutRatio.Value = normalPercent;
 
-            if (fullScreenPercent >= trbFullScreenLayoutRatio.Minimum && fullScreenPercent <= trbFullScreenLayoutRatio.Maximum)
-                trbFullScreenLayoutRatio.Value = fullScreenPercent;
-            else
-                lblFullScreenLayoutValue.Text = DefaultFullScreenModeImageAreaPercent + "%";
+            if (fullScreenPercent >= (int)numFullScreenLayoutRatio.Minimum && fullScreenPercent <= (int)numFullScreenLayoutRatio.Maximum)
+                numFullScreenLayoutRatio.Value = fullScreenPercent;
 
             // 初期値でフィルター統計を表示
             UpdateFilterStats();

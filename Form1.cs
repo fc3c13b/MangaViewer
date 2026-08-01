@@ -408,24 +408,30 @@ namespace MangaViewer
             int prevDisplayCount = _settings.DisplayCount;
             int prevMinDisplayCount = _settings.MinDisplayCount;
             int prevMinEvaluation = _settings.MinEvaluation;
+            int prevNormalImageAreaPercent = _settings.NormalModeImageAreaPercent;
+            int prevFullScreenImageAreaPercent = _settings.FullScreenModeImageAreaPercent;
 
             using (var dialog = new SettingsDialog())
             {
                 if (dialog.ShowDialog(this) == DialogResult.OK)
                 {
-                    // ダイアログから戻った後にもファイル再Loadせず、SettingsDialogで適用されたインメモリ設定を使用する
-                    // これにより「一度Load失敗→デフォルト」で値が消える問題を回避
+                    // OK 押下後、setting.json から最新設定を再Loadして一括適用
+                    (_settings, _) = SettingsManager.LoadWithValidation();
                     _displayManager.UpdateSettings(_settings);
 
+                    bool displayCountChanged = _settings.DisplayCount != prevDisplayCount;
+                    bool filterChanged = _settings.MinDisplayCount != prevMinDisplayCount || _settings.MinEvaluation != prevMinEvaluation;
+                    bool layoutRatioChanged = _settings.NormalModeImageAreaPercent != prevNormalImageAreaPercent
+                                             || _settings.FullScreenModeImageAreaPercent != prevFullScreenImageAreaPercent;
+
                     // 最小表示枚数または最小評価値が変更された場合はフォルダリストを再フィルタ
-                    if (_settings.MinDisplayCount != prevMinDisplayCount || _settings.MinEvaluation != prevMinEvaluation)
+                    if (filterChanged)
                     {
                         string rootPath = string.IsNullOrEmpty(_settings.LastRootFolder)
                             ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
                             : _settings.LastRootFolder;
                         BuildSubfolderList(rootPath);
 
-                        // 現在のフォルダが新しいリストに含まれているか確認
                         int newIdx = -1;
                         for (int i = 0; i < _folderList.Count; i++)
                         {
@@ -456,8 +462,8 @@ namespace MangaViewer
                         }
                     }
 
-                    // DisplayCountが変更された場合はPictureBoxを再構築
-                    if (_settings.DisplayCount != prevDisplayCount)
+                    // DisplayCount変更 OR レイアウト比率変更の場合は一貫して再構築・再配置
+                    if (displayCountChanged || layoutRatioChanged)
                     {
                         _displayManager.InitializePictureBoxes();
                         UpdateLayout();
