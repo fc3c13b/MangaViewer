@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Reflection;
 using System.Text.Json;
 using System.Windows.Forms;
 
@@ -312,10 +314,10 @@ namespace MangaViewer
             };
             this.Controls.Add(labelFullPercentUnit);
 
-            // バージョン表示ラベル（下部）
+            // バージョン表示ラベル（下部：csproj の Version をリフレクションで取得）
             labelVersion = new Label
             {
-                Text = $"アプリバージョン: {Constants.AppVersion}",
+                Text = $"アプリバージョン: {GetAppVersion()}",
                 AutoSize = true,
                 ForeColor = Color.LightGray,
                 Font = new System.Drawing.Font("Meiryo UI", 10F),
@@ -353,6 +355,33 @@ namespace MangaViewer
 
             // 起動時に設定値を読み込む
             LoadSettings();
+        }
+
+        /// <summary>
+        /// アプリケーションのバージョンを csproj の Version から取得する（唯一の真）。
+        /// </summary>
+        private static string GetAppVersion()
+        {
+            try
+            {
+                var asm = Assembly.GetExecutingAssembly();
+                var info = FileVersionInfo.GetVersionInfo(asm.Location);
+                if (!string.IsNullOrEmpty(info.ProductVersion))
+                    return "Ver" + info.ProductVersion;
+            }
+            catch { /* 取得失敗時はフォールバック */ }
+
+            try
+            {
+                var asm = Assembly.GetExecutingAssembly();
+                var fv = FileVersionInfo.GetVersionInfo(asm.Location).FileVersion;
+                if (!string.IsNullOrEmpty(fv))
+                    return "Ver" + fv;
+            }
+            catch { /* ignore */ }
+
+            // 最終フォールバック: 固定表示（管理しやすいように短く）
+            return "Ver";
         }
 
         private string GetRootFolder()

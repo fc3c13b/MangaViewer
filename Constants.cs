@@ -47,12 +47,6 @@ namespace MangaViewer
 
         #endregion
 
-        #region バージョン
-
-        /// <summary>アプリケーションバージョン（一か所管理）</summary>
-        public const string AppVersion = "Ver4.1.2";
-
-        #endregion
 
         #region 拡張子フィルタ
 
