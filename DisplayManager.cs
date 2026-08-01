@@ -112,8 +112,8 @@ namespace MangaViewer
                 LoadImageIntoPictureBox(pictureBoxes[i], ref currentImages![i], imagePath);
             }
 
-            // Preload next batch into cache (16枚先読み)
-            const int prefetchCount = 16;
+            // Preload next batch into cache based on display count
+            int prefetchCount = DisplayCount == 2 ? 4 : 8;
             int nextIdx = startIndex + count;
             if (nextIdx < ImagePaths.Count)
             {
