@@ -17,6 +17,18 @@ namespace MangaViewer
             {
                 nav.ShowSettingsDialog();
             }
+            // D2: 2枚表示に切り替え
+            else if (e.KeyCode == Keys.D2)
+            {
+                e.Handled = true;
+                nav.SetDisplayCount(2);
+            }
+            // D8: 8枚表示に切り替え
+            else if (e.KeyCode == Keys.D8)
+            {
+                e.Handled = true;
+                nav.SetDisplayCount(8);
+            }
             // D1: ルートフォルダ変更
             else if (e.KeyCode == Keys.D1)
             {
@@ -32,9 +44,9 @@ namespace MangaViewer
             {
                 nav.NavigateForwardTwoPages();
             }
-            // ESC / D8: フルサイズモードトグル（ESC または D8）
+            // ESC / D9: フルスクリーンモードトグル（ESC または 9）
             // 複数ハンドラが重ならないよう Handled を使用する
-            else if (e.KeyCode == Keys.Escape || e.KeyCode == Keys.D8)
+            else if (e.KeyCode == Keys.Escape || e.KeyCode == Keys.D9)
             {
                 if (!e.Handled)
                 {

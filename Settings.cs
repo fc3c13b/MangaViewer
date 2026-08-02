@@ -37,6 +37,9 @@ namespace MangaViewer
         /// <summary>全画面表示時の画像領域幅比率（%、リスト=100-この値）。デフォルト 85%</summary>
         public int FullScreenModeImageAreaPercent { get; set; } = 85;
 
+        /// <summary>評価1キーワード（カンマ区切りで複数指定可能）</summary>
+        public string RatingOneKeywords { get; set; } = "";
+
         /// <summary>
         /// デフォルト設定（ファイルがない場合に使用）
         /// </summary>

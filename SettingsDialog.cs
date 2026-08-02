@@ -42,6 +42,9 @@ namespace MangaViewer
         // レイアウト比率設定用コントロール（全画面）：数値入力
         private NumericUpDown numFullScreenLayoutRatio = null!;
 
+        // 評価1キーワード設定用コントロール
+        private TextBox txtRatingOneKeywords = null!;
+
         // ルートフォルダパス（統計計算用）
         private string RootFolder => GetRootFolder();
 
@@ -75,6 +78,11 @@ namespace MangaViewer
         /// </summary>
         public int FullScreenModeImageAreaPercent => (int)numFullScreenLayoutRatio.Value;
 
+        /// <summary>
+        /// 評価1キーワード（カンマ区切り）
+        /// </summary>
+        public string RatingOneKeywordsValue => txtRatingOneKeywords.Text?.Trim() ?? "";
+
         // デフォルト値
         private const int DefaultMinDisplayCount = 20;
         private const int DefaultMinEvaluation = 8;
@@ -93,7 +101,7 @@ namespace MangaViewer
             // ダイアログ基本設定
             this.Text = "設定";
             this.StartPosition = FormStartPosition.CenterScreen;
-            this.Size = new System.Drawing.Size(420, 500);
+            this.Size = new System.Drawing.Size(420, 560);
             this.MinimizeBox = false;
             this.MaximizeBox = false;
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
@@ -145,7 +153,7 @@ namespace MangaViewer
             };
             this.Controls.Add(labelMinDisplayUnit);
 
-            // 最小画像数フィルター統計ラベル（「枚」の右隣）
+            // 「枚」の右隣：統計表示
             lblImageFilterStats = new Label
             {
                 Text = "",
@@ -180,7 +188,7 @@ namespace MangaViewer
             };
             this.Controls.Add(numMinEvaluation);
 
-            // 最小評価値フィルター統計ラベル（numMinEvaluation の右隣）
+            // numMinEvaluation の右隣：統計表示
             lblRatingFilterStats = new Label
             {
                 Text = "",
@@ -314,6 +322,38 @@ namespace MangaViewer
             };
             this.Controls.Add(labelFullPercentUnit);
 
+            // 評価1キーワード ラベル
+            Label labelRatingOneKeywords = new Label
+            {
+                Text = "評価1キーワード：",
+                AutoSize = true,
+                ForeColor = Color.White,
+                Font = new System.Drawing.Font("Meiryo UI", 9F),
+                Location = new System.Drawing.Point(20, 305),
+            };
+            this.Controls.Add(labelRatingOneKeywords);
+
+            // 評価1キーワード TextBox（カンマ区切り）
+            txtRatingOneKeywords = new TextBox
+            {
+                Location = new System.Drawing.Point(170, 302),
+                Size = new System.Drawing.Size(190, 25),
+                BackColor = Color.FromArgb(60, 60, 60),
+                ForeColor = Color.White,
+            };
+            this.Controls.Add(txtRatingOneKeywords);
+
+            // 説明ラベル
+            Label labelRatingOneHint = new Label
+            {
+                Text = "(カンマ区切りで複数指定)",
+                AutoSize = true,
+                ForeColor = Color.LightGray,
+                Font = new System.Drawing.Font("Meiryo UI", 8F),
+                Location = new System.Drawing.Point(170, 325),
+            };
+            this.Controls.Add(labelRatingOneHint);
+
             // バージョン表示ラベル（下部：csproj の Version をリフレクションで取得）
             labelVersion = new Label
             {
@@ -349,7 +389,7 @@ namespace MangaViewer
             this.AcceptButton = btnOk;
             this.CancelButton = btnCancel;
 
-            // ValueChangedイベントでリアルタイム統計更新
+            // ValueChanged イベントでリアルタイム統計更新
             numMinDisplayCount.ValueChanged += (_, __) => UpdateFilterStats();
             numMinEvaluation.ValueChanged += (_, __) => UpdateFilterStats();
 
@@ -433,6 +473,7 @@ namespace MangaViewer
             int displayCnt = DefaultDisplayCountVal;
             int normalPercent = DefaultNormalModeImageAreaPercent;
             int fullScreenPercent = DefaultFullScreenModeImageAreaPercent;
+            string ratingOneKeywords = "";
 
             if (File.Exists(SettingsFilePath))
             {
@@ -482,6 +523,13 @@ namespace MangaViewer
                             fullScreenPercent = val;
                     }
 
+                    // 評価1キーワード
+                    if (doc.RootElement.TryGetProperty("RatingOneKeywords", out var rkProp)
+                        && rkProp.ValueKind == JsonValueKind.String)
+                    {
+                        ratingOneKeywords = rkProp.ToString();
+                    }
+
                     // 設定値が存在しなかった場合はデフォルト値を保存（新旧互換対応）
                     bool countExists = doc.RootElement.TryGetProperty("MinDisplayCount", out _);
                     bool evalExists = doc.RootElement.TryGetProperty("MinEvaluation", out _);
@@ -494,7 +542,8 @@ namespace MangaViewer
                             DefaultMinEvaluation,
                             DefaultDisplayCountVal,
                             normalPercent,   // 既存値があればそのまま
-                            fullScreenPercent);
+                            fullScreenPercent,
+                            ratingOneKeywords);
                     }
                 }
                 catch
@@ -505,7 +554,8 @@ namespace MangaViewer
                         DefaultMinEvaluation,
                         DefaultDisplayCountVal,
                         DefaultNormalModeImageAreaPercent,
-                        DefaultFullScreenModeImageAreaPercent);
+                        DefaultFullScreenModeImageAreaPercent,
+                        "");
                 }
             }
 
@@ -526,6 +576,9 @@ namespace MangaViewer
             if (fullScreenPercent >= (int)numFullScreenLayoutRatio.Minimum && fullScreenPercent <= (int)numFullScreenLayoutRatio.Maximum)
                 numFullScreenLayoutRatio.Value = fullScreenPercent;
 
+            // 評価1キーワードを反映
+            txtRatingOneKeywords.Text = ratingOneKeywords;
+
             // 初期値でフィルター統計を表示
             UpdateFilterStats();
         }
@@ -540,8 +593,9 @@ namespace MangaViewer
             int displayCount = DisplayCountValue; // 2 または 8
             int normalPercent = NormalModeImageAreaPercent;
             int fullScreenPercent = FullScreenModeImageAreaPercent;
+            string ratingOneKeywords = RatingOneKeywordsValue;
 
-            SaveSettingsToFile(minDisplayCount, minEvaluation, displayCount, normalPercent, fullScreenPercent);
+            SaveSettingsToFile(minDisplayCount, minEvaluation, displayCount, normalPercent, fullScreenPercent, ratingOneKeywords);
 
             this.DialogResult = DialogResult.OK;
         }
@@ -554,7 +608,8 @@ namespace MangaViewer
             int minEvaluation,
             int displayCount,
             int normalPercent,
-            int fullScreenPercent)
+            int fullScreenPercent,
+            string ratingOneKeywords)
         {
             try
             {
@@ -579,6 +634,7 @@ namespace MangaViewer
                 existing["DisplayCount"] = JsonSerializer.SerializeToElement(displayCount);
                 existing["NormalModeImageAreaPercent"] = JsonSerializer.SerializeToElement(normalPercent);
                 existing["FullScreenModeImageAreaPercent"] = JsonSerializer.SerializeToElement(fullScreenPercent);
+                existing["RatingOneKeywords"] = JsonSerializer.SerializeToElement(ratingOneKeywords ?? "");
 
                 // JSON を再構築（順番は保証されないが問題なし）
                 var options = new JsonSerializerOptions { WriteIndented = true };

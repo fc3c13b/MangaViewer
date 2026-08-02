@@ -1,8 +1,9 @@
 {
-  "LastRootFolder": "F:\\MangaDL\\wnacg\\wnacg.com\\\u540C\u4EBA\u8A8C",
+  "MinDisplayCountEnabled": false,
   "MinDisplayCount": 21,
   "MinEvaluation": 8,
-  "DisplayCount": 8,
+  "LastRootFolder": "F:\\MangaDL\\wnacg\\wnacg.com\\\u540C\u4EBA\u8A8C",
+  "DisplayCount": 2,
   "NormalModeImageAreaPercent": 72,
   "FullScreenModeImageAreaPercent": 76
 }

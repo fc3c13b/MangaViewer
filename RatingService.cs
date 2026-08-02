@@ -42,6 +42,50 @@ namespace MangaViewer
             return rating;
         }
 
+        /// <summary>
+        /// フォルダパスの「フォルダー名部分」が、評価1キーワード（カンマ区切り）をいずれかを含んでいるかを判定する。
+        /// 大文字・小文字は区別しない。
+        /// </summary>
+        public static bool IsFolderMatchedByRatingOneKeywords(string folderPath, string ratingOneKeywords)
+        {
+            if (string.IsNullOrWhiteSpace(ratingOneKeywords))
+                return false;
+
+            var trimmed = folderPath?.TrimEnd('/', '\\');
+            string? folderName = !string.IsNullOrWhiteSpace(trimmed)
+                ? Path.GetFileName(trimmed)
+                : null;
+            if (string.IsNullOrEmpty(folderName))
+                return false;
+
+            var keywords = ratingOneKeywords.Split(',');
+            foreach (var k in keywords)
+            {
+                var kw = k.Trim();
+                if (!string.IsNullOrEmpty(kw) &&
+                    folderName.Contains(kw, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static string GetFolderPath(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return "";
+
+            // 末尾のスラッシュなどを除去してからフォルダー名を抽出
+            var trimmed = path.TrimEnd('/', '\\');
+            var dir = Path.GetDirectoryName(trimmed);
+            // DirectoryName が null または空なら、パス自体をフォルダー名とみなす
+            if (!string.IsNullOrEmpty(dir))
+                return Path.GetFileName(dir);
+            return Path.GetFileName(trimmed);
+        }
+
         private static (int imageCount, int rating) ReadFolderJson(string jsonPath)
         {
             int imageCount = 0;

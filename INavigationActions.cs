@@ -17,8 +17,9 @@ namespace MangaViewer
 
           // フォルダリストを指定量だけジャンプ移動（例: Alt+上下 ±50）
           void NavigateFolders(int delta);
-        void NavigateToNextUnrated();
-        void ToggleFullScreen();
+         void NavigateToNextUnrated();
+         void ToggleFullScreen();
+         void SetDisplayCount(int count); // 2 or 8 (or other configured values)
         int ImageCount { get; }
         int FolderListCount { get; }
         string CurrentFolder { get; }

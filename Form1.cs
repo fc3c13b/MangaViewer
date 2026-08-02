@@ -599,6 +599,23 @@ namespace MangaViewer
             // 未評価のフォルダが存在しない場合は何もしない
         }
 
+        public void SetDisplayCount(int count)
+        {
+            if (count <= 0) return;
+            int prevDisplayCount = _settings.DisplayCount;
+            _settings.DisplayCount = count;
+            SettingsManager.Save(_settings);
+            _displayManager.UpdateSettings(_settings);
+
+            if (_settings.DisplayCount != prevDisplayCount)
+            {
+                _displayManager.InitializePictureBoxes();
+                UpdateLayout();
+                _currentIndex = 0;
+                DisplayImages(0);
+            }
+        }
+
         #endregion
 
         #region Slideshow implementation

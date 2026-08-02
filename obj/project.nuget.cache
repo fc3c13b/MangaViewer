@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "qyrtxfoZPBc=",
+  "dgSpecHash": "wy1gzaAvB48=",
   "success": true,
-  "projectFilePath": "c:\\source\\repos\\MangaViewer\\MangaViewer.csproj",
+  "projectFilePath": "C:\\source\\repos\\MangaViewer\\MangaViewer.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\fc3c1\\.nuget\\packages\\skiasharp\\4.150.0\\skiasharp.4.150.0.nupkg.sha512",
     "C:\\Users\\fc3c1\\.nuget\\packages\\skiasharp.nativeassets.macos\\4.150.0\\skiasharp.nativeassets.macos.4.150.0.nupkg.sha512",
