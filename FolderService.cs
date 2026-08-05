@@ -65,6 +65,10 @@ namespace MangaViewer
                     if (_settings.MinDisplayCount > 0 && imageCount < _settings.MinDisplayCount)
                         continue;
 
+                    // フィルタ: 最大画像数（MaxDisplayCount > 0 の場合に有効）
+                    if (_settings.MaxDisplayCount > 0 && imageCount > _settings.MaxDisplayCount)
+                        continue;
+
                     // フィルタ: 最小評価値（MinEvaluation > 0 の場合に有効）
                     // rating == -1（未設定）または < 0 は通過する
                     if (_settings.MinEvaluation > 0 && rating >= 0 && rating < _settings.MinEvaluation)
@@ -260,7 +264,7 @@ namespace MangaViewer
         /// 戻り値：(画像数フィルター通過数, 総フォルダ数, 評価フィルター通過数)
         /// 評価フィルターは画像数フィルターを通ったフォルダのみを対象とする。
         /// </summary>
-        public (int imagePassCount, int totalCount, int ratingPassCount) ComputeDisplayStats(string rootPath, int minImages, int minRating)
+        public (int imagePassCount, int totalCount, int ratingPassCount) ComputeDisplayStats(string rootPath, int minImages, int maxImages, int minRating)
         {
             int imagePassCount = 0;
             int totalCount = 0;
@@ -284,8 +288,10 @@ namespace MangaViewer
 
                     totalCount++;
 
-                    // 1段目：画像数フィルター
+                    // 1段目：画像数フィルター（最小・最大）
                     if (minImages > 0 && imageCount < minImages)
+                        continue;
+                    if (maxImages > 0 && imageCount > maxImages)
                         continue;
                     imagePassCount++;
 

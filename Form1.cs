@@ -407,6 +407,7 @@ namespace MangaViewer
         {
             int prevDisplayCount = _settings.DisplayCount;
             int prevMinDisplayCount = _settings.MinDisplayCount;
+            int prevMaxDisplayCount = _settings.MaxDisplayCount;
             int prevMinEvaluation = _settings.MinEvaluation;
             int prevNormalImageAreaPercent = _settings.NormalModeImageAreaPercent;
             int prevFullScreenImageAreaPercent = _settings.FullScreenModeImageAreaPercent;
@@ -420,7 +421,7 @@ namespace MangaViewer
                     _displayManager.UpdateSettings(_settings);
 
                     bool displayCountChanged = _settings.DisplayCount != prevDisplayCount;
-                    bool filterChanged = _settings.MinDisplayCount != prevMinDisplayCount || _settings.MinEvaluation != prevMinEvaluation;
+                    bool filterChanged = _settings.MinDisplayCount != prevMinDisplayCount || _settings.MaxDisplayCount != prevMaxDisplayCount || _settings.MinEvaluation != prevMinEvaluation;
                     bool layoutRatioChanged = _settings.NormalModeImageAreaPercent != prevNormalImageAreaPercent
                                              || _settings.FullScreenModeImageAreaPercent != prevFullScreenImageAreaPercent;
 

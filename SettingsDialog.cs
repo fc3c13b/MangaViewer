@@ -24,6 +24,9 @@ namespace MangaViewer
         private NumericUpDown numMinDisplayCount = null!;
         private Label labelMinDisplayUnit = null!;
 
+        // 最大表示画像数設定用コントロール
+        private NumericUpDown numMaxDisplayCount = null!;
+
         // 画面表示数設定用コントロール（チェックボックス2つで排他選択）
         private CheckBox cbDisplay2 = null!;
         private CheckBox cbDisplay8 = null!;
@@ -59,6 +62,11 @@ namespace MangaViewer
         public int MinDisplayCountValue => (int)numMinDisplayCount.Value;
 
         /// <summary>
+        /// 最大表示画像数の値
+        /// </summary>
+        public int MaxDisplayCountValue => (int)numMaxDisplayCount.Value;
+
+        /// <summary>
         /// 画面表示数の値（2 または 8）
         /// </summary>
         public int DisplayCountValue => cbDisplay2.Checked ? 2 : 8;
@@ -85,6 +93,7 @@ namespace MangaViewer
 
         // デフォルト値
         private const int DefaultMinDisplayCount = 20;
+        private const int DefaultMaxDisplayCount = 1000;
         private const int DefaultMinEvaluation = 8;
         private const int DefaultDisplayCountVal = 2;
         private const int DefaultNormalModeImageAreaPercent = 72;
@@ -101,7 +110,7 @@ namespace MangaViewer
             // ダイアログ基本設定
             this.Text = "設定";
             this.StartPosition = FormStartPosition.CenterScreen;
-            this.Size = new System.Drawing.Size(420, 560);
+            this.Size = new System.Drawing.Size(420, 600);
             this.MinimizeBox = false;
             this.MaximizeBox = false;
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
@@ -133,7 +142,7 @@ namespace MangaViewer
             numMinDisplayCount = new NumericUpDown
             {
                 Minimum = 2,
-                Maximum = 100,
+                Maximum = 99999,
                 Value = DefaultMinDisplayCount,
                 Location = new System.Drawing.Point(140, 53),
                 Size = new System.Drawing.Size(80, 25),
@@ -164,6 +173,40 @@ namespace MangaViewer
             };
             this.Controls.Add(lblImageFilterStats);
 
+            // 最大表示画像数 ラベル
+            Label labelMaxDisplayCount = new Label
+            {
+                Text = "最大表示画像数：",
+                AutoSize = true,
+                ForeColor = Color.White,
+                Font = new System.Drawing.Font("Meiryo UI", 10F),
+                Location = new System.Drawing.Point(20, 95),
+            };
+            this.Controls.Add(labelMaxDisplayCount);
+
+            // 最大表示画像数 NumericUpDown
+            numMaxDisplayCount = new NumericUpDown
+            {
+                Minimum = DefaultMinDisplayCount + 1,
+                Maximum = 100000,
+                Value = DefaultMaxDisplayCount,
+                Location = new System.Drawing.Point(140, 93),
+                Size = new System.Drawing.Size(80, 25),
+                BackColor = Color.FromArgb(60, 60, 60),
+                ForeColor = Color.White,
+            };
+            this.Controls.Add(numMaxDisplayCount);
+
+            Label labelMaxDisplayUnit = new Label
+            {
+                Text = "枚",
+                AutoSize = true,
+                ForeColor = Color.LightGray,
+                Font = new System.Drawing.Font("Meiryo UI", 10F),
+                Location = new System.Drawing.Point(225, 97),
+            };
+            this.Controls.Add(labelMaxDisplayUnit);
+
             // 最小評価値 ラベル
             labelMinEvaluation = new Label
             {
@@ -171,7 +214,7 @@ namespace MangaViewer
                 AutoSize = true,
                 ForeColor = Color.White,
                 Font = new System.Drawing.Font("Meiryo UI", 10F),
-                Location = new System.Drawing.Point(20, 95),
+                Location = new System.Drawing.Point(20, 135),
             };
             this.Controls.Add(labelMinEvaluation);
 
@@ -181,7 +224,7 @@ namespace MangaViewer
                 Minimum = 0,
                 Maximum = 10,
                 Value = DefaultMinEvaluation,
-                Location = new System.Drawing.Point(140, 93),
+                Location = new System.Drawing.Point(140, 133),
                 Size = new System.Drawing.Size(80, 25),
                 BackColor = Color.FromArgb(60, 60, 60),
                 ForeColor = Color.White,
@@ -195,7 +238,7 @@ namespace MangaViewer
                 AutoSize = true,
                 ForeColor = Color.Cyan,
                 Font = new System.Drawing.Font("Meiryo UI", 9F),
-                Location = new System.Drawing.Point(250, 97),
+                Location = new System.Drawing.Point(250, 137),
             };
             this.Controls.Add(lblRatingFilterStats);
 
@@ -206,7 +249,7 @@ namespace MangaViewer
                 AutoSize = true,
                 ForeColor = Color.White,
                 Font = new System.Drawing.Font("Meiryo UI", 10F),
-                Location = new System.Drawing.Point(20, 135),
+                Location = new System.Drawing.Point(20, 175),
             };
             this.Controls.Add(labelDisplayCount);
 
@@ -214,7 +257,7 @@ namespace MangaViewer
             cbDisplay2 = new CheckBox
             {
                 Text = "2",
-                Location = new System.Drawing.Point(140, 132),
+                Location = new System.Drawing.Point(140, 172),
                 AutoSize = true,
                 ForeColor = Color.White,
                 BackColor = Color.FromArgb(40, 40, 40),
@@ -226,7 +269,7 @@ namespace MangaViewer
             cbDisplay8 = new CheckBox
             {
                 Text = "8",
-                Location = new System.Drawing.Point(190, 132),
+                Location = new System.Drawing.Point(190, 172),
                 AutoSize = true,
                 ForeColor = Color.White,
                 BackColor = Color.FromArgb(40, 40, 40),
@@ -241,7 +284,7 @@ namespace MangaViewer
                 AutoSize = true,
                 ForeColor = Color.LimeGreen,
                 Font = new System.Drawing.Font("Meiryo UI", 10F, FontStyle.Bold),
-                Location = new System.Drawing.Point(20, 175),
+                Location = new System.Drawing.Point(20, 215),
             };
             this.Controls.Add(labelLayoutSection);
 
@@ -252,7 +295,7 @@ namespace MangaViewer
                 AutoSize = true,
                 ForeColor = Color.White,
                 Font = new System.Drawing.Font("Meiryo UI", 9F),
-                Location = new System.Drawing.Point(20, 200),
+                Location = new System.Drawing.Point(20, 240),
             };
             this.Controls.Add(labelNormalLayoutRatioHint);
 
@@ -261,7 +304,7 @@ namespace MangaViewer
                 Minimum = 50,
                 Maximum = 95,
                 Value = DefaultNormalModeImageAreaPercent,
-                Location = new System.Drawing.Point(170, 198),
+                Location = new System.Drawing.Point(170, 238),
                 Size = new System.Drawing.Size(80, 25),
                 BackColor = Color.FromArgb(60, 60, 60),
                 ForeColor = Color.White,
@@ -274,7 +317,7 @@ namespace MangaViewer
                 AutoSize = true,
                 ForeColor = Color.LightGray,
                 Font = new System.Drawing.Font("Meiryo UI", 9F),
-                Location = new System.Drawing.Point(255, 202),
+                Location = new System.Drawing.Point(255, 242),
             };
             this.Controls.Add(labelNormalPercentUnit);
 
@@ -285,7 +328,7 @@ namespace MangaViewer
                 AutoSize = true,
                 ForeColor = Color.LightGray,
                 Font = new System.Drawing.Font("Meiryo UI", 8F),
-                Location = new System.Drawing.Point(20, 230),
+                Location = new System.Drawing.Point(20, 270),
             };
             this.Controls.Add(labelNormalHint);
 
@@ -296,7 +339,7 @@ namespace MangaViewer
                 AutoSize = true,
                 ForeColor = Color.White,
                 Font = new System.Drawing.Font("Meiryo UI", 9F),
-                Location = new System.Drawing.Point(20, 265),
+                Location = new System.Drawing.Point(20, 305),
             };
             this.Controls.Add(labelFullScreenLayoutRatioHint);
 
@@ -305,7 +348,7 @@ namespace MangaViewer
                 Minimum = 70,
                 Maximum = 98,
                 Value = DefaultFullScreenModeImageAreaPercent,
-                Location = new System.Drawing.Point(170, 263),
+                Location = new System.Drawing.Point(170, 303),
                 Size = new System.Drawing.Size(80, 25),
                 BackColor = Color.FromArgb(60, 60, 60),
                 ForeColor = Color.White,
@@ -318,7 +361,7 @@ namespace MangaViewer
                 AutoSize = true,
                 ForeColor = Color.LightGray,
                 Font = new System.Drawing.Font("Meiryo UI", 9F),
-                Location = new System.Drawing.Point(255, 267),
+                Location = new System.Drawing.Point(255, 307),
             };
             this.Controls.Add(labelFullPercentUnit);
 
@@ -329,14 +372,14 @@ namespace MangaViewer
                 AutoSize = true,
                 ForeColor = Color.White,
                 Font = new System.Drawing.Font("Meiryo UI", 9F),
-                Location = new System.Drawing.Point(20, 305),
+                Location = new System.Drawing.Point(20, 345),
             };
             this.Controls.Add(labelRatingOneKeywords);
 
             // 評価1キーワード TextBox（カンマ区切り）
             txtRatingOneKeywords = new TextBox
             {
-                Location = new System.Drawing.Point(170, 302),
+                Location = new System.Drawing.Point(170, 342),
                 Size = new System.Drawing.Size(190, 25),
                 BackColor = Color.FromArgb(60, 60, 60),
                 ForeColor = Color.White,
@@ -350,7 +393,7 @@ namespace MangaViewer
                 AutoSize = true,
                 ForeColor = Color.LightGray,
                 Font = new System.Drawing.Font("Meiryo UI", 8F),
-                Location = new System.Drawing.Point(170, 325),
+                Location = new System.Drawing.Point(170, 365),
             };
             this.Controls.Add(labelRatingOneHint);
 
@@ -390,7 +433,15 @@ namespace MangaViewer
             this.CancelButton = btnCancel;
 
             // ValueChanged イベントでリアルタイム統計更新
-            numMinDisplayCount.ValueChanged += (_, __) => UpdateFilterStats();
+            numMinDisplayCount.ValueChanged += (_, __) =>
+            {
+                // 最大値の最小制限を最小値+1に連動させる
+                numMaxDisplayCount.Minimum = numMinDisplayCount.Value + 1;
+                if (numMaxDisplayCount.Value <= numMinDisplayCount.Value)
+                    numMaxDisplayCount.Value = numMinDisplayCount.Value + 1;
+                UpdateFilterStats();
+            };
+            numMaxDisplayCount.ValueChanged += (_, __) => UpdateFilterStats();
             numMinEvaluation.ValueChanged += (_, __) => UpdateFilterStats();
 
             // 起動時に設定値を読み込む
@@ -453,10 +504,11 @@ namespace MangaViewer
         {
             string root = RootFolder;
             int minImages = (int)numMinDisplayCount.Value;
+            int maxImages = (int)numMaxDisplayCount.Value;
             int minRating = (int)numMinEvaluation.Value;
 
             // UI スレッドで即座に計算（フォルダ数が多い場合は非同期検討）
-            var (imagePass, total, ratingPass) = _folderService.ComputeDisplayStats(root, minImages, minRating);
+            var (imagePass, total, ratingPass) = _folderService.ComputeDisplayStats(root, minImages, maxImages, minRating);
 
             lblImageFilterStats.Text = $"[{imagePass}/{total}]";
             lblRatingFilterStats.Text = $"[{ratingPass}/{imagePass}]";
@@ -469,6 +521,7 @@ namespace MangaViewer
         private void LoadSettings()
         {
             int count = DefaultMinDisplayCount;
+            int maxCount = DefaultMaxDisplayCount;
             int minEval = DefaultMinEvaluation;
             int displayCnt = DefaultDisplayCountVal;
             int normalPercent = DefaultNormalModeImageAreaPercent;
@@ -486,8 +539,16 @@ namespace MangaViewer
                         && countProp.ValueKind == JsonValueKind.Number)
                     {
                         int val = countProp.GetInt32();
-                        if (val >= 2 && val <= 100)
+                        if (val >= 2 && val <= 99999)
                             count = val;
+                    }
+
+                    if (doc.RootElement.TryGetProperty("MaxDisplayCount", out var maxCountProp)
+                        && maxCountProp.ValueKind == JsonValueKind.Number)
+                    {
+                        int val = maxCountProp.GetInt32();
+                        if (val > count)
+                            maxCount = val;
                     }
 
                     if (doc.RootElement.TryGetProperty("MinEvaluation", out var evalProp)
@@ -532,16 +593,18 @@ namespace MangaViewer
 
                     // 設定値が存在しなかった場合はデフォルト値を保存（新旧互換対応）
                     bool countExists = doc.RootElement.TryGetProperty("MinDisplayCount", out _);
+                    bool maxCountExists = doc.RootElement.TryGetProperty("MaxDisplayCount", out _);
                     bool evalExists = doc.RootElement.TryGetProperty("MinEvaluation", out _);
                     bool displayExists = doc.RootElement.TryGetProperty("DisplayCount", out _);
 
-                    if (!countExists || !evalExists || !displayExists)
+                    if (!countExists || !maxCountExists || !evalExists || !displayExists)
                     {
                         SaveSettingsToFile(
-                            DefaultMinDisplayCount,
-                            DefaultMinEvaluation,
-                            DefaultDisplayCountVal,
-                            normalPercent,   // 既存値があればそのまま
+                            count,
+                            maxCount,
+                            minEval,
+                            displayCnt,
+                            normalPercent,
                             fullScreenPercent,
                             ratingOneKeywords);
                     }
@@ -551,6 +614,7 @@ namespace MangaViewer
                     // 読み込み失敗時はデフォルト値を使用 + デフォルト保存
                     SaveSettingsToFile(
                         DefaultMinDisplayCount,
+                        DefaultMaxDisplayCount,
                         DefaultMinEvaluation,
                         DefaultDisplayCountVal,
                         DefaultNormalModeImageAreaPercent,
@@ -561,6 +625,8 @@ namespace MangaViewer
 
             // UI に反映
             numMinDisplayCount.Value = count;
+            numMaxDisplayCount.Minimum = count + 1;
+            numMaxDisplayCount.Value = Math.Max(maxCount, count + 1);
             cbDisplay2.Checked = displayCnt == 2;
             cbDisplay8.Checked = displayCnt == 8;
             if (!cbDisplay2.Checked && !cbDisplay8.Checked)
@@ -589,13 +655,14 @@ namespace MangaViewer
         private void BtnOk_Click(object? sender, EventArgs e)
         {
             int minDisplayCount = (int)numMinDisplayCount.Value;
+            int maxDisplayCount = MaxDisplayCountValue;
             int minEvaluation = (int)numMinEvaluation.Value;
             int displayCount = DisplayCountValue; // 2 または 8
             int normalPercent = NormalModeImageAreaPercent;
             int fullScreenPercent = FullScreenModeImageAreaPercent;
             string ratingOneKeywords = RatingOneKeywordsValue;
 
-            SaveSettingsToFile(minDisplayCount, minEvaluation, displayCount, normalPercent, fullScreenPercent, ratingOneKeywords);
+            SaveSettingsToFile(minDisplayCount, maxDisplayCount, minEvaluation, displayCount, normalPercent, fullScreenPercent, ratingOneKeywords);
 
             this.DialogResult = DialogResult.OK;
         }
@@ -605,6 +672,7 @@ namespace MangaViewer
         /// </summary>
         private void SaveSettingsToFile(
             int minDisplayCount,
+            int maxDisplayCount,
             int minEvaluation,
             int displayCount,
             int normalPercent,
@@ -630,6 +698,7 @@ namespace MangaViewer
 
                 // 新キーを設定
                 existing["MinDisplayCount"] = JsonSerializer.SerializeToElement(minDisplayCount);
+                existing["MaxDisplayCount"] = JsonSerializer.SerializeToElement(maxDisplayCount);
                 existing["MinEvaluation"] = JsonSerializer.SerializeToElement(minEvaluation);
                 existing["DisplayCount"] = JsonSerializer.SerializeToElement(displayCount);
                 existing["NormalModeImageAreaPercent"] = JsonSerializer.SerializeToElement(normalPercent);

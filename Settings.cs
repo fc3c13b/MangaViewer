@@ -14,6 +14,9 @@ namespace MangaViewer
         /// <summary>フォルダに表示される最低画像数（2〜100）</summary>
         public int MinDisplayCount { get; set; } = 20;
 
+        /// <summary>フォルダに表示される最大画像数（MinDisplayCount+1 以上、デフォルト1000）</summary>
+        public int MaxDisplayCount { get; set; } = 1000;
+
         /// <summary>最小評価値（0〜10、これ未満のフォルダを非表示にする基準に使用）</summary>
         public int MinEvaluation { get; set; } = 8;
 

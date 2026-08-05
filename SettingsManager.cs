@@ -54,17 +54,31 @@ namespace MangaViewer
             if (root.TryGetProperty("MinDisplayCountEnabled", out var ep) && ep.ValueKind == JsonValueKind.True || ep.ValueKind == JsonValueKind.False)
                 settings.MinDisplayCountEnabled = ep.GetBoolean();
 
-            // MinDisplayCount: 2〜100
+            // MinDisplayCount: 2〜99999
             const int minDisplayCountDef = 20;
             if (root.TryGetProperty("MinDisplayCount", out var cp) && cp.ValueKind == JsonValueKind.Number)
             {
                 int val = cp.GetInt32();
-                if (val >= 2 && val <= 100)
+                if (val >= 2 && val <= 99999)
                     settings.MinDisplayCount = val;
                 else
                 {
-                    errors.Add($"MinDisplayCount の値 '{val}' は無効です（有効範囲: 2〜100）。デフォルト値 ({minDisplayCountDef}) を使用します。");
+                    errors.Add($"MinDisplayCount の値 '{val}' は無効です（有効範囲: 2〜99999）。デフォルト値 ({minDisplayCountDef}) を使用します。");
                     settings.MinDisplayCount = minDisplayCountDef;
+                }
+            }
+
+            // MaxDisplayCount: MinDisplayCount+1 以上
+            const int maxDisplayCountDef = 1000;
+            if (root.TryGetProperty("MaxDisplayCount", out var mcp) && mcp.ValueKind == JsonValueKind.Number)
+            {
+                int val = mcp.GetInt32();
+                if (val > settings.MinDisplayCount)
+                    settings.MaxDisplayCount = val;
+                else
+                {
+                    errors.Add($"MaxDisplayCount の値 '{val}' は無効です（MinDisplayCount より大きい値が必要）。デフォルト値 ({maxDisplayCountDef}) を使用します。");
+                    settings.MaxDisplayCount = maxDisplayCountDef;
                 }
             }
 
@@ -142,6 +156,7 @@ namespace MangaViewer
                 {
                     { "MinDisplayCountEnabled", settings.MinDisplayCountEnabled },
                     { "MinDisplayCount", settings.MinDisplayCount },
+                    { "MaxDisplayCount", settings.MaxDisplayCount },
                     { "MinEvaluation", settings.MinEvaluation },
                     { "LastRootFolder", settings.LastRootFolder },
                     { "DisplayCount", settings.DisplayCount },
