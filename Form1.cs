@@ -6,109 +6,39 @@ using System.Windows.Forms;
 
 namespace MangaViewer
 {
-    /// <summary>
-    /// The main form for the Manga Viewer application.
-    /// Implements <see cref="INavigationActions"/> for navigation actions.
-    /// </summary>
     public partial class Form1 : Form, INavigationActions
     {
-        /// <summary>
-        /// Display manager for dynamic PictureBox array (2 or 8 images)
-        /// </summary>
         internal DisplayManager _displayManager = null!;
-
-        /// <summary>
-        /// Panel containing folder list and other controls.
-        /// </summary>
         private Panel panelList = null!;
-
-        /// <summary>
-        /// ListBox to display the list of folders.
-        /// </summary>
         internal ListBox listBoxFolders = null!;
-
-        /// <summary>
-        /// Label to display information about the current folder and image.
-        /// </summary>
         internal Label labelInfo = null!;
 
-        /// <summary>
-        /// List of image paths in the current folder.
-        /// </summary>
         internal List<string> _imagePaths = new List<string>();
-
-        /// <summary>
-        /// Index of the currently displayed image.
-        /// </summary>
         internal int _currentIndex = 0;
-
-        /// <summary>
-        /// Path to the current folder being viewed.
-        /// </summary>
         internal string _currentFolder = "";
-
-        /// <summary>
-        /// List of folders containing manga images.
-        /// </summary>
         internal List<string> _folderList = new List<string>();
-
-        /// <summary>
-        /// Index of the currently selected folder in listBoxFolders.
-        /// </summary>
         internal int _currentFolderIndex = -1;
-
-        /// <summary>
-        /// Full-screen display mode toggle (FormBorderStyle=None + Maximized).
-        /// </summary>
         internal bool _fullScreenMode = false;
 
-        /// <summary>Saved window state for restoring from full-screen.</summary>
         private FormWindowState _savedWindowState = FormWindowState.Normal;
-
-        /// <summary>Saved form border style for restoring from full-screen.</summary>
         private FormBorderStyle _savedFormBorderStyle = FormBorderStyle.Sizable;
-
-        /// <summary>Saved window size for restoring from full-screen.</summary>
         private Size _savedSize = new Size(Constants.InitialWidth, Constants.InitialHeight);
 
-        /// <summary>
-        /// Settings instance for configuration management.
-        /// </summary>
         private Settings _settings = new Settings();
-
-        /// <summary>
-        /// Image service for loading and caching images.
-        /// </summary>
         private readonly ImageService _imageService = new ImageService();
-
-        /// <summary>
-        /// Folder service for folder scanning, filtering, and cache management.
-        /// </summary>
         private FolderService? _folderService;
-
-        /// <summary>
-        /// Slideshow timer to automatically advance images.
-        /// </summary>
         private Timer? _slideshowTimer;
 
-        /// <summary>
-        /// Whether the slideshow is currently running.
-        /// </summary>
         public bool IsSlideshowRunning => _slideshowTimer?.Enabled ?? false;
 
-        /// <summary>
-        /// Constructor for Form1. Initializes components and subscribes to Load event.
-        /// </summary>
         public Form1()
         {
             InitializeComponent();
             this.Load += Form1_Load;
-            
-            // キーボード入力処理の設定
+
             this.KeyPreview = true;
             this.KeyDown += (s, e) => KeyboardInputHandler.HandleKeyDown(e, this);
-            
-            // PreviewKeyDown で矢印キーを IsInputKey に設定し、OSのキーリピート遅延を回避
+
             this.PreviewKeyDown += (s, e) =>
             {
                 if (e.KeyCode == Keys.Up || e.KeyCode == Keys.Down ||
@@ -118,14 +48,15 @@ namespace MangaViewer
             };
         }
 
-        // ListBox がフォーカス中でも Ctrl+Up/Down を確実に捕まえるため、ProcessCmdKey をオーバーライドする。
         protected override bool ProcessCmdKey(ref Message m, Keys keyData)
         {
-            if (keyData == (Keys.Control | Keys.Up) || keyData == (Keys.Control | Keys.Down))
+            if (keyData == (Keys.Control | Keys.Up) || keyData == (Keys.Control | Keys.Down) ||
+                keyData == (Keys.Control | Keys.Left) || keyData == (Keys.Control | Keys.Right) ||
+                keyData == (Keys.Alt | Keys.Left) || keyData == (Keys.Alt | Keys.Right))
             {
                 var e = new KeyEventArgs(keyData);
                 KeyboardInputHandler.HandleKeyDown(e, this);
-                return true; // 処理済みとしてここで吸収
+                return true;
             }
 
             return base.ProcessCmdKey(ref m, keyData);
@@ -143,12 +74,12 @@ namespace MangaViewer
                     MessageBox.Show(
                         this,
                         "設定に不正な値が含まれているため、該当項目はデフォルト値を使用します。" + Environment.NewLine +
-                            Environment.NewLine +
-                            string.Join(Environment.NewLine, errors),
+                            Environment.NewLine + string.Join(Environment.NewLine, errors),
                         "設定エラー",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Warning);
                 }
+
                 _displayManager = new DisplayManager(this, _settings, _imageService);
                 _displayManager.ImagePaths = _imagePaths;
 
@@ -157,8 +88,6 @@ namespace MangaViewer
                     : _settings.LastRootFolder;
 
                 BuildSubfolderList(rootPath);
-                
-                // BuildSubfolderList で_settings が再Loadされるので、DisplayManagerにも反映
                 _displayManager.UpdateSettings(_settings);
 
                 if (_folderList.Count > 0 && _currentFolderIndex >= 0)
@@ -175,7 +104,6 @@ namespace MangaViewer
             }
             catch (Exception ex)
             {
-                // 初期化失敗時でもUIは最低限表示されるようにする
                 EnsureBasicLayout();
 
                 string logFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "error.log");
@@ -185,9 +113,6 @@ namespace MangaViewer
             }
         }
 
-        /// <summary>
-        /// 画像読み込み失敗等でも、フォームとリストパネルの基本的なレイアウトを保証する。
-        /// </summary>
         private void EnsureBasicLayout()
         {
             if (this.ClientSize.Width < Constants.MinWidth || this.ClientSize.Height < Constants.MinHeight)
@@ -213,17 +138,14 @@ namespace MangaViewer
             _folderList.Clear();
             _currentFolderIndex = -1;
 
-            // UIに「読込中」メッセージを表示し、画面を更新
             labelInfo.Text = "フォルダを読み込み中...";
             Application.DoEvents();
 
-            // BuildSubfolderList 内で不要な再Loadを抑え、既存インメモリ設定を使用する
             if (_folderService == null)
                 _folderService = new FolderService(_settings);
 
             try
             {
-                // BuildFolderIndex を1回だけ呼び出し、_folderList と ListBox表示を同時更新
                 var entries = _folderService.BuildFolderIndex(rootPath);
                 _folderList.Clear();
                 listBoxFolders.DataSource = null;
@@ -258,7 +180,6 @@ namespace MangaViewer
             }
             finally
             {
-                // 読込完了後にラベルを元に戻し画面更新
                 labelInfo.Text = "";
                 Application.DoEvents();
             }
@@ -281,8 +202,6 @@ namespace MangaViewer
             this.MinimumSize = new Size(Constants.MinWidth, Constants.MinHeight);
             this.BackColor = Color.Black;
 
-            // PictureBoxes are created dynamically by DisplayManager.InitializePictureBoxes()
-            
             labelInfo = new Label { Text = "フォルダを選択してください (キー1)", AutoSize = true, ForeColor = Color.White, BackColor = Color.FromArgb(64, 64, 64) };
             this.Controls.Add(labelInfo);
 
@@ -293,12 +212,11 @@ namespace MangaViewer
             {
                 BackColor = Color.FromArgb(40, 40, 40), ForeColor = Color.White,
                 BorderStyle = BorderStyle.None, Font = new Font("Meiryo UI", 9F),
-                SelectionMode = SelectionMode.One, HorizontalScrollbar = true, TabStop = false,
+                SelectionMode = SelectionMode.One, HorizontalScrollbar = true, TabStop = false
             };
-            // ListBox がフォーカス中でも Ctrl＋上下を確実に捕捉するため、ListBox の KeyDown から KeyboardInputHandler を呼び出す
+
             listBoxFolders.KeyDown += (s, e) => KeyboardInputHandler.HandleKeyDown(e, this);
 
-            // 矢印キー（Ctrl付き含む）が KeyDown に到達するように IsInputKey = true を設定
             listBoxFolders.PreviewKeyDown += (s, e) =>
             {
                 Keys code = e.KeyCode;
@@ -319,8 +237,7 @@ namespace MangaViewer
         {
             _displayManager.ImagePaths = _imagePaths;
             _displayManager.DisplayImages(startIndex);
-            
-            // Update info label using DisplayManager
+
             string infoText = _displayManager.GetInfoText(_currentFolder, _currentFolderIndex, _folderList);
             if (!string.IsNullOrEmpty(infoText))
                 labelInfo.Text = infoText;
@@ -337,14 +254,13 @@ namespace MangaViewer
             int clientHeight = this.ClientSize.Height;
 
             var bounds = _displayManager.CalculatePictureBoxBounds(clientWidth, clientHeight, out Rectangle listPanelBounds, _fullScreenMode);
-            
+
             for (int i = 0; i < _displayManager.pictureBoxes.Length; i++)
                 _displayManager.pictureBoxes[i].Bounds = bounds[i];
 
             panelList.Bounds = listPanelBounds;
             if (listBoxFolders != null) { listBoxFolders.Bounds = panelList.ClientRectangle; }
-            
-            // フルサイズモード時はlabelInfoを非表示、通常時は再表示
+
             labelInfo.Visible = !_fullScreenMode;
             if (!_fullScreenMode)
                 labelInfo.Location = new Point(10, clientHeight - 25);
@@ -359,35 +275,26 @@ namespace MangaViewer
             base.OnFormClosing(e);
         }
 
-        /// <summary>
-        /// フルサイズモードのトグル（数字キー8で発動）
-        /// 仕様: FormBorderStyle=None + Maximized で画面埋め尽くし
-        /// リストパネルは維持するが極狭に、画像配置ルール（2枚/8枚）はそのまま。
-        /// </summary>
         public void ToggleFullScreen()
         {
             _fullScreenMode = !_fullScreenMode;
 
             if (_fullScreenMode)
             {
-                // 現在のウィンドウ状態を保存
                 _savedFormBorderStyle = this.FormBorderStyle;
                 _savedWindowState = this.WindowState;
                 _savedSize = this.Size;
 
-                // フルサイズに切り替え（タイトルバーなし＋最大化）
                 this.FormBorderStyle = FormBorderStyle.None;
                 this.WindowState = FormWindowState.Maximized;
             }
             else
             {
-                // 元のウィンドウ状態を復元
                 this.FormBorderStyle = _savedFormBorderStyle;
                 this.WindowState = _savedWindowState;
                 this.Size = _savedSize;
             }
 
-            // labelInfo のテキストを更新
             string infoText = _displayManager.GetInfoText(_currentFolder, _currentFolderIndex, _folderList);
             if (!string.IsNullOrEmpty(infoText))
                 labelInfo.Text = infoText;
@@ -397,7 +304,7 @@ namespace MangaViewer
             UpdateLayout();
         }
 
-        #region INavigationActions インターフェースの実装
+        #region INavigationActions implementation
 
         public int ImageCount => _imagePaths.Count;
         public int FolderListCount => _folderList.Count;
@@ -416,16 +323,16 @@ namespace MangaViewer
             {
                 if (dialog.ShowDialog(this) == DialogResult.OK)
                 {
-                    // OK 押下後、setting.json から最新設定を再Loadして一括適用
                     (_settings, _) = SettingsManager.LoadWithValidation();
                     _displayManager.UpdateSettings(_settings);
 
                     bool displayCountChanged = _settings.DisplayCount != prevDisplayCount;
-                    bool filterChanged = _settings.MinDisplayCount != prevMinDisplayCount || _settings.MaxDisplayCount != prevMaxDisplayCount || _settings.MinEvaluation != prevMinEvaluation;
-                    bool layoutRatioChanged = _settings.NormalModeImageAreaPercent != prevNormalImageAreaPercent
-                                             || _settings.FullScreenModeImageAreaPercent != prevFullScreenImageAreaPercent;
+                    bool filterChanged = _settings.MinDisplayCount != prevMinDisplayCount ||
+                                         _settings.MaxDisplayCount != prevMaxDisplayCount ||
+                                         _settings.MinEvaluation != prevMinEvaluation;
+                    bool layoutRatioChanged = _settings.NormalModeImageAreaPercent != prevNormalImageAreaPercent ||
+                                              _settings.FullScreenModeImageAreaPercent != prevFullScreenImageAreaPercent;
 
-                    // 最小表示枚数または最小評価値が変更された場合はフォルダリストを再フィルタ
                     if (filterChanged)
                     {
                         string rootPath = string.IsNullOrEmpty(_settings.LastRootFolder)
@@ -463,7 +370,6 @@ namespace MangaViewer
                         }
                     }
 
-                    // DisplayCount変更 OR レイアウト比率変更の場合は一貫して再構築・再配置
                     if (displayCountChanged || layoutRatioChanged)
                     {
                         _displayManager.InitializePictureBoxes();
@@ -480,8 +386,6 @@ namespace MangaViewer
             _settings.LastRootFolder = rootPath;
             SettingsManager.Save(_settings);
             BuildSubfolderList(rootPath);
-
-            // BuildSubfolderList で_settings が再Loadされるので、DisplayManagerにも反映
             _displayManager.UpdateSettings(_settings);
 
             if (_folderList.Count > 0 && _currentFolderIndex >= 0)
@@ -566,7 +470,6 @@ namespace MangaViewer
             listBoxFolders.SetSelected(_currentFolderIndex, true);
         }
 
-        // フォルダリストを指定量だけジャンプ移動（Alt±50 など用）
         public void NavigateFolders(int delta)
         {
             if (_folderList.Count == 0 || _currentFolderIndex < 0) return;
@@ -584,7 +487,6 @@ namespace MangaViewer
 
         public void NavigateToNextUnrated()
         {
-            // 先頭から未評価（rating == -1）のフォルダを探す
             for (int i = 0; i < _folderList.Count; i++)
             {
                 if (RatingService.ReadRating(_folderList[i]) == -1)
@@ -597,7 +499,6 @@ namespace MangaViewer
                     return;
                 }
             }
-            // 未評価のフォルダが存在しない場合は何もしない
         }
 
         public void SetDisplayCount(int count)
@@ -617,54 +518,76 @@ namespace MangaViewer
             }
         }
 
-        #endregion
+        // N-page jump (for Ctrl/Alt + arrow keys)
+        public void NavigateForward(int pageCount)
+        {
+            if (_imagePaths.Count == 0 || pageCount <= 0) return;
 
-        #region Slideshow implementation
+            _currentIndex += pageCount;
+
+            int maxIndex = _imagePaths.Count - (_imagePaths.Count % _displayManager.DisplayCount == 0 ? _displayManager.DisplayCount : 1);
+            if (maxIndex < 0) maxIndex = 0;
+            if (_currentIndex > maxIndex) _currentIndex = maxIndex;
+
+            DisplayImages(_currentIndex);
+        }
+
+        public void NavigateBackward(int pageCount)
+        {
+            if (_imagePaths.Count == 0 || pageCount <= 0) return;
+
+            _currentIndex -= pageCount;
+            if (_currentIndex < 0) _currentIndex = 0;
+
+            DisplayImages(_currentIndex);
+        }
+
+        #region Slideshow
 
         public void StartSlideshow()
         {
-            if (_imagePaths.Count == 0)
-                return;
+            int interval = 3000; // default 3 seconds
 
-            if (_slideshowTimer == null)
-            {
-                _slideshowTimer = new Timer();
-                _slideshowTimer.Interval = Math.Max(500, _settings.SlideshowIntervalMs);
-                _slideshowTimer.Tick += SlideshowTimer_Tick;
-            }
-
-            // Reload settings in case interval was changed externally
-            _slideshowTimer.Interval = Math.Max(500, _settings.SlideshowIntervalMs);
+            _slideshowTimer?.Stop();
+            _slideshowTimer = new Timer { Interval = interval };
+            _slideshowTimer.Tick += SlideshowTimer_Tick;
             _slideshowTimer.Start();
         }
 
         public void StopSlideshow()
         {
-            if (_slideshowTimer != null)
-                _slideshowTimer.Stop();
+            _slideshowTimer?.Stop();
         }
 
         private void SlideshowTimer_Tick(object? sender, EventArgs e)
         {
-            // If current folder has no images, stop slideshow.
-            if (_imagePaths.Count == 0)
+            if (_imagePaths.Count == 0) return;
+
+            int next = _currentIndex + _displayManager.NavigationStep;
+            int maxIndex = _imagePaths.Count - (_imagePaths.Count % _displayManager.DisplayCount == 0 ? _displayManager.DisplayCount : 1);
+            if (maxIndex < 0) maxIndex = 0;
+
+            if (next > maxIndex)
             {
-                StopSlideshow();
-                return;
+                next = 0;
+                if (_folderList.Count > 0)
+                {
+                    _currentFolderIndex = 0;
+                    LoadAndSortImages(_folderList[0]);
+                    _currentIndex = 0;
+                    DisplayImages(0);
+                    listBoxFolders.SetSelected(0, true);
+                }
             }
-
-            int step = _displayManager.NavigationStep;
-
-            // Advance index.
-            _currentIndex += step;
-
-            // If we reached or passed the end, loop back to start.
-            if (_currentIndex >= _imagePaths.Count)
-                _currentIndex = 0;
-
-            DisplayImages(_currentIndex);
+            else
+            {
+                _currentIndex = next;
+                DisplayImages(_currentIndex);
+            }
         }
 
-        #endregion
+        #endregion Slideshow
+
+        #endregion INavigationActions implementation
     }
 }

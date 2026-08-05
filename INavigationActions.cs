@@ -19,8 +19,13 @@ namespace MangaViewer
           void NavigateFolders(int delta);
          void NavigateToNextUnrated();
          void ToggleFullScreen();
-         void SetDisplayCount(int count); // 2 or 8 (or other configured values)
-        int ImageCount { get; }
+          void SetDisplayCount(int count); // 2 or 8 (or other configured values)
+
+         // Nページ分移動（Ctrl/Alt+jump用）
+         void NavigateForward(int pageCount);
+         void NavigateBackward(int pageCount);
+
+         int ImageCount { get; }
         int FolderListCount { get; }
         string CurrentFolder { get; }
 

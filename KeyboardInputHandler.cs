@@ -34,13 +34,43 @@ namespace MangaViewer
             {
                 HandleRootFolderChange(nav);
             }
+            // Ctrl + Left/Right: ±16ページ
+            else if (e.Control && !e.Alt && nav.ImageCount > 0)
+            {
+                int count = 16;
+                if (!e.Shift && e.KeyCode == Keys.Right)
+                {
+                    e.Handled = true;
+                    nav.NavigateBackward(count);
+                }
+                else if (!e.Shift && e.KeyCode == Keys.Left)
+                {
+                    e.Handled = true;
+                    nav.NavigateForward(count);
+                }
+            }
+            // Alt + Left/Right: ±32ページ
+            else if (e.Alt && !e.Control && nav.ImageCount > 0)
+            
+                int count = 32;
+                if (!e.Shift && e.KeyCode == Keys.Right)
+                {
+                    e.Handled = true;
+                    nav.NavigateBackward(count);
+                }
+                else if (!e.Shift && e.KeyCode == Keys.Left)
+                {
+                    e.Handled = true;
+                    nav.NavigateForward(count);
+                }
+            }
             // 右矢印: 2枚戻る
-            else if (e.KeyCode == Keys.Right)
+            else if (e.KeyCode == Keys.Right && !e.Control && !e.Alt)
             {
                 nav.NavigateBackwardTwoPages();
             }
             // 左矢印: 2枚進む（または単枚表示）
-            else if (e.KeyCode == Keys.Left)
+            else if (e.KeyCode == Keys.Left && !e.Control && !e.Alt)
             {
                 nav.NavigateForwardTwoPages();
             }
