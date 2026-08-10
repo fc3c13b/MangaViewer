@@ -37,7 +37,17 @@ namespace MangaViewer
             this.Load += Form1_Load;
 
             this.KeyPreview = true;
-            this.KeyDown += (s, e) => KeyboardInputHandler.HandleKeyDown(e, this);
+            this.KeyDown += (s, e) =>
+            {
+                // 上下キー：リストの選択移動＋フォルダ表示を一括処理
+                if (e.KeyCode == Keys.Up || e.KeyCode == Keys.Down)
+                {
+                    HandleFolderListArrowKey(e);
+                    return;
+                }
+
+                KeyboardInputHandler.HandleKeyDown(e, this);
+            };
 
             this.PreviewKeyDown += (s, e) =>
             {
@@ -46,6 +56,33 @@ namespace MangaViewer
                     e.KeyCode == Keys.Escape)
                     e.IsInputKey = true;
             };
+        }
+
+        private void HandleFolderListArrowKey(KeyEventArgs e)
+        {
+            if (_folderList == null || _folderList.Count == 0) return;
+
+            int current = listBoxFolders.SelectedIndex;
+            if (current < 0)
+                current = _currentFolderIndex >= 0 ? _currentFolderIndex : 0;
+
+            int next = e.KeyCode switch
+            {
+                Keys.Up   => Math.Max(0, current - 1),
+                Keys.Down => Math.Min(_folderList.Count - 1, current + 1),
+                _         => current
+            };
+
+            if (next == current) return;
+
+            _currentFolderIndex = next;
+            listBoxFolders.SelectedIndex = next;
+
+            if (string.IsNullOrEmpty(_folderList[next])) return;
+            LoadAndSortImages(_folderList[next]);
+            _currentIndex = 0;
+            DisplayImages(0);
+            e.Handled = true;
         }
 
         protected override bool ProcessCmdKey(ref Message m, Keys keyData)
@@ -57,6 +94,14 @@ namespace MangaViewer
                 var e = new KeyEventArgs(keyData);
                 KeyboardInputHandler.HandleKeyDown(e, this);
                 return true;
+            }
+
+            // 上下キーもここで補足し、Form の KeyDown と同じ処理を行う
+            if (keyData == Keys.Up || keyData == Keys.Down)
+            {
+                var e = new KeyEventArgs(keyData);
+                HandleFolderListArrowKey(e);
+                return e.Handled;
             }
 
             return base.ProcessCmdKey(ref m, keyData);
@@ -100,6 +145,8 @@ namespace MangaViewer
                     UpdateLayout();
                     _displayManager.DisplayImages(0);
                     listBoxFolders.SelectedIndex = _currentFolderIndex;
+
+                    labelInfo.Text = "初期化完了";
                 }
             }
             catch (Exception ex)
@@ -307,82 +354,37 @@ namespace MangaViewer
         #region INavigationActions implementation
 
         public int ImageCount => _imagePaths.Count;
+        public int DisplayCount => _settings.DisplayCount;
         public int FolderListCount => _folderList.Count;
         public string CurrentFolder => _currentFolder;
 
-        public void ShowSettingsDialog()
+        public void ShowRootFolderDialog()
         {
-            int prevDisplayCount = _settings.DisplayCount;
-            int prevMinDisplayCount = _settings.MinDisplayCount;
-            int prevMaxDisplayCount = _settings.MaxDisplayCount;
-            int prevMinEvaluation = _settings.MinEvaluation;
-            int prevNormalImageAreaPercent = _settings.NormalModeImageAreaPercent;
-            int prevFullScreenImageAreaPercent = _settings.FullScreenModeImageAreaPercent;
-
-            using (var dialog = new SettingsDialog())
+            using (var dialog = new FolderBrowserDialog())
             {
-                if (dialog.ShowDialog(this) == DialogResult.OK)
+                if (!string.IsNullOrEmpty(_settings.LastRootFolder) && Directory.Exists(_settings.LastRootFolder))
+                    dialog.SelectedPath = _settings.LastRootFolder;
+
+                var result = this.InvokeRequired
+                    ? (DialogResult)this.Invoke((Func<DialogResult>)(() => dialog.ShowDialog(this)))
+                    : dialog.ShowDialog(this);
+
+                if (result == DialogResult.OK && !string.IsNullOrEmpty(dialog.SelectedPath))
                 {
-                    (_settings, _) = SettingsManager.LoadWithValidation();
-                    _displayManager.UpdateSettings(_settings);
-
-                    bool displayCountChanged = _settings.DisplayCount != prevDisplayCount;
-                    bool filterChanged = _settings.MinDisplayCount != prevMinDisplayCount ||
-                                         _settings.MaxDisplayCount != prevMaxDisplayCount ||
-                                         _settings.MinEvaluation != prevMinEvaluation;
-                    bool layoutRatioChanged = _settings.NormalModeImageAreaPercent != prevNormalImageAreaPercent ||
-                                              _settings.FullScreenModeImageAreaPercent != prevFullScreenImageAreaPercent;
-
-                    if (filterChanged)
-                    {
-                        string rootPath = string.IsNullOrEmpty(_settings.LastRootFolder)
-                            ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
-                            : _settings.LastRootFolder;
-                        BuildSubfolderList(rootPath);
-
-                        int newIdx = -1;
-                        for (int i = 0; i < _folderList.Count; i++)
-                        {
-                            if (_folderList[i] == _currentFolder) { newIdx = i; break; }
-                        }
-
-                        if (newIdx >= 0)
-                        {
-                            _currentFolderIndex = newIdx;
-                            listBoxFolders.SelectedIndex = newIdx;
-                        }
-                        else
-                        {
-                            if (_folderList.Count > 0)
-                            {
-                                _currentFolderIndex = 0;
-                                LoadAndSortImages(_folderList[0]);
-                                _currentIndex = 0;
-                                DisplayImages(0);
-                                listBoxFolders.SelectedIndex = 0;
-                            }
-                            else
-                            {
-                                _folderList.Clear();
-                                _currentFolderIndex = -1;
-                                labelInfo.Text = "表示可能なフォルダがありません。";
-                            }
-                        }
-                    }
-
-                    if (displayCountChanged || layoutRatioChanged)
-                    {
-                        _displayManager.InitializePictureBoxes();
-                        UpdateLayout();
-                        _currentIndex = 0;
-                        DisplayImages(0);
-                    }
+                    ChangeRootFolder(dialog.SelectedPath);
                 }
             }
         }
 
+        // 指定パスをルートフォルダとして再構築（内部用）
         public void ChangeRootFolder(string rootPath)
         {
+            if (this.InvokeRequired)
+            {
+                this.BeginInvoke(new Action<string>(ChangeRootFolder), rootPath);
+                return;
+            }
+
             _settings.LastRootFolder = rootPath;
             SettingsManager.Save(_settings);
             BuildSubfolderList(rootPath);
@@ -399,9 +401,22 @@ namespace MangaViewer
             {
                 _folderList.Clear();
                 _currentFolderIndex = -1;
-                LoadAndSortImages(rootPath);
-                _currentIndex = 0;
-                DisplayImages(_currentIndex);
+
+                // If rootPath is valid, try to use it as a single image folder.
+                if (!string.IsNullOrEmpty(rootPath) && Directory.Exists(rootPath))
+                {
+                    LoadAndSortImages(rootPath);
+                    _currentIndex = 0;
+                    DisplayImages(_currentIndex);
+                }
+                else
+                {
+                    _imagePaths.Clear();
+                    _currentFolder = "";
+                    _currentIndex = 0;
+                    DisplayImages(0);
+                }
+
                 labelInfo.Text = "表示可能なフォルダがありません。";
             }
         }
@@ -433,26 +448,12 @@ namespace MangaViewer
 
         public void NavigateFolderUp()
         {
-            if (_currentFolderIndex > 0)
-            {
-                _currentFolderIndex--;
-                LoadAndSortImages(_folderList[_currentFolderIndex]);
-                _currentIndex = 0;
-                DisplayImages(_currentIndex);
-                listBoxFolders.SetSelected(_currentFolderIndex, true);
-            }
+            HandleFolderListArrowKey(new KeyEventArgs(Keys.Up));
         }
 
         public void NavigateFolderDown()
         {
-            if (_currentFolderIndex < _folderList.Count - 1)
-            {
-                _currentFolderIndex++;
-                LoadAndSortImages(_folderList[_currentFolderIndex]);
-                _currentIndex = 0;
-                DisplayImages(_currentIndex);
-                listBoxFolders.SetSelected(_currentFolderIndex, true);
-            }
+            HandleFolderListArrowKey(new KeyEventArgs(Keys.Down));
         }
 
         public void NavigateFolderBy(int delta)
@@ -587,6 +588,77 @@ namespace MangaViewer
         }
 
         #endregion Slideshow
+
+        public void ShowSettingsDialog()
+        {
+            int prevDisplayCount = _settings.DisplayCount;
+            int prevMinDisplayCount = _settings.MinDisplayCount;
+            int prevMaxDisplayCount = _settings.MaxDisplayCount;
+            int prevMinEvaluation = _settings.MinEvaluation;
+            int prevNormalImageAreaPercent = _settings.NormalModeImageAreaPercent;
+            int prevFullScreenImageAreaPercent = _settings.FullScreenModeImageAreaPercent;
+
+            using (var dialog = new SettingsDialog())
+            {
+                if (dialog.ShowDialog(this) == DialogResult.OK)
+                {
+                    (_settings, _) = SettingsManager.LoadWithValidation();
+                    _displayManager.UpdateSettings(_settings);
+
+                    bool displayCountChanged = _settings.DisplayCount != prevDisplayCount;
+                    bool filterChanged = _settings.MinDisplayCount != prevMinDisplayCount ||
+                                         _settings.MaxDisplayCount != prevMaxDisplayCount ||
+                                         _settings.MinEvaluation != prevMinEvaluation;
+                    bool layoutRatioChanged = _settings.NormalModeImageAreaPercent != prevNormalImageAreaPercent ||
+                                              _settings.FullScreenModeImageAreaPercent != prevFullScreenImageAreaPercent;
+
+                    if (filterChanged)
+                    {
+                        string rootPath = string.IsNullOrEmpty(_settings.LastRootFolder)
+                            ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
+                            : _settings.LastRootFolder;
+                        BuildSubfolderList(rootPath);
+
+                        int newIdx = -1;
+                        for (int i = 0; i < _folderList.Count; i++)
+                        {
+                            if (_folderList[i] == _currentFolder) { newIdx = i; break; }
+                        }
+
+                        if (newIdx >= 0)
+                        {
+                            _currentFolderIndex = newIdx;
+                            listBoxFolders.SelectedIndex = newIdx;
+                        }
+                        else
+                        {
+                            if (_folderList.Count > 0)
+                            {
+                                _currentFolderIndex = 0;
+                                LoadAndSortImages(_folderList[0]);
+                                _currentIndex = 0;
+                                DisplayImages(0);
+                                listBoxFolders.SelectedIndex = 0;
+                            }
+                            else
+                            {
+                                _folderList.Clear();
+                                _currentFolderIndex = -1;
+                                labelInfo.Text = "表示可能なフォルダがありません。";
+                            }
+                        }
+                    }
+
+                    if (displayCountChanged || layoutRatioChanged)
+                    {
+                        _displayManager.InitializePictureBoxes();
+                        UpdateLayout();
+                        _currentIndex = 0;
+                        DisplayImages(0);
+                    }
+                }
+            }
+        }
 
         #endregion INavigationActions implementation
     }

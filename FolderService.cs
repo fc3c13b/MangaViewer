@@ -33,12 +33,15 @@ namespace MangaViewer
 
         /// <summary>
         /// ルートフォルダ内のサブフォルダを「一度だけ」スキャンし、
-        /// フィルタ（最小画像数・最小評価値）を適用した結果を返す。
+        /// フィルタ（最小画像数・最大画像数・最小評価値）を適用した結果を返す。
         /// ディレクトリスキャンは1回のみで、キャッシュを活用する。
         /// </summary>
         public List<FolderEntry> BuildFolderIndex(string rootPath)
         {
             var entries = new List<FolderEntry>();
+
+            if (string.IsNullOrWhiteSpace(rootPath)) return entries;
+            if (!Directory.Exists(rootPath)) return entries;
 
             try
             {
@@ -115,12 +118,17 @@ namespace MangaViewer
         {
             var imagePaths = new List<string>();
 
+            if (string.IsNullOrWhiteSpace(folderPath)) return imagePaths;
+            if (!Directory.Exists(folderPath)) return imagePaths;
+
             string[] extensions = { "*.jpg", "*.jpeg", "*.webp", "*.png" };
             var allFiles = new List<string>();
             foreach (var ext in extensions)
             {
-                try { allFiles.AddRange(Directory.GetFiles(folderPath, ext, SearchOption.TopDirectoryOnly)); } catch { /* 拡張子ごとのファイル取得は失敗しても他の拡張子は続行 */ }
+                try { allFiles.AddRange(Directory.GetFiles(folderPath, ext, SearchOption.TopDirectoryOnly)); }
+                catch { /* 拡張子ごとのファイル取得は失敗しても他の拡張子は続行 */ }
             }
+
             imagePaths = allFiles.OrderBy(f => ExtractNumberFromFileName(f)).ToList();
 
             return imagePaths;
@@ -142,6 +150,9 @@ namespace MangaViewer
         /// </summary>
         public static int CountImages(string dir)
         {
+            if (string.IsNullOrWhiteSpace(dir)) return 0;
+            if (!Directory.Exists(dir)) return 0;
+
             try
             {
                 var extensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".jpg", ".jpeg", ".webp", ".png" };
@@ -216,6 +227,9 @@ namespace MangaViewer
         /// </summary>
         public (int passCount, int failCount, int totalCount) ComputeFilterStats(string rootPath)
         {
+            if (string.IsNullOrWhiteSpace(rootPath)) return (0, 0, 0);
+            if (!Directory.Exists(rootPath)) return (0, 0, 0);
+
             int passCount = 0;
             int failCount = 0;
             int totalCount = 0;
@@ -247,6 +261,8 @@ namespace MangaViewer
 
         private int GetCachedOrCount(string dir)
         {
+            if (string.IsNullOrWhiteSpace(dir)) return 0;
+
             string folderName = Path.GetFileName(dir);
             string jsonPath = Path.Combine(dir, $"{folderName}.json");
             var (imageCount, _) = ReadFolderJson(jsonPath);
@@ -266,6 +282,9 @@ namespace MangaViewer
         /// </summary>
         public (int imagePassCount, int totalCount, int ratingPassCount) ComputeDisplayStats(string rootPath, int minImages, int maxImages, int minRating)
         {
+            if (string.IsNullOrWhiteSpace(rootPath)) return (0, 0, 0);
+            if (!Directory.Exists(rootPath)) return (0, 0, 0);
+
             int imagePassCount = 0;
             int totalCount = 0;
             int ratingPassCount = 0;

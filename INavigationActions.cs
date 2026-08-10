@@ -4,10 +4,13 @@ namespace MangaViewer
     /// ナビゲーション操作のインターフェース。
     /// KeyboardInputHandler が Form1 に直接依存しないようにするための抽象化レイヤー。
     /// </summary>
-    public interface INavigationActions
-    {
-        void ShowSettingsDialog();
-        void ChangeRootFolder(string rootPath);
+     public interface INavigationActions
+     {
+         void ShowSettingsDialog();
+         // フォルダ選択ダイアログをモーダルで表示（Form1 で owner を指定）
+         void ShowRootFolderDialog();
+         // 直接パスを設定（内部用 / テスト用）
+         void ChangeRootFolder(string rootPath);
         void NavigateBackwardTwoPages();
         void NavigateForwardTwoPages();
          void NavigateFolderUp();
@@ -20,8 +23,9 @@ namespace MangaViewer
          void NavigateToNextUnrated();
          void ToggleFullScreen();
           void SetDisplayCount(int count); // 2 or 8 (or other configured values)
+          int DisplayCount { get; }
 
-         // Nページ分移動（Ctrl/Alt+jump用）
+          // Nページ分移動（Ctrl/Alt/jump・矢印キー用）
          void NavigateForward(int pageCount);
          void NavigateBackward(int pageCount);
 

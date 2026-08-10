@@ -17,5 +17,10 @@ namespace MangaViewer
         /// エラーログファイルのフルパス。
         /// </summary>
         public static string ErrorLogPath => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "error_log.txt");
+
+        /// <summary>
+        /// READ ONLY フォルダ向けの評価キャッシュJSON (ratings_cache.json) のフルパス。
+        /// </summary>
+        public static string RatingsCacheFilePath => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ratings_cache.json");
     }
 }

@@ -33,6 +33,12 @@ namespace MangaViewer
                 catch { /* ログ書き込み失敗時は何もしない */ }
             };
 
+            // 起動時: ratings_cache.json をメモリにロード（READ ONLY フォルダ向け）
+            RatingService.LoadReadOnlyCache();
+
+            // アプリケーション終了時にratings_cache.jsonを保存
+            Application.ApplicationExit += (s, e) => RatingService.FlushReadOnlyCache();
+
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new Form1());
