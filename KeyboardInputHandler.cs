@@ -150,6 +150,14 @@ namespace MangaViewer
                 }
             }
 
+            // S キー: スライドショー切替（ListBoxフォーカス時は無効化）
+            if (!ctrl && !alt && key == Keys.S && !listBoxFocused)
+            {
+                e.Handled = true;
+                ToggleSlideshow(nav);
+                return;
+            }
+
             // 左右矢印キー: DisplayCount分移動（ListBoxフォーカス時は無効化）
             if (!ctrl && !alt && !listBoxFocused)
             {
