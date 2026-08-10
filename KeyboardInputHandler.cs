@@ -118,6 +118,12 @@ namespace MangaViewer
                         HandleRootFolderChange(nav);
                         return;
 
+                    case Keys.D0:
+                        // 0 のみ → 設定ダイアログを表示
+                        e.Handled = true;
+                        nav.ShowSettingsDialog();
+                        return;
+
                     default:
                     {
                         int? dc = key switch
@@ -130,7 +136,6 @@ namespace MangaViewer
                             Keys.D7 => 7,
                             Keys.D8 => 8,
                             Keys.D9 => 9,
-                            Keys.D0 => 10,
                             _       => null
                         };
 
