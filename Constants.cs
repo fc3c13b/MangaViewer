@@ -1,3 +1,6 @@
+using System;
+using System.Reflection;
+
 namespace MangaViewer
 {
     /// <summary>
@@ -5,6 +8,57 @@ namespace MangaViewer
     /// </summary>
     public static class Constants
     {
+        #region バージョン
+
+        /// <summary>
+        /// csproj の Version から自動取得したアプリケーションバージョン（例：0.9.0）。
+        /// </summary>
+        public static string AppVersion => GetAppVersion();
+
+        private static string? _appVersion;
+
+        private static string GetAppVersion()
+        {
+            if (_appVersion != null)
+                return _appVersion;
+
+            try
+            {
+                var attr = Assembly.GetExecutingAssembly()
+                                   .GetCustomAttribute<AssemblyInformationalVersionAttribute>();
+                var informational = attr?.InformationalVersion;
+                if (!string.IsNullOrEmpty(informational))
+                {
+                    // "0.9.0+git..." のような形式なら "+" 以降を切る
+                    int idx = informational.IndexOf('+');
+                    _appVersion = idx > 0
+                        ? informational.Substring(0, idx)
+                        : informational;
+                    return _appVersion;
+                }
+
+                // Fallback: FileVersion (0.9.0.0) -> "0.9.0"
+                var fva = Assembly.GetExecutingAssembly().GetName().Version?.ToString();
+                if (!string.IsNullOrEmpty(fva))
+                {
+                    var parts = fva.Split('.');
+                    if (parts.Length >= 3)
+                        _appVersion = string.Join(".", parts[..3]);
+                    else
+                        _appVersion = fva;
+                }
+            }
+            catch
+            {
+                // Fallback: hard-coded safety version
+                _appVersion = "0.9.0";
+            }
+
+            return _appVersion ?? "0.9.0";
+        }
+
+        #endregion
+
         #region レイアウト比率
 
         /// <summary>左画像領域の比率（36）</summary>
@@ -30,8 +84,8 @@ namespace MangaViewer
 
         #region ウィンドウ
 
-        /// <summary>アプリケーションタイトル</summary>
-        public const string AppTitle = "Manga Viewer";
+        /// <summary>アプリケーションタイトル（バージョンは csproj から自動取得）</summary>
+        public static string AppTitle => "Manga Viewer v" + AppVersion;
 
         /// <summary>ウィンドウ初期幅</summary>
         public const int InitialWidth = 1400;

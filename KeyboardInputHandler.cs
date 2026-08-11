@@ -108,7 +108,10 @@ namespace MangaViewer
 
             // 数字キー（Ctrlなし）:
             // - 1 : ルートフォルダ選択ダイアログ
-            // - その他(2-9,0) : 表示数設定
+            // - 2,8 : 表示枚数 (DisplayCount) を設定
+            // - 9 : フルスクリーン ⇔ ノーマル切替
+            // - 3〜7 : なし（何もしない）
+            // - 0   : 設定ダイアログを表示
             if (!ctrl && !alt)
             {
                 switch (key)
@@ -118,35 +121,33 @@ namespace MangaViewer
                         HandleRootFolderChange(nav);
                         return;
 
+                    case Keys.D2:
+                        e.Handled = true;
+                        nav.SetDisplayCount(2);
+                        return;
+
+                    case Keys.D8:
+                        e.Handled = true;
+                        nav.SetDisplayCount(8);
+                        return;
+
+                    case Keys.D9:
+                        e.Handled = true;
+                        nav.ToggleFullScreen();
+                        return;
+
+                    // 3〜7 は何もしない（fallthrough なし）
+                    case Keys.D3:
+                    case Keys.D4:
+                    case Keys.D5:
+                    case Keys.D6:
+                    case Keys.D7:
+                        return;
+
                     case Keys.D0:
-                        // 0 のみ → 設定ダイアログを表示
                         e.Handled = true;
                         nav.ShowSettingsDialog();
                         return;
-
-                    default:
-                    {
-                        int? dc = key switch
-                        {
-                            Keys.D2 => 2,
-                            Keys.D3 => 3,
-                            Keys.D4 => 4,
-                            Keys.D5 => 5,
-                            Keys.D6 => 6,
-                            Keys.D7 => 7,
-                            Keys.D8 => 8,
-                            Keys.D9 => 9,
-                            _       => null
-                        };
-
-                        if (dc.HasValue)
-                        {
-                            e.Handled = true;
-                            nav.SetDisplayCount(dc.Value);
-                            return;
-                        }
-                        break;
-                    }
                 }
             }
 

@@ -27,6 +27,7 @@ namespace MangaViewer
         private Settings _settings = new Settings();
         private readonly ImageService _imageService = new ImageService();
         private FolderService? _folderService;
+                private CbzManager? _cbzManager;
         private Timer? _slideshowTimer;
 
         public bool IsSlideshowRunning => _slideshowTimer?.Enabled ?? false;
@@ -238,6 +239,37 @@ namespace MangaViewer
             if (_folderService == null)
                 _folderService = new FolderService(_settings);
             _imagePaths = _folderService.LoadAndSortImages(folderPath);
+
+            // If no images found, try CBZ via CbzManager as fallback
+            if ((_imagePaths == null || _imagePaths.Count == 0) && Directory.Exists(folderPath))
+            {
+                string[] cbzFiles;
+                try
+                {
+                    cbzFiles = System.IO.Directory.GetFiles(folderPath, "*.cbz", System.IO.SearchOption.TopDirectoryOnly);
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    // 権限不足：CBZスキャンはスキップ
+                    cbzFiles = Array.Empty<string>();
+                }
+                catch
+                {
+                    // その他エラーもスキップ（クラッシュ防止）
+                    cbzFiles = Array.Empty<string>();
+                }
+
+                if (cbzFiles.Length > 0)
+                {
+                    if (_cbzManager == null) _cbzManager = new CbzManager();
+                    bool ok = _cbzManager.InitializeForFolder(folderPath);
+                    if (ok && _cbzManager.CurrentImagePaths != null && _cbzManager.CurrentImagePaths.Count > 0)
+                    {
+                        _imagePaths = _cbzManager.CurrentImagePaths;
+                    }
+                }
+            }
+
             _displayManager.ImagePaths = _imagePaths;
         }
 

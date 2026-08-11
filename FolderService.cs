@@ -8,12 +8,13 @@ using System.Text.RegularExpressions;
 namespace MangaViewer
 {
     /// <summary>
-    /// フォルダエントリ（パス、画像数、評価値を保持）
+    /// フォルダエントリ（パス、画像数、CBZファイル数、評価値を保持）
     /// </summary>
     public struct FolderEntry
     {
         public string Path;
         public int ImageCount;
+        public int CbzFileCount; // CBZ ファイルの数
         public int Rating; // -1: 評価未設定
     }
 
@@ -33,8 +34,9 @@ namespace MangaViewer
 
         /// <summary>
         /// ルートフォルダ内のサブフォルダを「一度だけ」スキャンし、
-        /// フィルタ（最小画像数・最大画像数・最小評価値）を適用した結果を返す。
+        /// フィルタを適用した結果を返す。
         /// ディレクトリスキャンは1回のみで、キャッシュを活用する。
+        /// 表示条件: ((画像数OK) または (CBZあり)) かつ (評価条件OK)
         /// </summary>
         public List<FolderEntry> BuildFolderIndex(string rootPath)
         {
@@ -53,31 +55,69 @@ namespace MangaViewer
 
                 foreach (var dir in sorted)
                 {
-                    string folderName = Path.GetFileName(dir);
-                    string jsonPath = Path.Combine(dir, $"{folderName}.json");
-                    var (imageCount, rating) = ReadFolderJson(jsonPath);
-
-                    // キャッシュ未存在の場合は直接カウント＋保存
-                    if (imageCount == 0)
+                    try
                     {
-                        imageCount = CountImages(dir);
-                        SaveImageCountJson(jsonPath, imageCount);
+                        string folderName = Path.GetFileName(dir);
+                        string jsonPath = Path.Combine(dir, $"{folderName}.json");
+                        var (imageCount, cbzFileCount, rating) = ReadFolderJson(jsonPath);
+
+                        // CBZファイル数のスキャン＋キャッシュ（リスト表示前に更新）
+                        if (cbzFileCount == 0)
+                        {
+                            cbzFileCount = CountCbzFiles(dir);
+                            SaveFolderMetaJson(jsonPath, imageCount, cbzFileCount, rating);
+                        }
+
+                        // キャッシュ未存在の場合は直接画像カウント＋保存
+                        if (imageCount == 0)
+                        {
+                            imageCount = CountImagesWithoutCbzFallback(dir);
+                            SaveFolderMetaJson(jsonPath, imageCount, cbzFileCount, rating);
+                        }
+
+                        // 1段目: 画像数フィルタまたはCBZあり判定
+                        bool imageConditionOk;
+                        if (_settings.MinDisplayCount > 0 || _settings.MaxDisplayCount > 0)
+                        {
+                            bool inRange = true;
+                            if (_settings.MinDisplayCount > 0 && imageCount < _settings.MinDisplayCount)
+                                inRange = false;
+                            if (_settings.MaxDisplayCount > 0 && imageCount > _settings.MaxDisplayCount)
+                                inRange = false;
+
+                            // （（最小画像数以上かつ最大画像数以下）または（CBZファイル数が1以上））
+                            imageConditionOk = inRange || (cbzFileCount >= 1);
+                        }
+                        else
+                        {
+                            // 設定されていない場合は無条件通過
+                            imageConditionOk = true;
+                        }
+
+                        if (!imageConditionOk)
+                            continue;
+
+                        // 2段目: 最小評価値（MinEvaluation > 0 の場合に有効）
+                        // rating == -1（未設定）は通過する
+                        if (_settings.MinEvaluation > 0 && rating >= 0 && rating < _settings.MinEvaluation)
+                            continue;
+
+                        entries.Add(new FolderEntry
+                        {
+                            Path = dir,
+                            ImageCount = imageCount,
+                            CbzFileCount = cbzFileCount,
+                            Rating = rating
+                        });
                     }
-
-                    // フィルタ: 最小画像数（MinDisplayCount > 0 の場合に有効）
-                    if (_settings.MinDisplayCount > 0 && imageCount < _settings.MinDisplayCount)
-                        continue;
-
-                    // フィルタ: 最大画像数（MaxDisplayCount > 0 の場合に有効）
-                    if (_settings.MaxDisplayCount > 0 && imageCount > _settings.MaxDisplayCount)
-                        continue;
-
-                    // フィルタ: 最小評価値（MinEvaluation > 0 の場合に有効）
-                    // rating == -1（未設定）または < 0 は通過する
-                    if (_settings.MinEvaluation > 0 && rating >= 0 && rating < _settings.MinEvaluation)
-                        continue;
-
-                    entries.Add(new FolderEntry { Path = dir, ImageCount = imageCount, Rating = rating });
+                    catch (UnauthorizedAccessException)
+                    {
+                        // アクセス不可のフォルダはスキップ（全体を落さない）
+                    }
+                    catch
+                    {
+                        // その他エラーもそのフォルダのみスキップ
+                    }
                 }
             }
             catch { /* ディレクトリ読み取り失敗時は空リストを返す */ }
@@ -147,6 +187,7 @@ namespace MangaViewer
 
         /// <summary>
         /// 指定フォルダ内の画像数をカウント（1回のディスクI/Oで完了）
+        /// 既存の動作を保持のため、CBZも +1 のフォールバックとして扱う。
         /// </summary>
         public static int CountImages(string dir)
         {
@@ -155,50 +196,126 @@ namespace MangaViewer
 
             try
             {
-                var extensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".jpg", ".jpeg", ".webp", ".png" };
-                return Directory.EnumerateFiles(dir, "*.*")
-                    .Where(f => extensions.Contains(Path.GetExtension(f)))
-                    .Count();
+                int imgCount = CountImagesWithoutCbzFallback(dir);
+                int cbzCount = CountCbzFiles(dir);
+                // 後方互換: CBZがある場合は必ず >0 とみなす（CBZ自体を1として加算）
+                return imgCount + Math.Max(0, cbzCount);
             }
-            catch { return 0; } /* カウント失敗時は0を返す（フォルダアクセス権限なしなど） */
+            catch { return 0; }
         }
 
         /// <summary>
-        /// フォルダのJSONメタデータを1回のファイルI/Oで読み込む（imageCount, rating）。
+        /// 通常の画像ファイルのみをカウント（CBZフォールバックなし）。
+        /// BuildFolderIndex など内部的に使用。
         /// </summary>
-        public static (int imageCount, int rating) ReadFolderJson(string jsonPath)
+        private static int CountImagesWithoutCbzFallback(string dir)
+        {
+            if (string.IsNullOrWhiteSpace(dir)) return 0;
+            if (!Directory.Exists(dir)) return 0;
+
+            try
+            {
+                var imageExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ".jpg", ".jpeg", ".webp", ".png"
+                };
+
+                return Directory.EnumerateFiles(dir, "*.*")
+                    .Where(f => imageExtensions.Contains(Path.GetExtension(f)))
+                    .Count();
+            }
+            catch { return 0; }
+        }
+
+        /// <summary>
+        /// 指定フォルダ内の CBZ ファイル数をカウント。
+        /// </summary>
+        private static int CountCbzFiles(string dir)
+        {
+            if (string.IsNullOrWhiteSpace(dir)) return 0;
+            if (!Directory.Exists(dir)) return 0;
+
+            try
+            {
+                return Directory.EnumerateFiles(dir, "*.cbz", SearchOption.TopDirectoryOnly).Count();
+            }
+            catch { return 0; }
+        }
+
+        /// <summary>
+        /// フォルダのJSONメタデータを1回のファイルI/Oで読み込む（imageCount, cbzFileCount, rating）。
+        /// </summary>
+        public static (int imageCount, int cbzFileCount, int rating) ReadFolderJson(string jsonPath)
         {
             int imageCount = 0;
+            int cbzFileCount = 0;
             int rating = -1;
 
             if (!File.Exists(jsonPath))
-                return (imageCount, rating);
+                return (imageCount, cbzFileCount, rating);
 
             try
             {
                 var json = File.ReadAllText(jsonPath);
                 using var doc = JsonDocument.Parse(json);
+
                 if (doc.RootElement.TryGetProperty("imageCount", out var ic) && ic.ValueKind == JsonValueKind.Number)
                     imageCount = ic.GetInt32();
+
+                if (doc.RootElement.TryGetProperty("cbzFileCount", out var cb) && cb.ValueKind == JsonValueKind.Number)
+                    cbzFileCount = cb.GetInt32();
+
                 if (doc.RootElement.TryGetProperty("rating", out var r) && r.ValueKind == JsonValueKind.Number)
                     rating = r.GetInt32();
             }
-            catch { /* JSON解析エラーはデフォルト値(0,-1)で継続 */ }
+            catch { /* JSON解析エラーはデフォルト値(0,0,-1)で継続 */ }
 
-            return (imageCount, rating);
+            return (imageCount, cbzFileCount, rating);
         }
 
         /// <summary>
         /// 画像数を JSON ファイルに保存（{ "imageCount": N }）
+        /// 既存のメソッドは後方互換のため残すが、内部では新しいSaveFolderMetaJsonを使う。
         /// </summary>
         public static void SaveImageCountJson(string jsonPath, int imageCount)
         {
             try
             {
-                var obj = new Dictionary<string, int> { { "imageCount", imageCount } };
+                // この呼び出し元では cbzFileCount/rating が不明な場合が多いので、
+                // 既存のJSONから復旧し、imageCountのみ更新する。
+                var (existingImg, existingCbz, existingRating) = ReadFolderJson(jsonPath);
+
+                SaveFolderMetaJson(
+                    jsonPath,
+                    imageCount,
+                    existingCbz,
+                    existingRating
+                );
+            }
+            catch { /* 保存失敗は無視 */ }
+        }
+
+        /// <summary>
+        /// フォルダメタJSON（imageCount, cbzFileCount, rating）を一括保存。
+        /// </summary>
+        private static void SaveFolderMetaJson(string jsonPath, int imageCount, int cbzFileCount, int rating)
+        {
+            try
+            {
+                var obj = new Dictionary<string, object>();
+
+                if (imageCount > 0)
+                    obj["imageCount"] = imageCount;
+
+                if (cbzFileCount > 0)
+                    obj["cbzFileCount"] = cbzFileCount;
+
+                if (rating != -1)
+                    obj["rating"] = rating;
+
                 File.WriteAllText(jsonPath, JsonSerializer.Serialize(obj, new JsonSerializerOptions { WriteIndented = true }));
             }
-            catch { /* 画像数JSONの保存失敗は無視（次回再試行でカバー） */ }
+            catch { /* 保存失敗は無視 */ }
         }
 
         /// <summary>
@@ -211,19 +328,16 @@ namespace MangaViewer
                 string folderName = Path.GetFileName(folderPath);
                 string jsonPath = Path.Combine(folderPath, $"{folderName}.json");
 
-                var (imageCount, _) = ReadFolderJson(jsonPath);
+                var (imageCount, cbzFileCount, _) = ReadFolderJson(jsonPath);
 
-                var obj = new Dictionary<string, object> { { "rating", rating } };
-                if (imageCount > 0)
-                    obj["imageCount"] = imageCount;
-
-                File.WriteAllText(jsonPath, JsonSerializer.Serialize(obj, new JsonSerializerOptions { WriteIndented = true }));
+                SaveFolderMetaJson(jsonPath, imageCount, cbzFileCount, rating);
             }
             catch { /* 評価値JSONの保存失敗は無視 */ }
         }
 
         /// <summary>
-        /// フィルタ統計情報を計算（合计数、不합계数、总数）
+        /// フィルタ統計情報を計算（合计数、不合计数、总数）
+        /// 同じルールを一貫させる: (画像条件OKまたはCBZあり) の判定を使う。
         /// </summary>
         public (int passCount, int failCount, int totalCount) ComputeFilterStats(string rootPath)
         {
@@ -241,17 +355,29 @@ namespace MangaViewer
                 {
                     string folderName = Path.GetFileName(dir);
                     string jsonPath = Path.Combine(dir, $"{folderName}.json");
-                    var (imageCount, _) = ReadFolderJson(jsonPath);
+                    var (imageCount, cbzFileCount, _) = ReadFolderJson(jsonPath);
 
+                    // スキャン前に値を最新化
                     if (imageCount == 0)
                         imageCount = GetCachedOrCount(dir);
 
+                    if (cbzFileCount == 0)
+                        cbzFileCount = CountCbzFiles(dir);
+
                     totalCount++;
 
+                    bool inRange = true;
                     if (_settings.MinDisplayCount > 0 && imageCount < _settings.MinDisplayCount)
-                        failCount++;
-                    else
+                        inRange = false;
+                    // ComputeFilterStats は MaxDisplayCount を今のところ使っていないので、
+                    // ここで追加したい場合は後で調整可能。
+
+                    bool pass = inRange || (cbzFileCount >= 1);
+
+                    if (pass)
                         passCount++;
+                    else
+                        failCount++;
                 }
             }
             catch { /* フィルタ統計計算失敗時は0で継続 */ }
@@ -265,7 +391,7 @@ namespace MangaViewer
 
             string folderName = Path.GetFileName(dir);
             string jsonPath = Path.Combine(dir, $"{folderName}.json");
-            var (imageCount, _) = ReadFolderJson(jsonPath);
+            var (imageCount, _, _) = ReadFolderJson(jsonPath);
 
             if (imageCount > 0)
                 return imageCount;
@@ -278,9 +404,10 @@ namespace MangaViewer
         /// <summary>
         /// SettingsDialog で使用。指定されたパラメータで2段階フィルタ統計を計算。
         /// 戻り値：(画像数フィルター通過数, 総フォルダ数, 評価フィルター通過数)
-        /// 評価フィルターは画像数フィルターを通ったフォルダのみを対象とする。
+        /// 同じルールを一貫させる: (画像条件OKまたはCBZあり) + 評価条件。
         /// </summary>
-        public (int imagePassCount, int totalCount, int ratingPassCount) ComputeDisplayStats(string rootPath, int minImages, int maxImages, int minRating)
+        public (int imagePassCount, int totalCount, int ratingPassCount) ComputeDisplayStats(
+            string rootPath, int minImages, int maxImages, int minRating)
         {
             if (string.IsNullOrWhiteSpace(rootPath)) return (0, 0, 0);
             if (!Directory.Exists(rootPath)) return (0, 0, 0);
@@ -296,34 +423,49 @@ namespace MangaViewer
                 {
                     string folderName = Path.GetFileName(dir);
                     string jsonPath = Path.Combine(dir, $"{folderName}.json");
-                    var (imageCount, rating) = ReadFolderJson(jsonPath);
+                    var (imageCount, cbzFileCount, rating) = ReadFolderJson(jsonPath);
 
                     // キャッシュ未存在の場合はカウント＋保存
                     if (imageCount == 0)
                     {
-                        imageCount = CountImages(dir);
-                        SaveImageCountJson(jsonPath, imageCount);
+                        imageCount = CountImagesWithoutCbzFallback(dir);
+                        SaveFolderMetaJson(jsonPath, imageCount, cbzFileCount, rating);
+                    }
+
+                    if (cbzFileCount == 0)
+                    {
+                        cbzFileCount = CountCbzFiles(dir);
+                        SaveFolderMetaJson(jsonPath, imageCount, cbzFileCount, rating);
                     }
 
                     totalCount++;
 
-                    // 1段目：画像数フィルター（最小・最大）
+                    // 1段目：画像数フィルター または CBZあり
+                    bool inRange = true;
                     if (minImages > 0 && imageCount < minImages)
-                        continue;
+                        inRange = false;
                     if (maxImages > 0 && imageCount > maxImages)
+                        inRange = false;
+
+                    // （（最小画像数以上かつ最大画像数以下）または（CBZファイル数が1以上））
+                    bool passImageOrCbz = inRange || (cbzFileCount >= 1);
+                    if (!passImageOrCbz)
                         continue;
+
                     imagePassCount++;
 
                     // 2段目：評価フィルター（minRating <= 0 は無効）
-                    // rating == -1（未設定）または < 0 は通過する
+                    // rating == -1（未設定）は通過する
                     if (minRating <= 0)
                     {
                         ratingPassCount++;
                         continue;
                     }
+
                     // rating >= 0 で且つ rating < minRating の場合のみ除外
                     if (rating >= 0 && rating < minRating)
                         continue;
+
                     ratingPassCount++;
                 }
             }

@@ -397,10 +397,10 @@ namespace MangaViewer
             };
             this.Controls.Add(labelRatingOneHint);
 
-            // バージョン表示ラベル（下部：csproj の Version をリフレクションで取得）
+            // バージョン表示ラベル（下部：Constants から一元取得）
             labelVersion = new Label
             {
-                Text = $"アプリバージョン: {GetAppVersion()}",
+                Text = $"アプリバージョン: Ver{Constants.AppVersion}",
                 AutoSize = true,
                 ForeColor = Color.LightGray,
                 Font = new System.Drawing.Font("Meiryo UI", 10F),
@@ -448,32 +448,6 @@ namespace MangaViewer
             LoadSettings();
         }
 
-        /// <summary>
-        /// アプリケーションのバージョンを csproj の Version から取得する（唯一の真）。
-        /// </summary>
-        private static string GetAppVersion()
-        {
-            try
-            {
-                var asm = Assembly.GetExecutingAssembly();
-                var info = FileVersionInfo.GetVersionInfo(asm.Location);
-                if (!string.IsNullOrEmpty(info.ProductVersion))
-                    return "Ver" + info.ProductVersion;
-            }
-            catch { /* 取得失敗時はフォールバック */ }
-
-            try
-            {
-                var asm = Assembly.GetExecutingAssembly();
-                var fv = FileVersionInfo.GetVersionInfo(asm.Location).FileVersion;
-                if (!string.IsNullOrEmpty(fv))
-                    return "Ver" + fv;
-            }
-            catch { /* ignore */ }
-
-            // 最終フォールバック: 固定表示（管理しやすいように短く）
-            return "Ver";
-        }
 
         private string GetRootFolder()
         {
