@@ -12,3 +12,6 @@ obj/
 .idea/
 *.swp
 *~
+
+# Publish output
+out/

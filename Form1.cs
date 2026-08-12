@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -384,6 +385,16 @@ namespace MangaViewer
                 labelInfo.Text = infoText;
             else
                 labelInfo.Text = "表示可能な画像がありません。";
+
+            // CBZ表示中、残り16ページ以下なら次のCBZをプレロード
+            if (_cbzManager != null && _imagePaths.Count > 0)
+            {
+                int remainingPages = _imagePaths.Count - startIndex;
+                if (remainingPages <= 16)
+                {
+                    _cbzManager.PreloadNextCbx();
+                }
+            }
         }
 
         private void UpdateLayout()
@@ -623,7 +634,25 @@ namespace MangaViewer
 
             int maxIndex = Math.Max(0, _imagePaths.Count - (_imagePaths.Count % _displayManager.DisplayCount == 0 ? _displayManager.DisplayCount : 1));
             if (maxIndex < 0) maxIndex = 0;
-            if (_currentIndex > maxIndex) _currentIndex = maxIndex;
+
+            // CBZ末尾を超えた場合、次のCBZに切り替え
+            if (_currentIndex > maxIndex && _cbzManager != null)
+            {
+                var nextPaths = _cbzManager.MoveToNextCbxIfEndReached();
+                if (nextPaths.Any())
+                {
+                    _imagePaths = nextPaths;
+                    _currentIndex = 0;
+                }
+                else
+                {
+                    _currentIndex = maxIndex;
+                }
+            }
+            else if (_currentIndex > maxIndex)
+            {
+                _currentIndex = maxIndex;
+            }
 
             DisplayImages(_currentIndex);
         }
@@ -633,7 +662,25 @@ namespace MangaViewer
             if (_imagePaths.Count == 0 || pageCount <= 0) return;
 
             _currentIndex -= pageCount;
-            if (_currentIndex < 0) _currentIndex = 0;
+
+            // CBZ先頭を超えた場合、前のCBZに切り替え
+            if (_currentIndex < 0 && _cbzManager != null)
+            {
+                var prevPaths = _cbzManager.MoveToPreviousCbxIfAtStart();
+                if (prevPaths.Any())
+                {
+                    _imagePaths = prevPaths;
+                    _currentIndex = Math.Max(0, _imagePaths.Count - (_imagePaths.Count % _displayManager.DisplayCount == 0 ? _displayManager.DisplayCount : 1));
+                }
+                else
+                {
+                    _currentIndex = 0;
+                }
+            }
+            else if (_currentIndex < 0)
+            {
+                _currentIndex = 0;
+            }
 
             DisplayImages(_currentIndex);
         }
@@ -660,10 +707,32 @@ namespace MangaViewer
             if (_imagePaths.Count == 0) return;
 
             int next = _currentIndex + _displayManager.NavigationStep;
-            int maxIndex = _imagePaths.Count - (_imagePaths.Count % _displayManager.DisplayCount == 0 ? _displayManager.DisplayCount : 1);
-            if (maxIndex < 0) maxIndex = 0;
+            int maxIndex = Math.Max(0, _imagePaths.Count - (_imagePaths.Count % _displayManager.DisplayCount == 0 ? _displayManager.DisplayCount : 1));
 
-            if (next > maxIndex)
+            if (next > maxIndex && _cbzManager != null)
+            {
+                var nextPaths = _cbzManager.MoveToNextCbxIfEndReached();
+                if (nextPaths.Any())
+                {
+                    _imagePaths = nextPaths;
+                    _currentIndex = 0;
+                    DisplayImages(0);
+                }
+                else
+                {
+                    // No more CBZ files, loop back to first folder
+                    _currentIndex = 0;
+                    if (_folderList.Count > 0)
+                    {
+                        _currentFolderIndex = 0;
+                        LoadAndSortImages(_folderList[0]);
+                        _currentIndex = 0;
+                        DisplayImages(0);
+                        listBoxFolders.SetSelected(0, true);
+                    }
+                }
+            }
+            else if (next > maxIndex)
             {
                 next = 0;
                 if (_folderList.Count > 0)

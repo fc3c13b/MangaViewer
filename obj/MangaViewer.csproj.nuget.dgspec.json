@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "c:\\source\\repos\\MangaViewer\\MangaViewer.csproj": {}
+    "C:\\source\\repos\\MangaViewer\\MangaViewer.csproj": {}
   },
   "projects": {
-    "c:\\source\\repos\\MangaViewer\\MangaViewer.csproj": {
-      "version": "0.9.2",
+    "C:\\source\\repos\\MangaViewer\\MangaViewer.csproj": {
+      "version": "0.9.3",
       "restore": {
-        "projectUniqueName": "c:\\source\\repos\\MangaViewer\\MangaViewer.csproj",
+        "projectUniqueName": "C:\\source\\repos\\MangaViewer\\MangaViewer.csproj",
         "projectName": "MangaViewer",
-        "projectPath": "c:\\source\\repos\\MangaViewer\\MangaViewer.csproj",
+        "projectPath": "C:\\source\\repos\\MangaViewer\\MangaViewer.csproj",
         "packagesPath": "C:\\Users\\fc3c1\\.nuget\\packages\\",
-        "outputPath": "c:\\source\\repos\\MangaViewer\\obj\\",
+        "outputPath": "C:\\source\\repos\\MangaViewer\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -53,12 +53,6 @@
           "framework": "net8.0-windows7.0",
           "targetAlias": "net8.0-windows",
           "dependencies": {
-            "Microsoft.NET.ILLink.Tasks": {
-              "suppressParent": "All",
-              "target": "Package",
-              "version": "[8.0.28, )",
-              "autoReferenced": true
-            },
             "SkiaSharp": {
               "target": "Package",
               "version": "[4.150.0, )"
@@ -75,20 +69,6 @@
           ],
           "assetTargetFallback": true,
           "warn": true,
-          "downloadDependencies": [
-            {
-              "name": "Microsoft.AspNetCore.App.Runtime.win-x64",
-              "version": "[8.0.28, 8.0.28]"
-            },
-            {
-              "name": "Microsoft.NETCore.App.Runtime.win-x64",
-              "version": "[8.0.28, 8.0.28]"
-            },
-            {
-              "name": "Microsoft.WindowsDesktop.App.Runtime.win-x64",
-              "version": "[8.0.28, 8.0.28]"
-            }
-          ],
           "frameworkReferences": {
             "Microsoft.NETCore.App": {
               "privateAssets": "all"
@@ -98,11 +78,6 @@
             }
           },
           "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.301/PortableRuntimeIdentifierGraph.json"
-        }
-      },
-      "runtimes": {
-        "win-x64": {
-          "#import": []
         }
       }
     }

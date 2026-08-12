@@ -167,6 +167,33 @@ namespace MangaViewer
             return CurrentImagePaths;
         }
 
+        /// <summary>
+        /// 次のCBZファイルをバックグラウンドで展開（プレロード）します。
+        /// 既に展開済みの場合は何もしません。次のCBZのパスを返します（存在しない場合はnull）。
+        /// </summary>
+        public string? PreloadNextCbx()
+        {
+            if (ActiveCbxIndex + 1 >= CbxFiles.Count)
+                return null;
+
+            string nextCbz = CbxFiles[ActiveCbxIndex + 1];
+            string cacheDir = GetCacheDirectory(nextCbz);
+
+            if (!Directory.Exists(cacheDir))
+            {
+                try
+                {
+                    ExtractCbzTo(cacheDir, nextCbz);
+                }
+                catch
+                {
+                    // プリロード失敗は許容
+                }
+            }
+
+            return nextCbz;
+        }
+
         private void Reset()
         {
             CbxFiles.Clear();
