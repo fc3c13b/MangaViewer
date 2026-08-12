@@ -129,7 +129,7 @@ namespace MangaViewer
         /// <summary>
         /// Get info text for the label based on current display.
         /// </summary>
-        public string GetInfoText(string currentFolder, int folderIndex, List<string> folderList)
+        public string GetInfoText(string currentFolder, int folderIndex, List<FolderEntry> folderList)
         {
             if (ImagePaths.Count == 0) return "";
 

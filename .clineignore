@@ -1,0 +1,39 @@
+# ビルド成果物・依存ライブラリ（巨大なため絶対読ませない）
+node_modules/
+dist/
+build/
+out/
+.next/
+.nuxt/
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# ログファイル・一時ファイル
+*.log
+logs/
+tmp/
+.cache/
+
+# バージョン管理・エディタ設定
+.git/
+.idea/
+.vscode/
+
+# パッケージマネージャーのロックファイル（テキスト量が多いため除外）
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+Pipfile.lock
+poetry.lock
+
+# 巨大なメディア・バイナリファイル
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.mp4
+*.pdf
+*.zip
+*.tar.gz

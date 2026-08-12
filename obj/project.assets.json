@@ -2,6 +2,12 @@
   "version": 4,
   "targets": {
     "net8.0-windows": {
+      "Microsoft.NET.ILLink.Tasks/8.0.28": {
+        "type": "package",
+        "build": {
+          "build/Microsoft.NET.ILLink.Tasks.props": {}
+        }
+      },
       "SkiaSharp/4.150.0": {
         "type": "package",
         "dependencies": {
@@ -67,9 +73,105 @@
           }
         }
       }
+    },
+    "net8.0-windows/win-x64": {
+      "Microsoft.NET.ILLink.Tasks/8.0.28": {
+        "type": "package",
+        "build": {
+          "build/Microsoft.NET.ILLink.Tasks.props": {}
+        }
+      },
+      "SkiaSharp/4.150.0": {
+        "type": "package",
+        "dependencies": {
+          "SkiaSharp.NativeAssets.Win32": "4.150.0",
+          "SkiaSharp.NativeAssets.macOS": "4.150.0"
+        },
+        "compile": {
+          "ref/net6.0/SkiaSharp.dll": {}
+        },
+        "runtime": {
+          "lib/net6.0/SkiaSharp.dll": {
+            "related": ".pdb"
+          }
+        }
+      },
+      "SkiaSharp.NativeAssets.macOS/4.150.0": {
+        "type": "package",
+        "compile": {
+          "lib/net6.0/_._": {}
+        },
+        "runtime": {
+          "lib/net6.0/_._": {}
+        }
+      },
+      "SkiaSharp.NativeAssets.Win32/4.150.0": {
+        "type": "package",
+        "compile": {
+          "lib/net6.0/_._": {}
+        },
+        "runtime": {
+          "lib/net6.0/_._": {}
+        },
+        "native": {
+          "runtimes/win-x64/native/libSkiaSharp.dll": {},
+          "runtimes/win-x64/native/libSkiaSharp.pdb": {}
+        }
+      }
     }
   },
   "libraries": {
+    "Microsoft.NET.ILLink.Tasks/8.0.28": {
+      "sha512": "XMqgVjlLxLqWmEh3c49haXLQwsMNtvo6YscUaqfvEGfg1iA8hnYgkUVq3i9Zu9gKeNKMWiiZKVwZExc/qyEAsQ==",
+      "type": "package",
+      "path": "microsoft.net.illink.tasks/8.0.28",
+      "hasTools": true,
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "Icon.png",
+        "LICENSE.TXT",
+        "Sdk/Sdk.props",
+        "THIRD-PARTY-NOTICES.TXT",
+        "analyzers/dotnet/cs/ILLink.CodeFixProvider.dll",
+        "analyzers/dotnet/cs/ILLink.RoslynAnalyzer.dll",
+        "build/Microsoft.NET.ILLink.Analyzers.props",
+        "build/Microsoft.NET.ILLink.Tasks.props",
+        "build/Microsoft.NET.ILLink.targets",
+        "microsoft.net.illink.tasks.8.0.28.nupkg.sha512",
+        "microsoft.net.illink.tasks.nuspec",
+        "tools/net472/ILLink.Tasks.dll",
+        "tools/net472/ILLink.Tasks.dll.config",
+        "tools/net472/Mono.Cecil.Mdb.dll",
+        "tools/net472/Mono.Cecil.Pdb.dll",
+        "tools/net472/Mono.Cecil.Rocks.dll",
+        "tools/net472/Mono.Cecil.dll",
+        "tools/net472/Sdk/Sdk.props",
+        "tools/net472/System.Buffers.dll",
+        "tools/net472/System.Collections.Immutable.dll",
+        "tools/net472/System.Memory.dll",
+        "tools/net472/System.Numerics.Vectors.dll",
+        "tools/net472/System.Reflection.Metadata.dll",
+        "tools/net472/System.Runtime.CompilerServices.Unsafe.dll",
+        "tools/net472/build/Microsoft.NET.ILLink.Analyzers.props",
+        "tools/net472/build/Microsoft.NET.ILLink.Tasks.props",
+        "tools/net472/build/Microsoft.NET.ILLink.targets",
+        "tools/net8.0/ILLink.Tasks.deps.json",
+        "tools/net8.0/ILLink.Tasks.dll",
+        "tools/net8.0/Mono.Cecil.Mdb.dll",
+        "tools/net8.0/Mono.Cecil.Pdb.dll",
+        "tools/net8.0/Mono.Cecil.Rocks.dll",
+        "tools/net8.0/Mono.Cecil.dll",
+        "tools/net8.0/Sdk/Sdk.props",
+        "tools/net8.0/build/Microsoft.NET.ILLink.Analyzers.props",
+        "tools/net8.0/build/Microsoft.NET.ILLink.Tasks.props",
+        "tools/net8.0/build/Microsoft.NET.ILLink.targets",
+        "tools/net8.0/illink.deps.json",
+        "tools/net8.0/illink.dll",
+        "tools/net8.0/illink.runtimeconfig.json",
+        "useSharedDesignerContext.txt"
+      ]
+    },
     "SkiaSharp/4.150.0": {
       "sha512": "K8dpv8SJ7xwe+lPnOlHRMRcpfZ/LfR2tIMxIz3jndMR/X1q81UXwFw3Ybj8ZjMimGVl9gUFY6SoyQ3BiIfkuDg==",
       "type": "package",
@@ -220,6 +322,7 @@
   },
   "projectFileDependencyGroups": {
     "net8.0-windows": [
+      "Microsoft.NET.ILLink.Tasks >= 8.0.28",
       "SkiaSharp >= 4.150.0"
     ]
   },
@@ -228,13 +331,13 @@
     "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
-    "version": "0.9.0",
+    "version": "0.9.2",
     "restore": {
-      "projectUniqueName": "C:\\source\\repos\\MangaViewer\\MangaViewer.csproj",
+      "projectUniqueName": "c:\\source\\repos\\MangaViewer\\MangaViewer.csproj",
       "projectName": "MangaViewer",
-      "projectPath": "C:\\source\\repos\\MangaViewer\\MangaViewer.csproj",
+      "projectPath": "c:\\source\\repos\\MangaViewer\\MangaViewer.csproj",
       "packagesPath": "C:\\Users\\fc3c1\\.nuget\\packages\\",
-      "outputPath": "C:\\source\\repos\\MangaViewer\\obj\\",
+      "outputPath": "c:\\source\\repos\\MangaViewer\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -276,6 +379,12 @@
         "framework": "net8.0-windows7.0",
         "targetAlias": "net8.0-windows",
         "dependencies": {
+          "Microsoft.NET.ILLink.Tasks": {
+            "suppressParent": "All",
+            "target": "Package",
+            "version": "[8.0.28, )",
+            "autoReferenced": true
+          },
           "SkiaSharp": {
             "target": "Package",
             "version": "[4.150.0, )"
@@ -292,6 +401,20 @@
         ],
         "assetTargetFallback": true,
         "warn": true,
+        "downloadDependencies": [
+          {
+            "name": "Microsoft.AspNetCore.App.Runtime.win-x64",
+            "version": "[8.0.28, 8.0.28]"
+          },
+          {
+            "name": "Microsoft.NETCore.App.Runtime.win-x64",
+            "version": "[8.0.28, 8.0.28]"
+          },
+          {
+            "name": "Microsoft.WindowsDesktop.App.Runtime.win-x64",
+            "version": "[8.0.28, 8.0.28]"
+          }
+        ],
         "frameworkReferences": {
           "Microsoft.NETCore.App": {
             "privateAssets": "all"
@@ -301,6 +424,11 @@
           }
         },
         "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.301/PortableRuntimeIdentifierGraph.json"
+      }
+    },
+    "runtimes": {
+      "win-x64": {
+        "#import": []
       }
     }
   }

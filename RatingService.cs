@@ -11,6 +11,8 @@ namespace MangaViewer
     {
         // READ ONLY フォルダ向けの評価キャッシュ（メモリ内）
         private static readonly ConcurrentDictionary<string, FolderMeta> ReadOnlyCache = new();
+        // IsFolderReadOnly の結果をキャッシュ（同じフォルダの重複テストを避ける）
+        private static readonly ConcurrentDictionary<string, bool> _readOnlyCheckCache = new();
 
         // ratings_cache.json への書き込み用デバウンス
         private static Timer? _flushTimer;
@@ -60,6 +62,14 @@ namespace MangaViewer
             }
         }
 
+        /// <summary>
+        /// 指定パスが ReadOnlyCache に登録されているか判定。
+        /// </summary>
+        public static bool IsReadOnlyCached(string folderPath)
+        {
+            return ReadOnlyCache.ContainsKey(folderPath);
+        }
+
         public static void FlushReadOnlyCache()
         {
             try
@@ -88,6 +98,10 @@ namespace MangaViewer
                 var json = JsonSerializer.Serialize(root, new JsonSerializerOptions { WriteIndented = true });
                 File.WriteAllText(AppPaths.RatingsCacheFilePath, json);
             }
+            catch (System.UnauthorizedAccessException ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[書き込み禁止] アクセス拒否 (FlushReadOnlyCache): {ex.Message}");
+            }
             catch
             {
                 // 保存失敗は許容（親ディレクトリ不可など）
@@ -103,6 +117,35 @@ namespace MangaViewer
             string folderName = Path.GetFileName(trimmed);
             string localJsonPath = Path.Combine(trimmed, $"{folderName}.json");
 
+            // READ ONLY フォルダとして登録されている場合は直接キャッシュへ
+            if (FolderService.IsReadOnlyFolder(trimmed))
+            {
+                var meta = ReadOnlyCache.GetOrAdd(folderPath, _ => new FolderMeta());
+                meta.Rating = rating;
+                if (!string.IsNullOrEmpty(meta.FolderName) && meta.FolderName == folderName)
+                {
+                    // 既存のFolderNameを維持
+                }
+                else
+                {
+                    meta.FolderName = folderName;
+                }
+
+                try
+                {
+                    if (File.Exists(localJsonPath))
+                    {
+                        using var doc = JsonDocument.Parse(File.ReadAllText(localJsonPath));
+                        if (doc.RootElement.TryGetProperty("imageCount", out var ic) && ic.ValueKind == JsonValueKind.Number)
+                            meta.ImageCount = ic.GetInt32();
+                    }
+                }
+                catch { }
+
+                ScheduleFlush();
+                return;
+            }
+
             // 1. ローカルJSONへの保存を試みる（既存動作）
             try
             {
@@ -116,18 +159,20 @@ namespace MangaViewer
                 // ローカル保存成功 → READ NOT ONLY とみなし、キャッシュは強制しない。
                 return;
             }
-            catch (IOException)
+            catch (IOException ex)
             {
+                System.Diagnostics.Debug.WriteLine($"[書き込み禁止] IOエラー (SaveRating): {ex.Message}");
                 // ReadOnly/ロックなどにより失敗 → キャッシュへ
             }
-            catch (UnauthorizedAccessException)
+            catch (UnauthorizedAccessException ex)
             {
+                System.Diagnostics.Debug.WriteLine($"[書き込み禁止] アクセス拒否 (SaveRating): {ex.Message}");
                 // アクセス不可 → キャッシュへ
             }
 
             // 2. ローカル保存失敗（READ ONLY と見なす）→ メモリキャッシュを更新
-            var meta = ReadOnlyCache.GetOrAdd(folderPath, _ => new FolderMeta());
-            meta.Rating = rating;
+            var cachedMeta = ReadOnlyCache.GetOrAdd(folderPath, _ => new FolderMeta());
+            cachedMeta.Rating = rating;
 
             // imageCount は既存ローカルJSONから読み取れるならそれを反映
             try
@@ -136,7 +181,7 @@ namespace MangaViewer
                 {
                     using var doc = JsonDocument.Parse(File.ReadAllText(localJsonPath));
                     if (doc.RootElement.TryGetProperty("imageCount", out var ic) && ic.ValueKind == JsonValueKind.Number)
-                        meta.ImageCount = ic.GetInt32();
+                        cachedMeta.ImageCount = ic.GetInt32();
                 }
             }
             catch
@@ -144,13 +189,13 @@ namespace MangaViewer
                 // imageCount 読み込み失敗は無視
             }
 
-            if (!string.IsNullOrEmpty(meta.FolderName))
+            if (!string.IsNullOrEmpty(cachedMeta.FolderName))
             {
                 // すでに設定済みなら維持
             }
             else
             {
-                meta.FolderName = folderName;
+                cachedMeta.FolderName = folderName;
             }
 
             // デバウンス付き Flush（更新があった場合に一定時間後に保存）
@@ -267,27 +312,32 @@ namespace MangaViewer
             return (imageCount, rating);
         }
 
-        // フォルダが READ ONLY か判定（書き込み試行ベース）
+        // フォルダが READ ONLY か判定（書き込み試行ベース、結果をキャッシュ）
         private static bool IsFolderReadOnly(string folderPath)
         {
-            string testFile = Path.Combine(folderPath, ".write_test_tmp");
-            try
+            var normalized = Path.GetFullPath(Path.TrimEndingDirectorySeparator(folderPath));
+            return _readOnlyCheckCache.GetOrAdd(normalized, path =>
             {
-                File.WriteAllText(testFile, "test");
-                File.Delete(testFile);
-                return false; // 書き込み成功 → READ NOT ONLY
-            }
-            catch
-            {
+                string testFile = Path.Combine(path, ".write_test_tmp");
                 try
                 {
-                    if (File.Exists(testFile))
-                        File.Delete(testFile);
+                    File.WriteAllText(testFile, "test");
+                    File.Delete(testFile);
+                    return false; // 書き込み成功 → READ NOT ONLY
                 }
-                catch { }
+                catch
+                {
+                    // 書き込み不可は期待される動作（ReadOnlyフォルダの正常判定）なのでログを抑制
+                    try
+                    {
+                        if (File.Exists(testFile))
+                            File.Delete(testFile);
+                    }
+                    catch { }
 
-                return true; // 失敗 → READ ONLY と見なす
-            }
+                    return true; // 失敗 → READ ONLY と見なす
+                }
+            });
         }
 
         private static void ScheduleFlush()

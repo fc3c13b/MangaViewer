@@ -12,9 +12,15 @@ namespace MangaViewer
     {
         private readonly string _cacheRoot;
 
+        /// <summary>キャッシュに保持する最大CBZ数</summary>
+        private const int MaxCachedCbzCount = 2;
+
         internal List<string> CbxFiles = new();
         internal int ActiveCbxIndex = 0;
         internal List<string> CurrentImagePaths = new();
+
+        /// <summary>LRU管理用：最近アクセスしたCBZのキャッシュディレクトリリスト（先頭=最新）</summary>
+        private readonly List<string> _activeCacheDirs = new();
 
         private static readonly HashSet<string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -54,6 +60,30 @@ namespace MangaViewer
                 );
                 _cacheRoot = tmp;
                 try { Directory.CreateDirectory(_cacheRoot); } catch { /* ignore */ }
+            }
+        }
+
+        /// <summary>
+        /// アプリ起動時に全てのCBZ展開キャッシュを削除します。
+        /// </summary>
+        public static void ClearAllCache()
+        {
+            var cacheRoot = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "MangaViewer",
+                "CBZCache"
+            );
+
+            if (Directory.Exists(cacheRoot))
+            {
+                try
+                {
+                    Directory.Delete(cacheRoot, recursive: true);
+                }
+                catch
+                {
+                    // 削除失敗は許容（一部使用中など）
+                }
             }
         }
 
@@ -201,6 +231,26 @@ namespace MangaViewer
             {
                 CurrentImagePaths.Clear();
                 return;
+            }
+
+            // LRU管理：このCBZのキャッシュディレクトリを「最新アクセス」として登録
+            _activeCacheDirs.Remove(cacheDir);
+            _activeCacheDirs.Insert(0, cacheDir);
+
+            // 最大保持数を超える場合、古いキャッシュを削除
+            while (_activeCacheDirs.Count > MaxCachedCbzCount)
+            {
+                var oldest = _activeCacheDirs[_activeCacheDirs.Count - 1];
+                _activeCacheDirs.RemoveAt(_activeCacheDirs.Count - 1);
+                try
+                {
+                    if (Directory.Exists(oldest))
+                        Directory.Delete(oldest, recursive: true);
+                }
+                catch
+                {
+                    // 削除失敗は許容（使用中など）
+                }
             }
 
             try

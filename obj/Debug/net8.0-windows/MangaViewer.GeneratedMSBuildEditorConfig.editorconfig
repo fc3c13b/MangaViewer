@@ -1,4 +1,8 @@
 is_global = true
+build_property.EnableAotAnalyzer = 
+build_property.EnableSingleFileAnalyzer = 
+build_property.EnableTrimAnalyzer = 
+build_property.IncludeAllContentForSelfExtract = 
 build_property.ApplicationManifest = 
 build_property.StartupObject = 
 build_property.ApplicationDefaultFont = 
@@ -17,7 +21,7 @@ build_property.EnforceExtendedAnalyzerRules =
 build_property.EntryPointFilePath = 
 build_property._SupportedPlatformList = Linux,macOS,Windows
 build_property.RootNamespace = MangaViewer
-build_property.ProjectDir = c:\source\repos\MangaViewer\
+build_property.ProjectDir = C:\source\repos\MangaViewer\
 build_property.EnableComHosting = 
 build_property.EnableGeneratedComInterfaceComImportInterop = 
 build_property.CsWinRTUseWindowsUIXamlProjections = false

@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Threading;
 
 namespace MangaViewer
 {
@@ -24,10 +25,38 @@ namespace MangaViewer
     public class FolderService
     {
         private readonly Settings _settings;
+        /// <summary>
+        /// 指定フォルダが READ-ONLY（書き込み禁止）として登録されているか判定。
+        /// RatingService.ReadOnlyCache に存在するかをチェックする。
+        /// </summary>
+        public static bool IsReadOnlyFolder(string folderPath)
+        {
+            return RatingService.IsReadOnlyCached(folderPath);
+        }
+
+        private Action<string>? _statusCallback;
+
+        /// <summary>
+        /// 最後に BuildFolderIndex で構築されたフォルダ一覧。
+        /// </summary>
+        internal List<FolderEntry> entries = new List<FolderEntry>();
 
         public FolderService(Settings settings)
         {
             _settings = settings;
+        }
+
+        /// <summary>
+        /// ステータス表示用のコールバックを設定（Form1などから設定）
+        /// </summary>
+        public void SetStatusCallback(Action<string>? callback)
+        {
+            _statusCallback = callback;
+        }
+
+        private void Status(string message)
+        {
+            _statusCallback?.Invoke(message);
         }
 
         #region 中核関数（フォルダスキャン＋フィルタ＋表示データを一括構築）
@@ -45,6 +74,9 @@ namespace MangaViewer
             if (string.IsNullOrWhiteSpace(rootPath)) return entries;
             if (!Directory.Exists(rootPath)) return entries;
 
+            // 30秒タイムアウト機構
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+
             try
             {
                 var dirs = Directory.GetDirectories(rootPath);
@@ -55,24 +87,49 @@ namespace MangaViewer
 
                 foreach (var dir in sorted)
                 {
+                    // タイムアウトチェック
+                    if (cts.IsCancellationRequested)
+                    {
+                        Status("30秒経過のためフォルダスキャンを中止します（既存のデータで続行）");
+                        break;
+                    }
+
                     try
                     {
+                        bool writeFailed = false;
+
                         string folderName = Path.GetFileName(dir);
                         string jsonPath = Path.Combine(dir, $"{folderName}.json");
                         var (imageCount, cbzFileCount, rating) = ReadFolderJson(jsonPath);
 
-                        // CBZファイル数のスキャン＋キャッシュ（リスト表示前に更新）
-                        if (cbzFileCount == 0)
+                        // CBZファイル数が既知の場合はスキャンをスキップ（JSONに画像数もある場合）
+                        if (cbzFileCount > 0 && imageCount > 0)
                         {
-                            cbzFileCount = CountCbzFiles(dir);
-                            SaveFolderMetaJson(jsonPath, imageCount, cbzFileCount, rating);
+                            Status($"{folderName}フォルダーはキャッシュから読み込みました");
                         }
-
-                        // キャッシュ未存在の場合は直接画像カウント＋保存
-                        if (imageCount == 0)
+                        else
                         {
-                            imageCount = CountImagesWithoutCbzFallback(dir);
-                            SaveFolderMetaJson(jsonPath, imageCount, cbzFileCount, rating);
+                            // CBZファイル数のスキャン＋キャッシュ（リスト表示前に更新）
+                            if (cbzFileCount == 0 && !writeFailed)
+                            {
+                                Status($"{folderName}フォルダーのCBZファイルをカウントしています");
+                                cbzFileCount = CountCbzFiles(dir);
+                                try
+                                {
+                                    SaveFolderMetaJson(jsonPath, imageCount, cbzFileCount, rating);
+                                }
+                                catch
+                                {
+                                    writeFailed = true;
+                                    Status($"書き込み禁止のため、ローカルJSONファイルを利用します");
+                                }
+                            }
+
+                            // キャッシュ未存在の場合は直接画像カウント＋保存
+                            if (imageCount == 0 && !writeFailed)
+                            {
+                                imageCount = CountImagesWithoutCbzFallback(dir);
+                            }
                         }
 
                         // 1段目: 画像数フィルタまたはCBZあり判定
@@ -109,10 +166,23 @@ namespace MangaViewer
                             CbzFileCount = cbzFileCount,
                             Rating = rating
                         });
+
+                        // インクリメンタルJSON更新（書き込み可能時のみ）
+                        if (!writeFailed)
+                        {
+                            try
+                            {
+                                SaveFolderMetaJson(jsonPath, imageCount, cbzFileCount, rating);
+                            }
+                            catch
+                            {
+                                writeFailed = true;
+                            }
+                        }
                     }
                     catch (UnauthorizedAccessException)
                     {
-                        // アクセス不可のフォルダはスキップ（全体を落さない）
+                        // アクセス不可のフォルダはスキップ（全体を落とさない）
                     }
                     catch
                     {
@@ -122,12 +192,60 @@ namespace MangaViewer
             }
             catch { /* ディレクトリ読み取り失敗時は空リストを返す */ }
 
+            this.entries = entries;
             return entries;
         }
 
         #endregion
 
         #region 公開メソッド（BuildFolderIndex を中核として利用）
+
+        /// <summary>
+        /// ローカルキャッシュのみから即座にフォルダリストを構築（NASアクセスなし）。
+        /// BuildSubfolderList の高速版として使用。
+        /// </summary>
+        public List<FolderEntry> LoadCachedFolderMeta(string rootPath)
+        {
+            var entries = new List<FolderEntry>();
+
+            if (string.IsNullOrWhiteSpace(rootPath)) return entries;
+            if (!Directory.Exists(rootPath)) return entries;
+
+            try
+            {
+                var dirs = Directory.GetDirectories(rootPath);
+                var sorted = dirs
+                    .Select(d => d.Replace("\\", "/"))
+                    .OrderBy(d => Path.GetFileName(d), StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                foreach (var dir in sorted)
+                {
+                    try
+                    {
+                        string folderName = Path.GetFileName(dir);
+                        string jsonPath = Path.Combine(dir, $"{folderName}.json");
+                        var (imageCount, cbzFileCount, rating) = ReadFolderJson(jsonPath);
+
+                        // キャッシュにデータがあればそのまま使用
+                        if (imageCount == 0 && cbzFileCount == 0)
+                            continue;
+
+                        entries.Add(new FolderEntry
+                        {
+                            Path = dir,
+                            ImageCount = imageCount,
+                            CbzFileCount = cbzFileCount,
+                            Rating = rating
+                        });
+                    }
+                    catch { /* スキップ */ }
+                }
+            }
+            catch { /* 失敗時は空リストを返す */ }
+
+            return entries;
+        }
 
         /// <summary>
         /// ルートフォルダ内のサブフォルダ一覧を取得し、フィルタリング適用
@@ -403,7 +521,7 @@ namespace MangaViewer
 
         /// <summary>
         /// SettingsDialog で使用。指定されたパラメータで2段階フィルタ統計を計算。
-        /// 戻り値：(画像数フィルター通過数, 総フォルダ数, 評価フィルター通過数)
+        /// 戻り値：(画像数フィルター通過数、総フォルダ数、評価フィルター通過数)
         /// 同じルールを一貫させる: (画像条件OKまたはCBZあり) + 評価条件。
         /// </summary>
         public (int imagePassCount, int totalCount, int ratingPassCount) ComputeDisplayStats(

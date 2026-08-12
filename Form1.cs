@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace MangaViewer
@@ -14,6 +15,7 @@ namespace MangaViewer
         internal Label labelInfo = null!;
 
         internal List<string> _imagePaths = new List<string>();
+        internal CbzManager? _cbzManager;
         internal int _currentIndex = 0;
         internal string _currentFolder = "";
         internal List<string> _folderList = new List<string>();
@@ -27,7 +29,6 @@ namespace MangaViewer
         private Settings _settings = new Settings();
         private readonly ImageService _imageService = new ImageService();
         private FolderService? _folderService;
-                private CbzManager? _cbzManager;
         private Timer? _slideshowTimer;
 
         public bool IsSlideshowRunning => _slideshowTimer?.Enabled ?? false;
@@ -108,12 +109,16 @@ namespace MangaViewer
             return base.ProcessCmdKey(ref m, keyData);
         }
 
+        private static readonly string LoadLogFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "error.log");
+
         private void Form1_Load(object? sender, EventArgs e)
         {
             try
             {
+                Log("Form1_Load start");
                 var (loadedSettings, errors) = SettingsManager.LoadWithValidation();
                 _settings = loadedSettings;
+                Log($"Settings loaded. Errors: {errors.Count}");
 
                 if (errors.Count > 0)
                 {
@@ -128,37 +133,87 @@ namespace MangaViewer
 
                 _displayManager = new DisplayManager(this, _settings, _imageService);
                 _displayManager.ImagePaths = _imagePaths;
+                Log("DisplayManager created");
+
+                // 基本レイアウトを先に確保してフォームを表示
+                EnsureBasicLayout();
+                labelInfo.Text = "読み込み中...";
+                UpdateLayout();
+                Application.DoEvents();
 
                 string rootPath = string.IsNullOrEmpty(_settings.LastRootFolder)
                     ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
                     : _settings.LastRootFolder;
+                Log($"Root path: {rootPath}");
 
-                BuildSubfolderList(rootPath);
-                _displayManager.UpdateSettings(_settings);
-
-                if (_folderList.Count > 0 && _currentFolderIndex >= 0)
+                // 重い処理をバックグラウンドで実行
+                Task.Run(async () =>
                 {
-                    LoadAndSortImages(_folderList[_currentFolderIndex]);
-                    _displayManager.ImagePaths = _imagePaths;
-                    _currentIndex = 0;
-                    _displayManager.InitializePictureBoxes();
-                    this.PerformLayout();
-                    UpdateLayout();
-                    _displayManager.DisplayImages(0);
-                    listBoxFolders.SelectedIndex = _currentFolderIndex;
+                    try
+                    {
+                        await Task.Yield(); // UI描画を優先
+                        
+                        this.Invoke(() => BuildSubfolderList(rootPath));
+                        Log($"BuildSubfolderList done. Folders: {_folderList.Count}, Index: {_currentFolderIndex}");
 
-                    labelInfo.Text = "初期化完了";
-                }
+                        _displayManager.UpdateSettings(_settings);
+
+                        if (_folderList.Count > 0 && _currentFolderIndex >= 0)
+                        {
+                            this.Invoke(() => LoadAndSortImages(_folderList[_currentFolderIndex]));
+                            Log($"LoadAndSortImages done. Images: {_imagePaths.Count}");
+
+                            this.Invoke(() =>
+                            {
+                                _displayManager.ImagePaths = _imagePaths;
+                                _currentIndex = 0;
+                                _displayManager.InitializePictureBoxes();
+                                Log("InitializePictureBoxes done");
+
+                                this.PerformLayout();
+                                UpdateLayout();
+                                Log("UpdateLayout done");
+
+                                _displayManager.DisplayImages(0);
+                                Log("DisplayImages done");
+
+                                listBoxFolders.SelectedIndex = _currentFolderIndex;
+                                labelInfo.Text = "初期化完了";
+                            });
+                        }
+                        else
+                        {
+                            this.Invoke(() =>
+                            {
+                                _displayManager.InitializePictureBoxes();
+                                UpdateLayout();
+                                _displayManager.DisplayImages(0);
+                                labelInfo.Text = "表示可能なフォルダがありません。";
+                            });
+                        }
+                        Log("Form1_Load complete");
+                    }
+                    catch (Exception ex)
+                    {
+                        this.Invoke(() => EnsureBasicLayout());
+                        try { File.AppendAllText(LoadLogFile, $"Background init error: {ex}{Environment.NewLine}"); } catch { }
+                        this.Invoke(() => { labelInfo.Text = "初期化エラーが発生しました。"; });
+                    }
+                });
             }
             catch (Exception ex)
             {
                 EnsureBasicLayout();
 
-                string logFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "error.log");
-                try { File.AppendAllText(logFile, $"Form1_Load error: {ex}{Environment.NewLine}"); } catch { }
+                try { File.AppendAllText(LoadLogFile, $"Form1_Load error: {ex}{Environment.NewLine}"); } catch { }
 
                 labelInfo.Text = "初期化エラーが発生しました。";
             }
+        }
+
+        private void Log(string msg)
+        {
+            try { File.AppendAllText(LoadLogFile, $"{DateTime.Now}: {msg}{Environment.NewLine}"); } catch { }
         }
 
         private void EnsureBasicLayout()
@@ -191,6 +246,13 @@ namespace MangaViewer
 
             if (_folderService == null)
                 _folderService = new FolderService(_settings);
+
+            // ステータスコールバックを設定（CBZカウント中などのメッセージをlabelInfoに表示）
+            _folderService.SetStatusCallback(msg =>
+            {
+                labelInfo.Text = msg;
+                Application.DoEvents();
+            });
 
             try
             {
@@ -317,7 +379,7 @@ namespace MangaViewer
             _displayManager.ImagePaths = _imagePaths;
             _displayManager.DisplayImages(startIndex);
 
-            string infoText = _displayManager.GetInfoText(_currentFolder, _currentFolderIndex, _folderList);
+            string infoText = _displayManager.GetInfoText(_currentFolder, _currentFolderIndex, _folderService!.entries);
             if (!string.IsNullOrEmpty(infoText))
                 labelInfo.Text = infoText;
             else
@@ -374,7 +436,7 @@ namespace MangaViewer
                 this.Size = _savedSize;
             }
 
-            string infoText = _displayManager.GetInfoText(_currentFolder, _currentFolderIndex, _folderList);
+            string infoText = _displayManager.GetInfoText(_currentFolder, _currentFolderIndex, _folderService!.entries);
             if (!string.IsNullOrEmpty(infoText))
                 labelInfo.Text = infoText;
             else
@@ -547,7 +609,8 @@ namespace MangaViewer
                 _displayManager.InitializePictureBoxes();
                 UpdateLayout();
                 _currentIndex = 0;
-                DisplayImages(0);
+                if (_imagePaths.Count > 0)
+                    DisplayImages(0);
             }
         }
 
@@ -558,7 +621,7 @@ namespace MangaViewer
 
             _currentIndex += pageCount;
 
-            int maxIndex = _imagePaths.Count - (_imagePaths.Count % _displayManager.DisplayCount == 0 ? _displayManager.DisplayCount : 1);
+            int maxIndex = Math.Max(0, _imagePaths.Count - (_imagePaths.Count % _displayManager.DisplayCount == 0 ? _displayManager.DisplayCount : 1));
             if (maxIndex < 0) maxIndex = 0;
             if (_currentIndex > maxIndex) _currentIndex = maxIndex;
 

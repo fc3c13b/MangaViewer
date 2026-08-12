@@ -1,12 +1,16 @@
 {
   "version": 2,
-  "dgSpecHash": "VwgFvh8AsNw=",
+  "dgSpecHash": "e6zAxrMr69A=",
   "success": true,
   "projectFilePath": "c:\\source\\repos\\MangaViewer\\MangaViewer.csproj",
   "expectedPackageFiles": [
+    "C:\\Users\\fc3c1\\.nuget\\packages\\microsoft.net.illink.tasks\\8.0.28\\microsoft.net.illink.tasks.8.0.28.nupkg.sha512",
     "C:\\Users\\fc3c1\\.nuget\\packages\\skiasharp\\4.150.0\\skiasharp.4.150.0.nupkg.sha512",
     "C:\\Users\\fc3c1\\.nuget\\packages\\skiasharp.nativeassets.macos\\4.150.0\\skiasharp.nativeassets.macos.4.150.0.nupkg.sha512",
-    "C:\\Users\\fc3c1\\.nuget\\packages\\skiasharp.nativeassets.win32\\4.150.0\\skiasharp.nativeassets.win32.4.150.0.nupkg.sha512"
+    "C:\\Users\\fc3c1\\.nuget\\packages\\skiasharp.nativeassets.win32\\4.150.0\\skiasharp.nativeassets.win32.4.150.0.nupkg.sha512",
+    "C:\\Users\\fc3c1\\.nuget\\packages\\microsoft.netcore.app.runtime.win-x64\\8.0.28\\microsoft.netcore.app.runtime.win-x64.8.0.28.nupkg.sha512",
+    "C:\\Users\\fc3c1\\.nuget\\packages\\microsoft.windowsdesktop.app.runtime.win-x64\\8.0.28\\microsoft.windowsdesktop.app.runtime.win-x64.8.0.28.nupkg.sha512",
+    "C:\\Users\\fc3c1\\.nuget\\packages\\microsoft.aspnetcore.app.runtime.win-x64\\8.0.28\\microsoft.aspnetcore.app.runtime.win-x64.8.0.28.nupkg.sha512"
   ],
   "logs": []
 }

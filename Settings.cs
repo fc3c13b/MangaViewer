@@ -43,6 +43,9 @@ namespace MangaViewer
         /// <summary>評価1キーワード（カンマ区切りで複数指定可能）</summary>
         public string RatingOneKeywords { get; set; } = "";
 
+        /// <summary>CBZの最後まで到達した際に、同じフォルダ内の次のCBZに自動切り替えるかどうか</summary>
+        public bool AutoSwitchNextCbz { get; set; } = true;
+
         /// <summary>
         /// デフォルト設定（ファイルがない場合に使用）
         /// </summary>
