@@ -45,18 +45,18 @@ namespace MangaViewer
                 return;
             }
 
-            // Alt + 左右: フォルダを大ジャンプ移動（例: ±50）
+            // Alt + 左右: CBZファイル間切り替え / 上下: フォルダジャンプ
             if (alt)
             {
                 switch (key)
                 {
                     case Keys.Left:
                         e.Handled = true;
-                        nav.NavigateFolders(-50);
+                        nav.NavigateCbzNext();
                         return;
                     case Keys.Right:
                         e.Handled = true;
-                        nav.NavigateFolders(50);
+                        nav.NavigateCbzPrev();
                         return;
                     case Keys.Up:
                         e.Handled = true;
@@ -106,20 +106,21 @@ namespace MangaViewer
                 return;
             }
 
-            // 数字キー（Ctrlなし）:
-            // - 1 : ルートフォルダ選択ダイアログ
-            // - 2,8 : 表示枚数 (DisplayCount) を設定
-            // - 9 : フルスクリーン ⇔ ノーマル切替
-            // - 3〜7 : なし（何もしない）
-            // - 0   : 設定ダイアログを表示
-            if (!ctrl && !alt)
-            {
-                switch (key)
-                {
-                    case Keys.D1:
-                        e.Handled = true;
-                        HandleRootFolderChange(nav);
-                        return;
+         // 数字キー（Ctrlなし）:
+             // - 1 : ルートフォルダ選択ダイアログ
+             // - 2,8 : 表示枚数 (DisplayCount) を設定
+             // - 9 : フルスクリーン ⇔ ノーマル切替
+             // - 3〜7 : なし（何もしない）
+             // - 0   : 設定ダイアログを表示
+             if (!ctrl && !alt)
+             {
+                 switch (key)
+                 {
+                     case Keys.D1:
+                         try { System.IO.File.AppendAllText("error.log", $"[Keyboard] D1 pressed, calling SetDisplayCount(1){Environment.NewLine}"); } catch { }
+                         e.Handled = true;
+                         nav.SetDisplayCount(1);
+                         return;
 
                     case Keys.D2:
                         e.Handled = true;
@@ -136,8 +137,13 @@ namespace MangaViewer
                         nav.ToggleFullScreen();
                         return;
 
-                    // 3〜7 は何もしない（fallthrough なし）
+                    // 3 : ルートフォルダ選択ダイアログ
                     case Keys.D3:
+                        e.Handled = true;
+                        HandleRootFolderChange(nav);
+                        return;
+
+                    // 4〜7 は何もしない（fallthrough なし）
                     case Keys.D4:
                     case Keys.D5:
                     case Keys.D6:

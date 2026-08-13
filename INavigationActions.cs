@@ -35,6 +35,10 @@ namespace MangaViewer
 
          bool IsSlideshowRunning { get; }
          void StartSlideshow();
-         void StopSlideshow();
-     }
+          void StopSlideshow();
+
+          // CBZファイル間を切り替え（Alt+左右用）
+          void NavigateCbzNext();
+          void NavigateCbzPrev();
+    }
 }

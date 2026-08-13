@@ -51,19 +51,19 @@ namespace MangaViewer
             var settings = new Settings(); // デフォルト値ベース
 
             // MinDisplayCountEnabled
-            if (root.TryGetProperty("MinDisplayCountEnabled", out var ep) && ep.ValueKind == JsonValueKind.True || ep.ValueKind == JsonValueKind.False)
+            if (root.TryGetProperty("MinDisplayCountEnabled", out var ep) && (ep.ValueKind == JsonValueKind.True || ep.ValueKind == JsonValueKind.False))
                 settings.MinDisplayCountEnabled = ep.GetBoolean();
 
-            // MinDisplayCount: 2〜99999
+            // MinDisplayCount: 1〜99999 の範囲（1を含む）
             const int minDisplayCountDef = 20;
             if (root.TryGetProperty("MinDisplayCount", out var cp) && cp.ValueKind == JsonValueKind.Number)
             {
                 int val = cp.GetInt32();
-                if (val >= 2 && val <= 99999)
+                if (val >= 1 && val <= 99999)
                     settings.MinDisplayCount = val;
                 else
                 {
-                    errors.Add($"MinDisplayCount の値 '{val}' は無効です（有効範囲: 2〜99999）。デフォルト値 ({minDisplayCountDef}) を使用します。");
+                    errors.Add($"MinDisplayCount の値 '{val}' は無効です（有効範囲: 1〜99999）。デフォルト値 ({minDisplayCountDef}) を使用します。");
                     settings.MinDisplayCount = minDisplayCountDef;
                 }
             }
@@ -96,20 +96,16 @@ namespace MangaViewer
                 }
             }
 
-            // LastRootFolder
-            if (root.TryGetProperty("LastRootFolder", out var lrp) && lrp.ValueKind == JsonValueKind.String)
-                settings.LastRootFolder = lrp.ToString();
-
-            // DisplayCount: 2 または 8 のみ
+            // DisplayCount: 1, 2, または 8 のみ有効
             const int displayCountDef = 2;
             if (root.TryGetProperty("DisplayCount", out var dp) && dp.ValueKind == JsonValueKind.Number)
             {
                 int val = dp.GetInt32();
-                if (val == 2 || val == 8)
+                if (val == 1 || val == 2 || val == 8)
                     settings.DisplayCount = val;
                 else
                 {
-                    errors.Add($"DisplayCount の値 '{val}' は無効です（有効値: 2, 8）。デフォルト値 ({displayCountDef}) を使用します。");
+                    errors.Add($"DisplayCount の値 '{val}' は無効です（有効範囲: 1, 2, 8）。デフォルト値 ({displayCountDef}) を使用します。");
                     settings.DisplayCount = displayCountDef;
                 }
             }
@@ -141,6 +137,10 @@ namespace MangaViewer
                     settings.FullScreenModeImageAreaPercent = fullPctDef;
                 }
             }
+
+            // LastRootFolder
+            if (root.TryGetProperty("LastRootFolder", out var lrp) && lrp.ValueKind == JsonValueKind.String)
+                settings.LastRootFolder = lrp.ToString();
 
             return (settings, errors);
         }

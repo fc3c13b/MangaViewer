@@ -87,11 +87,14 @@ namespace MangaViewer
         /// </summary>
         public void DisplayImages(int startIndex)
         {
+            try { System.IO.File.AppendAllText("error.log", $"[DisplayManager] DisplayImages(startIndex={startIndex}, DisplayCount={DisplayCount}, ImagePaths.Count={ImagePaths.Count}){Environment.NewLine}"); } catch { }
             CurrentIndex = startIndex;
             int count = DisplayCount;
 
             if (pictureBoxes.Length == 0 || pictureBoxes.Length != count)
                 InitializePictureBoxes();
+
+            try { System.IO.File.AppendAllText("error.log", $"[DisplayManager] pictureBoxes.Length={pictureBoxes.Length}, count={count}{Environment.NewLine}"); } catch { }
 
             if (ImagePaths.Count == 0)
             {
@@ -101,7 +104,8 @@ namespace MangaViewer
 
             // Manga reading order: right-to-left, top-to-bottom
             // Panel position (col,row) maps to page index: row * cols + (cols - 1 - col)
-            int cols = 4;
+            int cols = count == 8 ? 4 : (count == 1 ? 1 : 2);
+            try { System.IO.File.AppendAllText("error.log", $"[DisplayManager] cols={cols}, count={count}{Environment.NewLine}"); } catch { }
             for (int i = 0; i < count; i++)
             {
                 int col = i % cols;
@@ -109,6 +113,7 @@ namespace MangaViewer
                 int pageOffset = row * cols + (cols - 1 - col);
                 int imgIdx = startIndex + pageOffset;
                 string? imagePath = imgIdx < ImagePaths.Count ? ImagePaths[imgIdx] : null;
+                try { System.IO.File.AppendAllText("error.log", $"[DisplayManager] i={i}, imgIdx={imgIdx}, imagePath={(string.IsNullOrEmpty(imagePath) ? "(null)" : Path.GetFileName(imagePath))}{Environment.NewLine}"); } catch { }
                 LoadImageIntoPictureBox(pictureBoxes[i], ref currentImages![i], imagePath);
             }
 
@@ -162,6 +167,7 @@ namespace MangaViewer
 
         private void LoadImageIntoPictureBox(PictureBox pb, ref Image? currentImage, string? imagePath)
         {
+            try { System.IO.File.AppendAllText("error.log", $"[DisplayManager] LoadImageIntoPictureBox(imagePath={imagePath}){Environment.NewLine}"); } catch { }
             if (currentImage != null)
             {
                 ImageService.DisposeImage(currentImage);
@@ -233,6 +239,11 @@ namespace MangaViewer
                 // 設定：ノーマル表示の画像領域幅比率（%）
                 imageAreaRatio = _settings.NormalModeImageAreaPercent / 100.0;
             }
+            else if (count == 1)
+            {
+                // 1枚表示: 中央に全画面に近いサイズで表示
+                imageAreaRatio = 0.95;
+            }
             else
             {
                 imageAreaRatio = 0.85;
@@ -244,6 +255,7 @@ namespace MangaViewer
 
             int rows, cols;
             if (count == 8) { rows = 2; cols = 4; }
+            else if (count == 1) { rows = 1; cols = 1; }
             else { rows = 1; cols = 2; }
 
             int pbWidth = (imageTotalWidth - gap * (cols + 1)) / cols;

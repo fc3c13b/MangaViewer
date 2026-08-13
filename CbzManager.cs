@@ -168,6 +168,42 @@ namespace MangaViewer
         }
 
         /// <summary>
+        /// 次のCBZに強制的に切り替えます。先頭画像のパスを返します（失敗時はnull）。
+        /// </summary>
+        public string? SwitchToNextCbx()
+        {
+            if (CbxFiles.Count <= 1) return null;
+
+            ActiveCbxIndex++;
+            if (ActiveCbxIndex >= CbxFiles.Count)
+            {
+                ActiveCbxIndex = CbxFiles.Count - 1;
+                return null;
+            }
+
+            RefreshCurrentImagePaths(extractEvenIfEmpty: true);
+            return CurrentImagePaths.FirstOrDefault();
+        }
+
+        /// <summary>
+        /// 前のCBZに強制的に切り替えます。先頭画像のパスを返します（失敗時はnull）。
+        /// </summary>
+        public string? SwitchToPreviousCbx()
+        {
+            if (CbxFiles.Count <= 1) return null;
+
+            ActiveCbxIndex--;
+            if (ActiveCbxIndex < 0)
+            {
+                ActiveCbxIndex = 0;
+                return null;
+            }
+
+            RefreshCurrentImagePaths(extractEvenIfEmpty: true);
+            return CurrentImagePaths.FirstOrDefault();
+        }
+
+        /// <summary>
         /// 次のCBZファイルをバックグラウンドで展開（プレロード）します。
         /// 既に展開済みの場合は何もしません。次のCBZのパスを返します（存在しない場合はnull）。
         /// </summary>

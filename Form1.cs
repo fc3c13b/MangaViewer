@@ -31,6 +31,7 @@ namespace MangaViewer
         private readonly ImageService _imageService = new ImageService();
         private FolderService? _folderService;
         private Timer? _slideshowTimer;
+        private System.Windows.Forms.Timer? _folderDebounceTimer;
 
         public bool IsSlideshowRunning => _slideshowTimer?.Enabled ?? false;
 
@@ -82,9 +83,18 @@ namespace MangaViewer
             listBoxFolders.SelectedIndex = next;
 
             if (string.IsNullOrEmpty(_folderList[next])) return;
-            LoadAndSortImages(_folderList[next]);
-            _currentIndex = 0;
-            DisplayImages(0);
+
+            // デバウンスタイマーをリセット（1秒間キー操作がない場合に画像を表示）
+            _folderDebounceTimer?.Stop();
+            _folderDebounceTimer ??= new System.Windows.Forms.Timer { Interval = 1000 };
+            _folderDebounceTimer.Tick += (s, e) =>
+            {
+                _folderDebounceTimer!.Stop();
+                LoadAndSortImages(_folderList[_currentFolderIndex]);
+                _currentIndex = 0;
+                DisplayImages(0);
+            };
+            _folderDebounceTimer.Start();
             e.Handled = true;
         }
 
@@ -380,19 +390,33 @@ namespace MangaViewer
             _displayManager.ImagePaths = _imagePaths;
             _displayManager.DisplayImages(startIndex);
 
+            string folderName = Path.GetFileName(_currentFolder);
+            string cbzInfo = "";
+            if (_cbzManager != null && _cbzManager.CbxFiles.Count > 0)
+            {
+                int idx = Math.Clamp(_cbzManager.ActiveCbxIndex, 0, _cbzManager.CbxFiles.Count - 1);
+                string cbzFileName = Path.GetFileNameWithoutExtension(_cbzManager.CbxFiles[idx]);
+                // ファイル名から巻数情報を抽出（例: "Vol1", "001", "巻1" など）
+                int volNum = FolderService.ExtractNumberFromFileName(cbzFileName);
+                if (volNum > 0)
+                    cbzInfo = $" [{cbzFileName}]";
+            }
+
+            string folderDisplay = $"{folderName}{cbzInfo}";
+
             string infoText = _displayManager.GetInfoText(_currentFolder, _currentFolderIndex, _folderService!.entries);
             if (!string.IsNullOrEmpty(infoText))
-                labelInfo.Text = infoText;
+                labelInfo.Text = $"[{folderDisplay}] {infoText.TrimStart()}";
             else
-                labelInfo.Text = "表示可能な画像がありません。";
+                labelInfo.Text = $"[{folderDisplay}] 表示可能な画像がありません。";
 
-            // CBZ表示中、残り16ページ以下なら次のCBZをプレロード
+            // CBZ表示中、残り16ページ以下なら次のCBZをプレロード（バックグラウンドスレッドでUIブロックしない）
             if (_cbzManager != null && _imagePaths.Count > 0)
             {
                 int remainingPages = _imagePaths.Count - startIndex;
                 if (remainingPages <= 16)
                 {
-                    _cbzManager.PreloadNextCbx();
+                    _ = Task.Run(() => _cbzManager.PreloadNextCbx());
                 }
             }
         }
@@ -447,11 +471,24 @@ namespace MangaViewer
                 this.Size = _savedSize;
             }
 
+            string folderName2 = Path.GetFileName(_currentFolder);
+            string cbzInfo2 = "";
+            if (_cbzManager != null && _cbzManager.CbxFiles.Count > 0)
+            {
+                int idx2 = Math.Clamp(_cbzManager.ActiveCbxIndex, 0, _cbzManager.CbxFiles.Count - 1);
+                string cbzFileName2 = Path.GetFileNameWithoutExtension(_cbzManager.CbxFiles[idx2]);
+                int volNum2 = FolderService.ExtractNumberFromFileName(cbzFileName2);
+                if (volNum2 > 0)
+                    cbzInfo2 = $" [{cbzFileName2}]";
+            }
+
+            string folderDisplay2 = $"{folderName2}{cbzInfo2}";
+
             string infoText = _displayManager.GetInfoText(_currentFolder, _currentFolderIndex, _folderService!.entries);
             if (!string.IsNullOrEmpty(infoText))
-                labelInfo.Text = infoText;
+                labelInfo.Text = $"[{folderDisplay2}] {infoText.TrimStart()}";
             else
-                labelInfo.Text = "表示可能な画像がありません。";
+                labelInfo.Text = $"[{folderDisplay2}] 表示可能な画像がありません。";
 
             UpdateLayout();
         }
@@ -591,6 +628,7 @@ namespace MangaViewer
             listBoxFolders.SetSelected(_currentFolderIndex, true);
         }
 
+
         public void NavigateToNextUnrated()
         {
             for (int i = 0; i < _folderList.Count; i++)
@@ -607,22 +645,57 @@ namespace MangaViewer
             }
         }
 
+        private static void DebugLog(string msg)
+        {
+            try { File.AppendAllText(LoadLogFile, $"[SetDisplay] {DateTime.Now}: {msg}{Environment.NewLine}"); } catch { }
+        }
+
         public void SetDisplayCount(int count)
         {
-            if (count <= 0) return;
+            DebugLog($">>> Enter count={count}, currentDisplayCount={_settings.DisplayCount}, imagePaths.Count={_imagePaths.Count}, currentIndex={_currentIndex}");
+            if (count <= 0) { DebugLog("count<=0, returning"); return; }
+            
             int prevDisplayCount = _settings.DisplayCount;
             _settings.DisplayCount = count;
+            DebugLog($"_settings.DisplayCount: {prevDisplayCount} -> {_settings.DisplayCount}");
+            
             SettingsManager.Save(_settings);
+            DebugLog("Settings saved");
+            
             _displayManager.UpdateSettings(_settings);
+            DebugLog($"UpdateSettings done, DisplayManager.DisplayCount={_displayManager.DisplayCount}");
 
             if (_settings.DisplayCount != prevDisplayCount)
             {
+                DebugLog("DisplayCount changed, calling InitializePictureBoxes...");
                 _displayManager.InitializePictureBoxes();
+                DebugLog($"InitializePictureBoxes done, pictureBoxes.Length={_displayManager.pictureBoxes.Length}");
+                
+                DebugLog("Calling UpdateLayout...");
                 UpdateLayout();
+                DebugLog("UpdateLayout done");
+                
                 _currentIndex = 0;
+                DebugLog($"_currentIndex set to 0, imagePaths.Count={_imagePaths.Count}");
+                
                 if (_imagePaths.Count > 0)
+                {
+                    DebugLog("Calling DisplayImages(0)...");
                     DisplayImages(0);
+                    DebugLog("DisplayImages(0) done");
+                }
+                else
+                {
+                    DebugLog("_imagePaths.Count is 0, skipping DisplayImages");
+                }
             }
+            else
+            {
+                DebugLog("DisplayCount unchanged, skipping redraw");
+            }
+            
+            this.Focus();
+            DebugLog("<<< Exit SetDisplayCount complete");
         }
 
         // N-page jump (for Ctrl/Alt + arrow keys)
@@ -683,6 +756,32 @@ namespace MangaViewer
             }
 
             DisplayImages(_currentIndex);
+        }
+
+        public void NavigateCbzNext()
+        {
+            if (_cbzManager == null || _cbzManager.CbxFiles.Count <= 1) return;
+            
+            var nextCbx = _cbzManager.SwitchToNextCbx();
+            if (nextCbx != null)
+            {
+                _imagePaths = _cbzManager.CurrentImagePaths;
+                _currentIndex = 0;
+                DisplayImages(0);
+            }
+        }
+
+        public void NavigateCbzPrev()
+        {
+            if (_cbzManager == null || _cbzManager.CbxFiles.Count <= 1) return;
+            
+            var prevCbx = _cbzManager.SwitchToPreviousCbx();
+            if (prevCbx != null)
+            {
+                _imagePaths = _cbzManager.CurrentImagePaths;
+                _currentIndex = 0;
+                DisplayImages(0);
+            }
         }
 
         #region Slideshow

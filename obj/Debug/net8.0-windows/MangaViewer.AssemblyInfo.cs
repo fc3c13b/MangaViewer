@@ -12,11 +12,11 @@ using System.Reflection;
 
 [assembly: System.Reflection.AssemblyCompanyAttribute("MangaViewer")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
-[assembly: System.Reflection.AssemblyFileVersionAttribute("0.9.3")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("0.9.3+a8cd5bc33deb438c3ceb8d8fdf47bdcf5b349999")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("0.9.7")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("0.9.7+7d2ea03e7143c486cd2d1e9f8465008e4aa6db0a")]
 [assembly: System.Reflection.AssemblyProductAttribute("MangaViewer")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MangaViewer")]
-[assembly: System.Reflection.AssemblyVersionAttribute("0.9.3")]
+[assembly: System.Reflection.AssemblyVersionAttribute("0.9.7")]
 [assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
 [assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
 
