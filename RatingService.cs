@@ -70,6 +70,28 @@ namespace MangaViewer
             return ReadOnlyCache.ContainsKey(folderPath);
         }
 
+        /// <summary>
+        /// キャッシュから指定フォルダの評価値を取得（-1: 未設定/キャッシュなし）
+        /// </summary>
+        public static int GetCachedRating(string folderPath)
+        {
+            if (ReadOnlyCache.TryGetValue(folderPath, out var meta))
+                return meta.Rating;
+            return -1;
+        }
+
+        /// <summary>
+        /// 指定フォルダの評価値をキャッシュに直接設定（外部から呼び出し）。
+        /// </summary>
+        public static void SetReadOnlyCacheRating(string folderPath, int rating, int imageCount = 0, string? folderName = null)
+        {
+            if (string.IsNullOrWhiteSpace(folderPath)) return;
+            var meta = ReadOnlyCache.GetOrAdd(folderPath, _ => new FolderMeta());
+            meta.Rating = rating;
+            if (imageCount > 0) meta.ImageCount = imageCount;
+            if (!string.IsNullOrEmpty(folderName)) meta.FolderName = folderName;
+        }
+
         public static void FlushReadOnlyCache()
         {
             try

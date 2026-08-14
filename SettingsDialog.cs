@@ -5,6 +5,7 @@ using System.Drawing;
 using System.IO;
 using System.Reflection;
 using System.Text.Json;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace MangaViewer
@@ -472,20 +473,26 @@ namespace MangaViewer
         }
 
         /// <summary>
-        /// フィルター統計を更新してUIに表示（非同期で軽量計算）
+        /// フィルター統計を更新してUIに表示（非同期で30秒タイムアウト付き）
         /// </summary>
         private void UpdateFilterStats()
         {
-            string root = RootFolder;
-            int minImages = (int)numMinDisplayCount.Value;
-            int maxImages = (int)numMaxDisplayCount.Value;
-            int minRating = (int)numMinEvaluation.Value;
+            // 前回の非同期計算をキャンセルせず、新しい計算を開始
+            Task.Run(() =>
+            {
+                string root = RootFolder;
+                int minImages = (int)numMinDisplayCount.Value;
+                int maxImages = (int)numMaxDisplayCount.Value;
+                int minRating = (int)numMinEvaluation.Value;
 
-            // UI スレッドで即座に計算（フォルダ数が多い場合は非同期検討）
-            var (imagePass, total, ratingPass) = _folderService.ComputeDisplayStats(root, minImages, maxImages, minRating);
+                var (imagePass, total, ratingPass) = _folderService.ComputeDisplayStats(root, minImages, maxImages, minRating);
 
-            lblImageFilterStats.Text = $"[{imagePass}/{total}]";
-            lblRatingFilterStats.Text = $"[{ratingPass}/{imagePass}]";
+                this.Invoke(new Action(() =>
+                {
+                    lblImageFilterStats.Text = $"[{imagePass}/{total}]";
+                    lblRatingFilterStats.Text = $"[{ratingPass}/{imagePass}]";
+                }));
+            });
         }
 
         /// <summary>

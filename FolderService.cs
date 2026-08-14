@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -100,35 +101,43 @@ namespace MangaViewer
 
                         string folderName = Path.GetFileName(dir);
                         string jsonPath = Path.Combine(dir, $"{folderName}.json");
-                        var (imageCount, cbzFileCount, rating) = ReadFolderJson(jsonPath);
+                        var (imageCount, cbzFileCount, djRating) = ReadFolderJson(jsonPath);
 
-                        // CBZファイル数が既知の場合はスキャンをスキップ（JSONに画像数もある場合）
-                        if (cbzFileCount > 0 && imageCount > 0)
+                        // DJにRがあるか、GC（画像数またはCBZ数）があるかで判定
+                        bool hasDjRating = djRating != -1;
+                        bool hasDjGc = imageCount > 0 || cbzFileCount > 0;
+                        int cachedRating = RatingService.GetCachedRating(dir);
+                        bool hasCjRating = cachedRating != -1;
+
+                        // ルール判定：スキャンするかどうか
+                        if (hasDjRating && hasCjRating)
                         {
-                            Status($"{folderName}フォルダーはキャッシュから読み込みました");
+                            // 規則1: DJにRあり + CJにRあり → スキャンスキップ
+                            djRating = cachedRating; // キャッシュの評価値を優先
+                        }
+                        else if (hasDjRating && !hasCjRating)
+                        {
+                            // 規則2: DJにRあり + CJにRなし → RをCJにコピー、スキャンスキップ
+                            RatingService.SetReadOnlyCacheRating(dir, djRating, imageCount, folderName);
+                        }
+                        else if (!hasDjRating && hasDjGc)
+                        {
+                            // 規則3: DJにRなし + DJにGCあり → スキャンスキップ
                         }
                         else
                         {
-                            // CBZファイル数のスキャン＋キャッシュ（リスト表示前に更新）
-                            if (cbzFileCount == 0 && !writeFailed)
-                            {
-                                Status($"{folderName}フォルダーのCBZファイルをカウントしています");
-                                cbzFileCount = CountCbzFiles(dir);
-                                try
-                                {
-                                    SaveFolderMetaJson(jsonPath, imageCount, cbzFileCount, rating);
-                                }
-                                catch
-                                {
-                                    writeFailed = true;
-                                    Status($"書き込み禁止のため、ローカルJSONファイルを利用します");
-                                }
-                            }
-
-                            // キャッシュ未存在の場合は直接画像カウント＋保存
-                            if (imageCount == 0 && !writeFailed)
-                            {
+                            // 規則4: DJにRなし + DJにGCなし → フォルダをスキャン
+                            cbzFileCount = CountCbzFiles(dir);
+                            if (cbzFileCount > 0)
                                 imageCount = CountImagesWithoutCbzFallback(dir);
+
+                            try
+                            {
+                                SaveFolderMetaJson(jsonPath, imageCount, cbzFileCount, djRating);
+                            }
+                            catch
+                            {
+                                writeFailed = true;
                             }
                         }
 
@@ -155,8 +164,8 @@ namespace MangaViewer
                             continue;
 
                         // 2段目: 最小評価値（MinEvaluation > 0 の場合に有効）
-                        // rating == -1（未設定）は通過する
-                        if (_settings.MinEvaluation > 0 && rating >= 0 && rating < _settings.MinEvaluation)
+                        // djRating == -1（未設定）は通過する
+                        if (_settings.MinEvaluation > 0 && djRating >= 0 && djRating < _settings.MinEvaluation)
                             continue;
 
                         entries.Add(new FolderEntry
@@ -164,7 +173,7 @@ namespace MangaViewer
                             Path = dir,
                             ImageCount = imageCount,
                             CbzFileCount = cbzFileCount,
-                            Rating = rating
+                            Rating = djRating
                         });
 
                         // インクリメンタルJSON更新（書き込み可能時のみ）
@@ -172,7 +181,7 @@ namespace MangaViewer
                         {
                             try
                             {
-                                SaveFolderMetaJson(jsonPath, imageCount, cbzFileCount, rating);
+                                SaveFolderMetaJson(jsonPath, imageCount, cbzFileCount, djRating);
                             }
                             catch
                             {
@@ -193,6 +202,10 @@ namespace MangaViewer
             catch { /* ディレクトリ読み取り失敗時は空リストを返す */ }
 
             this.entries = entries;
+
+            // スキャン完了後、キャッシュされた評価値をratings_cache.jsonに保存
+            RatingService.FlushReadOnlyCache();
+
             return entries;
         }
 
