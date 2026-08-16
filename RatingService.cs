@@ -362,6 +362,20 @@ namespace MangaViewer
             });
         }
 
+        /// <summary>
+        /// 指定された評価値と一致するフォルダパスのリストを返す（ダミー実装）。
+        /// </summary>
+        public static List<string> GetFoldersByRating(int rating)
+        {
+            var result = new List<string>();
+            foreach (var kv in ReadOnlyCache)
+            {
+                if (kv.Value.Rating == rating)
+                    result.Add(kv.Key);
+            }
+            return result;
+        }
+
         private static void ScheduleFlush()
         {
             lock (FlushLock)
@@ -370,7 +384,6 @@ namespace MangaViewer
                 _flushTimer = new Timer(_ => FlushReadOnlyCache(), null, FlushDelayMs, Timeout.Infinite);
             }
         }
-
         // メモリ内データ構造
         private class FolderMeta
         {

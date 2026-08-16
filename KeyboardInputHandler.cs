@@ -143,11 +143,16 @@ namespace MangaViewer
                         HandleRootFolderChange(nav);
                         return;
 
-                    // 4〜7 は何もしない（fallthrough なし）
+                    // 4,5,6 は何もしない
                     case Keys.D4:
                     case Keys.D5:
                     case Keys.D6:
+                        return;
+
+                    // 7 : 表示モード切替（フォルダー階層順 ⇔ 評価値ランク順）
                     case Keys.D7:
+                        e.Handled = true;
+                        nav.ToggleDisplayMode();
                         return;
 
                     case Keys.D0:

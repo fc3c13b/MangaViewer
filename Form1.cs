@@ -22,6 +22,8 @@ namespace MangaViewer
         internal List<string> _folderList = new List<string>();
         internal int _currentFolderIndex = -1;
         internal bool _fullScreenMode = false;
+        internal int _displayMode = 0; // 0=階層順, 1=評価値8のみ
+        private string _rootFolder = "";
 
         private FormWindowState _savedWindowState = FormWindowState.Normal;
         private FormBorderStyle _savedFormBorderStyle = FormBorderStyle.Sizable;
@@ -31,6 +33,7 @@ namespace MangaViewer
         private readonly ImageService _imageService = new ImageService();
         private FolderService? _folderService;
         private Timer? _slideshowTimer;
+        private bool _isDisplayModeToggling = false;
         private System.Windows.Forms.Timer? _folderDebounceTimer;
 
         public bool IsSlideshowRunning => _slideshowTimer?.Enabled ?? false;
@@ -249,6 +252,7 @@ namespace MangaViewer
 
         internal void BuildSubfolderList(string rootPath)
         {
+            _rootFolder = rootPath;
             _folderList.Clear();
             _currentFolderIndex = -1;
 
@@ -368,6 +372,23 @@ namespace MangaViewer
             };
 
             listBoxFolders.KeyDown += (s, e) => KeyboardInputHandler.HandleKeyDown(e, this);
+
+            listBoxFolders.SelectedIndexChanged += (s, e) =>
+            {
+                if (listBoxFolders.SelectedIndex >= 0 && _folderList.Count > 0)
+                {
+                    _currentFolderIndex = listBoxFolders.SelectedIndex;
+                    string newFolder = _folderList[_currentFolderIndex];
+                    // 同じフォルダの場合は画像の再読み込みをスキップ（描画データを保持）
+                    if (newFolder != _currentFolder)
+                    {
+                        _currentFolder = newFolder;
+                        LoadAndSortImages(newFolder);
+                        _currentIndex = 0;
+                        DisplayImages(0);
+                    }
+                }
+            };
 
             listBoxFolders.PreviewKeyDown += (s, e) =>
             {
@@ -784,15 +805,18 @@ namespace MangaViewer
             }
         }
 
-        #region Slideshow
+
 
         public void StartSlideshow()
         {
-            int interval = 3000; // default 3 seconds
-
-            _slideshowTimer?.Stop();
-            _slideshowTimer = new Timer { Interval = interval };
-            _slideshowTimer.Tick += SlideshowTimer_Tick;
+            if (_slideshowTimer == null)
+                _slideshowTimer = new Timer { Interval = 3000 };
+            
+            _slideshowTimer.Tick += (s, e) =>
+            {
+                NavigateForwardTwoPages();
+            };
+            
             _slideshowTimer.Start();
         }
 
@@ -801,56 +825,50 @@ namespace MangaViewer
             _slideshowTimer?.Stop();
         }
 
-        private void SlideshowTimer_Tick(object? sender, EventArgs e)
+        /// <summary>
+        /// 表示モードを切り替え：0=階層順, 1=評価値8のフォルダのみ表示。
+        /// </summary>
+        public void ToggleDisplayMode()
         {
-            if (_imagePaths.Count == 0) return;
+            _displayMode = _displayMode == 0 ? 1 : 0;
 
-            int next = _currentIndex + _displayManager.NavigationStep;
-            int maxIndex = Math.Max(0, _imagePaths.Count - (_imagePaths.Count % _displayManager.DisplayCount == 0 ? _displayManager.DisplayCount : 1));
-
-            if (next > maxIndex && _cbzManager != null)
+            if (_displayMode == 1)
             {
-                var nextPaths = _cbzManager.MoveToNextCbxIfEndReached();
-                if (nextPaths.Any())
+                // 評価値=8 のフォルダを取得してListBoxを更新
+                var folders = RatingService.GetFoldersByRating(8);
+                _folderList.Clear();
+                listBoxFolders.DataSource = null;
+                listBoxFolders.Items.Clear();
+
+                foreach (var path in folders)
                 {
-                    _imagePaths = nextPaths;
-                    _currentIndex = 0;
-                    DisplayImages(0);
+                    _folderList.Add(path);
+                    string folderName = Path.GetFileName(path);
+                    int rating = RatingService.ReadRating(path);
+                    string ratingPrefix = rating >= 0 ? $"[{rating}] " : "";
+                    listBoxFolders.Items.Add($"{ratingPrefix}{folderName}");
+                }
+
+                if (_folderList.Count > 0)
+                {
+                    // 現在表示中のフォルダがリストに存在する場合はその位置を維持
+                    int idx = _folderList.IndexOf(_currentFolder);
+                    _currentFolderIndex = idx >= 0 ? idx : 0;
+                    listBoxFolders.SelectedIndex = _currentFolderIndex;
+                    // SelectedIndexChanged イベントで画像の読み込み・表示が行われる
                 }
                 else
                 {
-                    // No more CBZ files, loop back to first folder
-                    _currentIndex = 0;
-                    if (_folderList.Count > 0)
-                    {
-                        _currentFolderIndex = 0;
-                        LoadAndSortImages(_folderList[0]);
-                        _currentIndex = 0;
-                        DisplayImages(0);
-                        listBoxFolders.SetSelected(0, true);
-                    }
-                }
-            }
-            else if (next > maxIndex)
-            {
-                next = 0;
-                if (_folderList.Count > 0)
-                {
-                    _currentFolderIndex = 0;
-                    LoadAndSortImages(_folderList[0]);
-                    _currentIndex = 0;
-                    DisplayImages(0);
-                    listBoxFolders.SetSelected(0, true);
+                    labelInfo.Text = "評価値8のフォルダが見つかりません。";
                 }
             }
             else
             {
-                _currentIndex = next;
-                DisplayImages(_currentIndex);
+                // 元の階層順に戻す
+                if (!string.IsNullOrEmpty(_rootFolder))
+                    BuildSubfolderList(_rootFolder);
             }
         }
-
-        #endregion Slideshow
 
         public void ShowSettingsDialog()
         {

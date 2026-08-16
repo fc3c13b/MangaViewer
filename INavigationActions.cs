@@ -40,5 +40,8 @@ namespace MangaViewer
           // CBZファイル間を切り替え（Alt+左右用）
           void NavigateCbzNext();
           void NavigateCbzPrev();
+
+          // 表示モード切替（フォルダー階層順 ⇔ 評価値ランク順）
+          void ToggleDisplayMode();
     }
 }

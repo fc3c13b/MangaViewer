@@ -46,6 +46,9 @@ namespace MangaViewer
         /// <summary>CBZの最後まで到達した際に、同じフォルダ内の次のCBZに自動切り替えるかどうか</summary>
         public bool AutoSwitchNextCbz { get; set; } = true;
 
+        /// <summary>表示モード: 0=フォルダー階層順, 1=評価値ランク順</summary>
+        public int DisplayMode { get; set; } = 0;
+
         /// <summary>
         /// デフォルト設定（ファイルがない場合に使用）
         /// </summary>
