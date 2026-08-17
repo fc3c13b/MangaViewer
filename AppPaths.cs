@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 
 namespace MangaViewer
 {
@@ -38,5 +39,28 @@ namespace MangaViewer
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "MangaViewer",
             "folder_scan_cache.json");
+
+        /// <summary>
+        /// 評価値別表示用DBファイルのフルパス。
+        /// BaseDirectory の深さに関わらず、複数候補から最初の存在するものを使用する。
+        /// </summary>
+        public static string RankDisplayDbPath => _rankDisplayDbPath.Value;
+
+        private static readonly Lazy<string> _rankDisplayDbPath = new Lazy<string>(() =>
+        {
+            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            var candidates = new[]
+            {
+                Path.GetFullPath(Path.Combine(baseDir, "data", Constants.RankDisplayDbName)),
+                Path.GetFullPath(Path.Combine(baseDir, "..", "..", "data", Constants.RankDisplayDbName)),
+                Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", "data", Constants.RankDisplayDbName))
+            };
+            return candidates.FirstOrDefault(p => File.Exists(p)) ?? candidates[0];
+        });
+
+        /// <summary>
+        /// 評価値別表示用DBファイルのディレクトリパス。
+        /// </summary>
+        public static string RankDirPath => Path.GetDirectoryName(RankDisplayDbPath) ?? "data";
     }
 }

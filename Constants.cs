@@ -108,5 +108,15 @@ namespace MangaViewer
         public static readonly string[] ImageExtensions = { "*.jpg", "*.jpeg", "*.webp", "*.png" };
 
         #endregion
+
+        #region 評価表示DB
+
+        /// <summary>評価値別表示用DBファイル名</summary>
+        internal const string RankDisplayDbName = "rank_display_db.json";
+
+        /// <summary>フィルタ対象の評価値（固定）</summary>
+        internal const int TargetDisplayRating = 8;
+
+        #endregion
     }
 }

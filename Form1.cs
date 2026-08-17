@@ -834,33 +834,8 @@ namespace MangaViewer
 
             if (_displayMode == 1)
             {
-                // 評価値=8 のフォルダを取得してListBoxを更新
-                var folders = RatingService.GetFoldersByRating(8);
-                _folderList.Clear();
-                listBoxFolders.DataSource = null;
-                listBoxFolders.Items.Clear();
-
-                foreach (var path in folders)
-                {
-                    _folderList.Add(path);
-                    string folderName = Path.GetFileName(path);
-                    int rating = RatingService.ReadRating(path);
-                    string ratingPrefix = rating >= 0 ? $"[{rating}] " : "";
-                    listBoxFolders.Items.Add($"{ratingPrefix}{folderName}");
-                }
-
-                if (_folderList.Count > 0)
-                {
-                    // 現在表示中のフォルダがリストに存在する場合はその位置を維持
-                    int idx = _folderList.IndexOf(_currentFolder);
-                    _currentFolderIndex = idx >= 0 ? idx : 0;
-                    listBoxFolders.SelectedIndex = _currentFolderIndex;
-                    // SelectedIndexChanged イベントで画像の読み込み・表示が行われる
-                }
-                else
-                {
-                    labelInfo.Text = "評価値8のフォルダが見つかりません。";
-                }
+                // rank_display_db.json から評価値8のフォルダを取得してListBoxを更新
+                BuildRankFilteredList();
             }
             else
             {
@@ -868,6 +843,90 @@ namespace MangaViewer
                 if (!string.IsNullOrEmpty(_rootFolder))
                     BuildSubfolderList(_rootFolder);
             }
+        }
+
+        /// <summary>
+        /// rank_display_db.json を読み込み、評価値が Constants.TargetDisplayRating に一致するフォルダをリスト表示する。
+        /// </summary>
+        private void BuildRankFilteredList()
+        {
+            const int targetRating = Constants.TargetDisplayRating;
+            string dbPath = AppPaths.RankDisplayDbPath;
+
+            labelInfo.Text = $"評価値{targetRating}のフォルダを読み込み中...";
+            Application.DoEvents();
+
+            _folderList.Clear();
+            listBoxFolders.DataSource = null;
+            listBoxFolders.Items.Clear();
+
+            try
+            {
+                if (!File.Exists(dbPath))
+                {
+                    labelInfo.Text = $"DBファイルが見つかりません: {dbPath}";
+                    return;
+                }
+
+                var json = File.ReadAllText(dbPath);
+                var options = new System.Text.Json.JsonSerializerOptions();
+                options.PropertyNameCaseInsensitive = true;
+                var root = System.Text.Json.JsonSerializer.Deserialize<RankDbRoot>(json, options);
+
+                if (root?.Folders == null)
+                {
+                    labelInfo.Text = "DBファイルの読み込みに失敗しました。";
+                    return;
+                }
+
+                int count = 0;
+                foreach (var folder in root.Folders)
+                {
+                    string path = folder.Key;
+                    var entry = folder.Value;
+                    if (entry.Rating == targetRating && !string.IsNullOrEmpty(path))
+                    {
+                        _folderList.Add(path);
+                        string folderName = Path.GetFileName(path);
+                        listBoxFolders.Items.Add($"[{entry.Rating}] {folderName} -[{entry.ImageCount}]");
+                        count++;
+                    }
+                }
+
+                if (_folderList.Count > 0)
+                {
+                    int idx = _folderList.IndexOf(_currentFolder);
+                    _currentFolderIndex = idx >= 0 ? idx : 0;
+                    listBoxFolders.SelectedIndex = _currentFolderIndex;
+                }
+                else
+                {
+                    labelInfo.Text = $"評価値{targetRating}のフォルダが見つかりません。";
+                }
+
+                labelInfo.Text = $"評価値{targetRating}: {count}件表示中";
+            }
+            catch (Exception ex)
+            {
+                labelInfo.Text = $"DB読み込みエラー: {ex.Message}";
+            }
+        }
+
+        /// <summary>
+        /// rank_display_db.json のルート構造。
+        /// </summary>
+        private class RankDbRoot
+        {
+            public Dictionary<string, RankDbFolderEntry> Folders { get; set; }
+        }
+
+        /// <summary>
+        /// rank_display_db.json のフォルダエントリ（フォルダパスがキーとして使用される）。
+        /// </summary>
+        private class RankDbFolderEntry
+        {
+            public int Rating { get; set; }
+            public int ImageCount { get; set; }
         }
 
         public void ShowSettingsDialog()

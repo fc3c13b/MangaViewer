@@ -17315,3 +17315,920 @@
 [DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\0665f6ec0c1e6f4cfd97f31f2031ac40\002.jpg)
 [DisplayManager] i=1, imgIdx=0, imagePath=001.jpg
 [DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\0665f6ec0c1e6f4cfd97f31f2031ac40\001.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=2, ImagePaths.Count=198)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=1, imagePath=01_000b.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_000b.jpg)
+[DisplayManager] i=1, imgIdx=0, imagePath=01_000a.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_000a.jpg)
+[Keyboard] D1 pressed, calling SetDisplayCount(1)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=1, ImagePaths.Count=198)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=0, imagePath=01_000a.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_000a.jpg)
+[DisplayManager] DisplayImages(startIndex=1, DisplayCount=1, ImagePaths.Count=198)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=1, imagePath=01_000b.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_000b.jpg)
+[DisplayManager] DisplayImages(startIndex=2, DisplayCount=1, ImagePaths.Count=198)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=2, imagePath=01_000c.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_000c.jpg)
+[DisplayManager] DisplayImages(startIndex=3, DisplayCount=1, ImagePaths.Count=198)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=3, imagePath=01_001.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_001.jpg)
+[DisplayManager] DisplayImages(startIndex=4, DisplayCount=1, ImagePaths.Count=198)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=4, imagePath=01_002.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_002.jpg)
+[DisplayManager] DisplayImages(startIndex=5, DisplayCount=1, ImagePaths.Count=198)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=5, imagePath=01_003.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_003.jpg)
+[DisplayManager] DisplayImages(startIndex=6, DisplayCount=1, ImagePaths.Count=198)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=6, imagePath=01_004.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_004.jpg)
+[DisplayManager] DisplayImages(startIndex=7, DisplayCount=1, ImagePaths.Count=198)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=7, imagePath=01_005.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_005.jpg)
+[DisplayManager] DisplayImages(startIndex=8, DisplayCount=1, ImagePaths.Count=198)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=8, imagePath=01_006.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_006.jpg)
+[DisplayManager] DisplayImages(startIndex=9, DisplayCount=1, ImagePaths.Count=198)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=9, imagePath=01_007.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_007.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=1, ImagePaths.Count=198)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=0, imagePath=01_000a.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_000a.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=8, ImagePaths.Count=198)
+[DisplayManager] pictureBoxes.Length=8, count=8
+[DisplayManager] cols=4, count=8
+[DisplayManager] i=0, imgIdx=3, imagePath=01_001.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_001.jpg)
+[DisplayManager] i=1, imgIdx=2, imagePath=01_000c.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_000c.jpg)
+[DisplayManager] i=2, imgIdx=1, imagePath=01_000b.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_000b.jpg)
+[DisplayManager] i=3, imgIdx=0, imagePath=01_000a.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_000a.jpg)
+[DisplayManager] i=4, imgIdx=7, imagePath=01_005.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_005.jpg)
+[DisplayManager] i=5, imgIdx=6, imagePath=01_004.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_004.jpg)
+[DisplayManager] i=6, imgIdx=5, imagePath=01_003.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_003.jpg)
+[DisplayManager] i=7, imgIdx=4, imagePath=01_002.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_002.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=8, ImagePaths.Count=198)
+[DisplayManager] pictureBoxes.Length=8, count=8
+[DisplayManager] cols=4, count=8
+[DisplayManager] i=0, imgIdx=3, imagePath=01_001.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_001.jpg)
+[DisplayManager] i=1, imgIdx=2, imagePath=01_000c.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_000c.jpg)
+[DisplayManager] i=2, imgIdx=1, imagePath=01_000b.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_000b.jpg)
+[DisplayManager] i=3, imgIdx=0, imagePath=01_000a.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_000a.jpg)
+[DisplayManager] i=4, imgIdx=7, imagePath=01_005.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_005.jpg)
+[DisplayManager] i=5, imgIdx=6, imagePath=01_004.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_004.jpg)
+[DisplayManager] i=6, imgIdx=5, imagePath=01_003.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_003.jpg)
+[DisplayManager] i=7, imgIdx=4, imagePath=01_002.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_002.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=2, ImagePaths.Count=198)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=1, imagePath=01_000b.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_000b.jpg)
+[DisplayManager] i=1, imgIdx=0, imagePath=01_000a.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_000a.jpg)
+[Keyboard] D1 pressed, calling SetDisplayCount(1)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=1, ImagePaths.Count=198)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=0, imagePath=01_000a.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_000a.jpg)
+[DisplayManager] DisplayImages(startIndex=1, DisplayCount=1, ImagePaths.Count=198)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=1, imagePath=01_000b.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_000b.jpg)
+[DisplayManager] DisplayImages(startIndex=2, DisplayCount=1, ImagePaths.Count=198)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=2, imagePath=01_000c.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_000c.jpg)
+[DisplayManager] DisplayImages(startIndex=3, DisplayCount=1, ImagePaths.Count=198)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=3, imagePath=01_001.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_001.jpg)
+[DisplayManager] DisplayImages(startIndex=4, DisplayCount=1, ImagePaths.Count=198)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=4, imagePath=01_002.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_002.jpg)
+[DisplayManager] DisplayImages(startIndex=5, DisplayCount=1, ImagePaths.Count=198)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=5, imagePath=01_003.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_003.jpg)
+[DisplayManager] DisplayImages(startIndex=6, DisplayCount=1, ImagePaths.Count=198)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=6, imagePath=01_004.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_004.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=2, ImagePaths.Count=198)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=1, imagePath=01_000b.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_000b.jpg)
+[DisplayManager] i=1, imgIdx=0, imagePath=01_000a.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_000a.jpg)
+[DisplayManager] DisplayImages(startIndex=2, DisplayCount=2, ImagePaths.Count=198)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=3, imagePath=01_001.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_001.jpg)
+[DisplayManager] i=1, imgIdx=2, imagePath=01_000c.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_000c.jpg)
+[DisplayManager] DisplayImages(startIndex=4, DisplayCount=2, ImagePaths.Count=198)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=5, imagePath=01_003.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_003.jpg)
+[DisplayManager] i=1, imgIdx=4, imagePath=01_002.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_002.jpg)
+[DisplayManager] DisplayImages(startIndex=6, DisplayCount=2, ImagePaths.Count=198)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=7, imagePath=01_005.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_005.jpg)
+[DisplayManager] i=1, imgIdx=6, imagePath=01_004.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_004.jpg)
+[DisplayManager] DisplayImages(startIndex=8, DisplayCount=2, ImagePaths.Count=198)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=9, imagePath=01_007.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_007.jpg)
+[DisplayManager] i=1, imgIdx=8, imagePath=01_006.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_006.jpg)
+[DisplayManager] DisplayImages(startIndex=10, DisplayCount=2, ImagePaths.Count=198)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=11, imagePath=01_009.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_009.jpg)
+[DisplayManager] i=1, imgIdx=10, imagePath=01_008.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_008.jpg)
+[DisplayManager] DisplayImages(startIndex=12, DisplayCount=2, ImagePaths.Count=198)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=13, imagePath=01_011.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_011.jpg)
+[DisplayManager] i=1, imgIdx=12, imagePath=01_010.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_010.jpg)
+[DisplayManager] DisplayImages(startIndex=14, DisplayCount=2, ImagePaths.Count=198)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=15, imagePath=01_013.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_013.jpg)
+[DisplayManager] i=1, imgIdx=14, imagePath=01_012.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_012.jpg)
+[DisplayManager] DisplayImages(startIndex=16, DisplayCount=2, ImagePaths.Count=198)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=17, imagePath=01_015.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_015.jpg)
+[DisplayManager] i=1, imgIdx=16, imagePath=01_014.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_014.jpg)
+[DisplayManager] DisplayImages(startIndex=18, DisplayCount=2, ImagePaths.Count=198)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=19, imagePath=01_017.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_017.jpg)
+[DisplayManager] i=1, imgIdx=18, imagePath=01_016.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_016.jpg)
+[DisplayManager] DisplayImages(startIndex=20, DisplayCount=2, ImagePaths.Count=198)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=21, imagePath=01_019.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_019.jpg)
+[DisplayManager] i=1, imgIdx=20, imagePath=01_018.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_018.jpg)
+[DisplayManager] DisplayImages(startIndex=22, DisplayCount=2, ImagePaths.Count=198)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=23, imagePath=01_021.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_021.jpg)
+[DisplayManager] i=1, imgIdx=22, imagePath=01_020.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_020.jpg)
+[DisplayManager] DisplayImages(startIndex=24, DisplayCount=2, ImagePaths.Count=198)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=25, imagePath=01_023.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_023.jpg)
+[DisplayManager] i=1, imgIdx=24, imagePath=01_022.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_022.jpg)
+[DisplayManager] DisplayImages(startIndex=26, DisplayCount=2, ImagePaths.Count=198)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=27, imagePath=01_025.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_025.jpg)
+[DisplayManager] i=1, imgIdx=26, imagePath=01_024.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_024.jpg)
+[DisplayManager] DisplayImages(startIndex=28, DisplayCount=2, ImagePaths.Count=198)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=29, imagePath=01_027.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_027.jpg)
+[DisplayManager] i=1, imgIdx=28, imagePath=01_026.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_026.jpg)
+[DisplayManager] DisplayImages(startIndex=30, DisplayCount=2, ImagePaths.Count=198)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=31, imagePath=01_029.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_029.jpg)
+[DisplayManager] i=1, imgIdx=30, imagePath=01_028.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_028.jpg)
+[DisplayManager] DisplayImages(startIndex=32, DisplayCount=2, ImagePaths.Count=198)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=33, imagePath=01_031.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_031.jpg)
+[DisplayManager] i=1, imgIdx=32, imagePath=01_030.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_030.jpg)
+[DisplayManager] DisplayImages(startIndex=34, DisplayCount=2, ImagePaths.Count=198)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=35, imagePath=01_033.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_033.jpg)
+[DisplayManager] i=1, imgIdx=34, imagePath=01_032.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_032.jpg)
+[DisplayManager] DisplayImages(startIndex=36, DisplayCount=2, ImagePaths.Count=198)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=37, imagePath=01_035.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_035.jpg)
+[DisplayManager] i=1, imgIdx=36, imagePath=01_034.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_034.jpg)
+[DisplayManager] DisplayImages(startIndex=38, DisplayCount=2, ImagePaths.Count=198)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=39, imagePath=01_037.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_037.jpg)
+[DisplayManager] i=1, imgIdx=38, imagePath=01_036.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\940be7dd6f504205ce15c4d3447a1680\01_036.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=2, ImagePaths.Count=173)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=1, imagePath=0002_C.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0002_C.jpg)
+[DisplayManager] i=1, imgIdx=0, imagePath=0001_C.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0001_C.jpg)
+[DisplayManager] DisplayImages(startIndex=2, DisplayCount=2, ImagePaths.Count=173)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=3, imagePath=0004_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0004_B.jpg)
+[DisplayManager] i=1, imgIdx=2, imagePath=0003_C.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0003_C.jpg)
+[DisplayManager] DisplayImages(startIndex=4, DisplayCount=2, ImagePaths.Count=173)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=5, imagePath=0006_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0006_B.jpg)
+[DisplayManager] i=1, imgIdx=4, imagePath=0005_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0005_B.jpg)
+[DisplayManager] DisplayImages(startIndex=6, DisplayCount=2, ImagePaths.Count=173)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=7, imagePath=0008_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0008_B.jpg)
+[DisplayManager] i=1, imgIdx=6, imagePath=0007_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0007_B.jpg)
+[DisplayManager] DisplayImages(startIndex=8, DisplayCount=2, ImagePaths.Count=173)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=9, imagePath=0010_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0010_B.jpg)
+[DisplayManager] i=1, imgIdx=8, imagePath=0009_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0009_B.jpg)
+[DisplayManager] DisplayImages(startIndex=10, DisplayCount=2, ImagePaths.Count=173)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=11, imagePath=0012_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0012_B.jpg)
+[DisplayManager] i=1, imgIdx=10, imagePath=0011_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0011_B.jpg)
+[DisplayManager] DisplayImages(startIndex=12, DisplayCount=2, ImagePaths.Count=173)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=13, imagePath=0014_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0014_B.jpg)
+[DisplayManager] i=1, imgIdx=12, imagePath=0013_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0013_B.jpg)
+[DisplayManager] DisplayImages(startIndex=14, DisplayCount=2, ImagePaths.Count=173)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=15, imagePath=0016_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0016_B.jpg)
+[DisplayManager] i=1, imgIdx=14, imagePath=0015_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0015_B.jpg)
+[DisplayManager] DisplayImages(startIndex=16, DisplayCount=2, ImagePaths.Count=173)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=17, imagePath=0018_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0018_B.jpg)
+[DisplayManager] i=1, imgIdx=16, imagePath=0017_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0017_B.jpg)
+[DisplayManager] DisplayImages(startIndex=14, DisplayCount=2, ImagePaths.Count=173)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=15, imagePath=0016_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0016_B.jpg)
+[DisplayManager] i=1, imgIdx=14, imagePath=0015_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0015_B.jpg)
+[DisplayManager] DisplayImages(startIndex=16, DisplayCount=2, ImagePaths.Count=173)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=17, imagePath=0018_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0018_B.jpg)
+[DisplayManager] i=1, imgIdx=16, imagePath=0017_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0017_B.jpg)
+[DisplayManager] DisplayImages(startIndex=14, DisplayCount=2, ImagePaths.Count=173)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=15, imagePath=0016_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0016_B.jpg)
+[DisplayManager] i=1, imgIdx=14, imagePath=0015_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0015_B.jpg)
+[DisplayManager] DisplayImages(startIndex=12, DisplayCount=2, ImagePaths.Count=173)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=13, imagePath=0014_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0014_B.jpg)
+[DisplayManager] i=1, imgIdx=12, imagePath=0013_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0013_B.jpg)
+[DisplayManager] DisplayImages(startIndex=10, DisplayCount=2, ImagePaths.Count=173)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=11, imagePath=0012_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0012_B.jpg)
+[DisplayManager] i=1, imgIdx=10, imagePath=0011_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0011_B.jpg)
+[DisplayManager] DisplayImages(startIndex=12, DisplayCount=2, ImagePaths.Count=173)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=13, imagePath=0014_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0014_B.jpg)
+[DisplayManager] i=1, imgIdx=12, imagePath=0013_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0013_B.jpg)
+[DisplayManager] DisplayImages(startIndex=14, DisplayCount=2, ImagePaths.Count=173)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=15, imagePath=0016_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0016_B.jpg)
+[DisplayManager] i=1, imgIdx=14, imagePath=0015_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0015_B.jpg)
+[DisplayManager] DisplayImages(startIndex=16, DisplayCount=2, ImagePaths.Count=173)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=17, imagePath=0018_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0018_B.jpg)
+[DisplayManager] i=1, imgIdx=16, imagePath=0017_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0017_B.jpg)
+[DisplayManager] DisplayImages(startIndex=18, DisplayCount=2, ImagePaths.Count=173)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=19, imagePath=0020_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0020_B.jpg)
+[DisplayManager] i=1, imgIdx=18, imagePath=0019_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0019_B.jpg)
+[DisplayManager] DisplayImages(startIndex=20, DisplayCount=2, ImagePaths.Count=173)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=21, imagePath=0022_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0022_B.jpg)
+[DisplayManager] i=1, imgIdx=20, imagePath=0021_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0021_B.jpg)
+[DisplayManager] DisplayImages(startIndex=22, DisplayCount=2, ImagePaths.Count=173)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=23, imagePath=0024_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0024_B.jpg)
+[DisplayManager] i=1, imgIdx=22, imagePath=0023_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0023_B.jpg)
+[DisplayManager] DisplayImages(startIndex=24, DisplayCount=2, ImagePaths.Count=173)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=25, imagePath=0026_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0026_B.jpg)
+[DisplayManager] i=1, imgIdx=24, imagePath=0025_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0025_B.jpg)
+[DisplayManager] DisplayImages(startIndex=26, DisplayCount=2, ImagePaths.Count=173)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=27, imagePath=0028_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0028_B.jpg)
+[DisplayManager] i=1, imgIdx=26, imagePath=0027_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0027_B.jpg)
+[DisplayManager] DisplayImages(startIndex=28, DisplayCount=2, ImagePaths.Count=173)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=29, imagePath=0030_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0030_B.jpg)
+[DisplayManager] i=1, imgIdx=28, imagePath=0029_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0029_B.jpg)
+[DisplayManager] DisplayImages(startIndex=30, DisplayCount=2, ImagePaths.Count=173)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=31, imagePath=0032_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0032_B.jpg)
+[DisplayManager] i=1, imgIdx=30, imagePath=0031_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0031_B.jpg)
+[DisplayManager] DisplayImages(startIndex=32, DisplayCount=2, ImagePaths.Count=173)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=33, imagePath=0034_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0034_B.jpg)
+[DisplayManager] i=1, imgIdx=32, imagePath=0033_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0033_B.jpg)
+[DisplayManager] DisplayImages(startIndex=34, DisplayCount=2, ImagePaths.Count=173)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=35, imagePath=0036_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0036_B.jpg)
+[DisplayManager] i=1, imgIdx=34, imagePath=0035_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0035_B.jpg)
+[DisplayManager] DisplayImages(startIndex=36, DisplayCount=2, ImagePaths.Count=173)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=37, imagePath=0038_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0038_B.jpg)
+[DisplayManager] i=1, imgIdx=36, imagePath=0037_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0037_B.jpg)
+[DisplayManager] DisplayImages(startIndex=38, DisplayCount=2, ImagePaths.Count=173)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=39, imagePath=0040_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0040_B.jpg)
+[DisplayManager] i=1, imgIdx=38, imagePath=0039_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0039_B.jpg)
+[DisplayManager] DisplayImages(startIndex=40, DisplayCount=2, ImagePaths.Count=173)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=41, imagePath=0042_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0042_B.jpg)
+[DisplayManager] i=1, imgIdx=40, imagePath=0041_B.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\30eb7237d83cfc43b161732080ea1aec\0041_B.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=2, ImagePaths.Count=158)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=1, imagePath=00002.jpeg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\770b84925d18840ee0effead6b047856\00002.jpeg)
+[DisplayManager] i=1, imgIdx=0, imagePath=0.jpeg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\770b84925d18840ee0effead6b047856\0.jpeg)
+[DisplayManager] DisplayImages(startIndex=2, DisplayCount=2, ImagePaths.Count=158)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=3, imagePath=00004.jpeg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\770b84925d18840ee0effead6b047856\00004.jpeg)
+[DisplayManager] i=1, imgIdx=2, imagePath=00003.jpeg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\770b84925d18840ee0effead6b047856\00003.jpeg)
+[DisplayManager] DisplayImages(startIndex=4, DisplayCount=2, ImagePaths.Count=158)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=5, imagePath=00006.jpeg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\770b84925d18840ee0effead6b047856\00006.jpeg)
+[DisplayManager] i=1, imgIdx=4, imagePath=00005.jpeg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\770b84925d18840ee0effead6b047856\00005.jpeg)
+[DisplayManager] DisplayImages(startIndex=6, DisplayCount=2, ImagePaths.Count=158)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=7, imagePath=00008.jpeg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\770b84925d18840ee0effead6b047856\00008.jpeg)
+[DisplayManager] i=1, imgIdx=6, imagePath=00007.jpeg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\770b84925d18840ee0effead6b047856\00007.jpeg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=2, ImagePaths.Count=101)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=1, imagePath=78_Net_0002.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\70ddbf9545afa6a2a3b24e98a9a4697e\78_Net_0002.jpg)
+[DisplayManager] i=1, imgIdx=0, imagePath=78_Net_0001.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\70ddbf9545afa6a2a3b24e98a9a4697e\78_Net_0001.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=2, ImagePaths.Count=82)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=1, imagePath=002.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\7e13fd4e7af2eec9fd87bc4e8c44ef7e\002.jpg)
+[DisplayManager] i=1, imgIdx=0, imagePath=001.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\7e13fd4e7af2eec9fd87bc4e8c44ef7e\001.jpg)
+[Keyboard] D1 pressed, calling SetDisplayCount(1)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=1, ImagePaths.Count=82)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=0, imagePath=001.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\7e13fd4e7af2eec9fd87bc4e8c44ef7e\001.jpg)
+[DisplayManager] DisplayImages(startIndex=1, DisplayCount=1, ImagePaths.Count=82)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=1, imagePath=002.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\7e13fd4e7af2eec9fd87bc4e8c44ef7e\002.jpg)
+[DisplayManager] DisplayImages(startIndex=2, DisplayCount=1, ImagePaths.Count=82)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=2, imagePath=003.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\7e13fd4e7af2eec9fd87bc4e8c44ef7e\003.jpg)
+[DisplayManager] DisplayImages(startIndex=3, DisplayCount=1, ImagePaths.Count=82)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=3, imagePath=004.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\7e13fd4e7af2eec9fd87bc4e8c44ef7e\004.jpg)
+[DisplayManager] DisplayImages(startIndex=4, DisplayCount=1, ImagePaths.Count=82)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=4, imagePath=005.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\7e13fd4e7af2eec9fd87bc4e8c44ef7e\005.jpg)
+[DisplayManager] DisplayImages(startIndex=5, DisplayCount=1, ImagePaths.Count=82)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=5, imagePath=006.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\7e13fd4e7af2eec9fd87bc4e8c44ef7e\006.jpg)
+[DisplayManager] DisplayImages(startIndex=6, DisplayCount=1, ImagePaths.Count=82)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=6, imagePath=007.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\7e13fd4e7af2eec9fd87bc4e8c44ef7e\007.jpg)
+[DisplayManager] DisplayImages(startIndex=7, DisplayCount=1, ImagePaths.Count=82)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=7, imagePath=008.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\7e13fd4e7af2eec9fd87bc4e8c44ef7e\008.jpg)
+[DisplayManager] DisplayImages(startIndex=8, DisplayCount=1, ImagePaths.Count=82)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=8, imagePath=009.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\7e13fd4e7af2eec9fd87bc4e8c44ef7e\009.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=1, ImagePaths.Count=101)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=0, imagePath=78_Net_0001.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\70ddbf9545afa6a2a3b24e98a9a4697e\78_Net_0001.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=1, ImagePaths.Count=101)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=0, imagePath=78_Net_0001.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\70ddbf9545afa6a2a3b24e98a9a4697e\78_Net_0001.jpg)
+[DisplayManager] DisplayImages(startIndex=1, DisplayCount=1, ImagePaths.Count=101)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=1, imagePath=78_Net_0002.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\70ddbf9545afa6a2a3b24e98a9a4697e\78_Net_0002.jpg)
+[DisplayManager] DisplayImages(startIndex=2, DisplayCount=1, ImagePaths.Count=101)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=2, imagePath=78_Net_0003.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\70ddbf9545afa6a2a3b24e98a9a4697e\78_Net_0003.jpg)
+[DisplayManager] DisplayImages(startIndex=3, DisplayCount=1, ImagePaths.Count=101)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=3, imagePath=78_Net_0004.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\70ddbf9545afa6a2a3b24e98a9a4697e\78_Net_0004.jpg)
+[DisplayManager] DisplayImages(startIndex=4, DisplayCount=1, ImagePaths.Count=101)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=4, imagePath=78_Net_0005.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\70ddbf9545afa6a2a3b24e98a9a4697e\78_Net_0005.jpg)
+[DisplayManager] DisplayImages(startIndex=5, DisplayCount=1, ImagePaths.Count=101)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=5, imagePath=78_Net_0006.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\70ddbf9545afa6a2a3b24e98a9a4697e\78_Net_0006.jpg)
+[DisplayManager] DisplayImages(startIndex=6, DisplayCount=1, ImagePaths.Count=101)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=6, imagePath=78_Net_0007.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\70ddbf9545afa6a2a3b24e98a9a4697e\78_Net_0007.jpg)
+[DisplayManager] DisplayImages(startIndex=7, DisplayCount=1, ImagePaths.Count=101)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=7, imagePath=78_Net_0008.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\70ddbf9545afa6a2a3b24e98a9a4697e\78_Net_0008.jpg)
+[DisplayManager] DisplayImages(startIndex=8, DisplayCount=1, ImagePaths.Count=101)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=8, imagePath=78_Net_0009.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\70ddbf9545afa6a2a3b24e98a9a4697e\78_Net_0009.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=1, ImagePaths.Count=287)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=0, imagePath=Seven_Shakespeares01_000a.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\c2cb5f917d657d06bce55e2d578c702b\Seven_Shakespeares01_000a.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=1, ImagePaths.Count=187)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=0, imagePath=000-00.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\000-00.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=8, ImagePaths.Count=187)
+[DisplayManager] pictureBoxes.Length=8, count=8
+[DisplayManager] cols=4, count=8
+[DisplayManager] i=0, imgIdx=3, imagePath=000-03.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\000-03.jpg)
+[DisplayManager] i=1, imgIdx=2, imagePath=000-02.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\000-02.jpg)
+[DisplayManager] i=2, imgIdx=1, imagePath=000-01.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\000-01.jpg)
+[DisplayManager] i=3, imgIdx=0, imagePath=000-00.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\000-00.jpg)
+[DisplayManager] i=4, imgIdx=7, imagePath=003.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\003.jpg)
+[DisplayManager] i=5, imgIdx=6, imagePath=002.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\002.jpg)
+[DisplayManager] i=6, imgIdx=5, imagePath=001.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\001.jpg)
+[DisplayManager] i=7, imgIdx=4, imagePath=000-04.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\000-04.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=8, ImagePaths.Count=187)
+[DisplayManager] pictureBoxes.Length=8, count=8
+[DisplayManager] cols=4, count=8
+[DisplayManager] i=0, imgIdx=3, imagePath=000-03.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\000-03.jpg)
+[DisplayManager] i=1, imgIdx=2, imagePath=000-02.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\000-02.jpg)
+[DisplayManager] i=2, imgIdx=1, imagePath=000-01.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\000-01.jpg)
+[DisplayManager] i=3, imgIdx=0, imagePath=000-00.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\000-00.jpg)
+[DisplayManager] i=4, imgIdx=7, imagePath=003.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\003.jpg)
+[DisplayManager] i=5, imgIdx=6, imagePath=002.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\002.jpg)
+[DisplayManager] i=6, imgIdx=5, imagePath=001.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\001.jpg)
+[DisplayManager] i=7, imgIdx=4, imagePath=000-04.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\000-04.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=8, ImagePaths.Count=101)
+[DisplayManager] pictureBoxes.Length=8, count=8
+[DisplayManager] cols=4, count=8
+[DisplayManager] i=0, imgIdx=3, imagePath=78_Net_0004.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\70ddbf9545afa6a2a3b24e98a9a4697e\78_Net_0004.jpg)
+[DisplayManager] i=1, imgIdx=2, imagePath=78_Net_0003.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\70ddbf9545afa6a2a3b24e98a9a4697e\78_Net_0003.jpg)
+[DisplayManager] i=2, imgIdx=1, imagePath=78_Net_0002.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\70ddbf9545afa6a2a3b24e98a9a4697e\78_Net_0002.jpg)
+[DisplayManager] i=3, imgIdx=0, imagePath=78_Net_0001.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\70ddbf9545afa6a2a3b24e98a9a4697e\78_Net_0001.jpg)
+[DisplayManager] i=4, imgIdx=7, imagePath=78_Net_0008.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\70ddbf9545afa6a2a3b24e98a9a4697e\78_Net_0008.jpg)
+[DisplayManager] i=5, imgIdx=6, imagePath=78_Net_0007.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\70ddbf9545afa6a2a3b24e98a9a4697e\78_Net_0007.jpg)
+[DisplayManager] i=6, imgIdx=5, imagePath=78_Net_0006.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\70ddbf9545afa6a2a3b24e98a9a4697e\78_Net_0006.jpg)
+[DisplayManager] i=7, imgIdx=4, imagePath=78_Net_0005.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\70ddbf9545afa6a2a3b24e98a9a4697e\78_Net_0005.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=2, ImagePaths.Count=101)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=1, imagePath=78_Net_0002.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\70ddbf9545afa6a2a3b24e98a9a4697e\78_Net_0002.jpg)
+[DisplayManager] i=1, imgIdx=0, imagePath=78_Net_0001.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\70ddbf9545afa6a2a3b24e98a9a4697e\78_Net_0001.jpg)
+[DisplayManager] DisplayImages(startIndex=2, DisplayCount=2, ImagePaths.Count=101)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=3, imagePath=78_Net_0004.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\70ddbf9545afa6a2a3b24e98a9a4697e\78_Net_0004.jpg)
+[DisplayManager] i=1, imgIdx=2, imagePath=78_Net_0003.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\70ddbf9545afa6a2a3b24e98a9a4697e\78_Net_0003.jpg)
+[DisplayManager] DisplayImages(startIndex=4, DisplayCount=2, ImagePaths.Count=101)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=5, imagePath=78_Net_0006.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\70ddbf9545afa6a2a3b24e98a9a4697e\78_Net_0006.jpg)
+[DisplayManager] i=1, imgIdx=4, imagePath=78_Net_0005.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\70ddbf9545afa6a2a3b24e98a9a4697e\78_Net_0005.jpg)
+[DisplayManager] DisplayImages(startIndex=6, DisplayCount=2, ImagePaths.Count=101)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=7, imagePath=78_Net_0008.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\70ddbf9545afa6a2a3b24e98a9a4697e\78_Net_0008.jpg)
+[DisplayManager] i=1, imgIdx=6, imagePath=78_Net_0007.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\70ddbf9545afa6a2a3b24e98a9a4697e\78_Net_0007.jpg)
+[Keyboard] D1 pressed, calling SetDisplayCount(1)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=1, ImagePaths.Count=101)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=0, imagePath=78_Net_0001.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\70ddbf9545afa6a2a3b24e98a9a4697e\78_Net_0001.jpg)
+[DisplayManager] DisplayImages(startIndex=1, DisplayCount=1, ImagePaths.Count=101)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=1, imagePath=78_Net_0002.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\70ddbf9545afa6a2a3b24e98a9a4697e\78_Net_0002.jpg)
+[DisplayManager] DisplayImages(startIndex=2, DisplayCount=1, ImagePaths.Count=101)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=2, imagePath=78_Net_0003.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\70ddbf9545afa6a2a3b24e98a9a4697e\78_Net_0003.jpg)
+[DisplayManager] DisplayImages(startIndex=3, DisplayCount=1, ImagePaths.Count=101)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=3, imagePath=78_Net_0004.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\70ddbf9545afa6a2a3b24e98a9a4697e\78_Net_0004.jpg)
+[DisplayManager] DisplayImages(startIndex=4, DisplayCount=1, ImagePaths.Count=101)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=4, imagePath=78_Net_0005.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\70ddbf9545afa6a2a3b24e98a9a4697e\78_Net_0005.jpg)
+[DisplayManager] DisplayImages(startIndex=5, DisplayCount=1, ImagePaths.Count=101)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=5, imagePath=78_Net_0006.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\70ddbf9545afa6a2a3b24e98a9a4697e\78_Net_0006.jpg)
+[DisplayManager] DisplayImages(startIndex=6, DisplayCount=1, ImagePaths.Count=101)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=6, imagePath=78_Net_0007.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\70ddbf9545afa6a2a3b24e98a9a4697e\78_Net_0007.jpg)
+[DisplayManager] DisplayImages(startIndex=7, DisplayCount=1, ImagePaths.Count=101)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=7, imagePath=78_Net_0008.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\70ddbf9545afa6a2a3b24e98a9a4697e\78_Net_0008.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=1, ImagePaths.Count=187)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=0, imagePath=000-00.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\000-00.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=1, ImagePaths.Count=101)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=0, imagePath=78_Net_0001.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\70ddbf9545afa6a2a3b24e98a9a4697e\78_Net_0001.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=1, ImagePaths.Count=187)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=0, imagePath=000-00.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\000-00.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=1, ImagePaths.Count=187)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=0, imagePath=000-00.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\000-00.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=1, ImagePaths.Count=187)
+[DisplayManager] pictureBoxes.Length=1, count=1
+[DisplayManager] cols=1, count=1
+[DisplayManager] i=0, imgIdx=0, imagePath=000-00.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\000-00.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=2, ImagePaths.Count=187)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=1, imagePath=000-01.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\000-01.jpg)
+[DisplayManager] i=1, imgIdx=0, imagePath=000-00.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\000-00.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=2, ImagePaths.Count=187)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=1, imagePath=000-01.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\000-01.jpg)
+[DisplayManager] i=1, imgIdx=0, imagePath=000-00.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\000-00.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=2, ImagePaths.Count=187)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=1, imagePath=000-01.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\000-01.jpg)
+[DisplayManager] i=1, imgIdx=0, imagePath=000-00.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\000-00.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=2, ImagePaths.Count=187)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=1, imagePath=000-01.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\000-01.jpg)
+[DisplayManager] i=1, imgIdx=0, imagePath=000-00.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\000-00.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=2, ImagePaths.Count=187)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=1, imagePath=000-01.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\000-01.jpg)
+[DisplayManager] i=1, imgIdx=0, imagePath=000-00.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\000-00.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=2, ImagePaths.Count=187)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=1, imagePath=000-01.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\000-01.jpg)
+[DisplayManager] i=1, imgIdx=0, imagePath=000-00.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\000-00.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=2, ImagePaths.Count=187)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=1, imagePath=000-01.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\000-01.jpg)
+[DisplayManager] i=1, imgIdx=0, imagePath=000-00.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\000-00.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=2, ImagePaths.Count=187)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=1, imagePath=000-01.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\000-01.jpg)
+[DisplayManager] i=1, imgIdx=0, imagePath=000-00.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\000-00.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=2, ImagePaths.Count=187)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=1, imagePath=000-01.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\000-01.jpg)
+[DisplayManager] i=1, imgIdx=0, imagePath=000-00.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\000-00.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=2, ImagePaths.Count=187)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=1, imagePath=000-01.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\000-01.jpg)
+[DisplayManager] i=1, imgIdx=0, imagePath=000-00.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\000-00.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=2, ImagePaths.Count=187)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=1, imagePath=000-01.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\000-01.jpg)
+[DisplayManager] i=1, imgIdx=0, imagePath=000-00.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\000-00.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=2, ImagePaths.Count=187)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=1, imagePath=000-01.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\000-01.jpg)
+[DisplayManager] i=1, imgIdx=0, imagePath=000-00.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\000-00.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=2, ImagePaths.Count=187)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=1, imagePath=000-01.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\000-01.jpg)
+[DisplayManager] i=1, imgIdx=0, imagePath=000-00.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\000-00.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=2, ImagePaths.Count=27)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=1, imagePath=02_nsjo.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=F:\MangaDL\wnacg\wnacg.com\同人誌\(C107) [先端トマト開発室 (ketchupi.exe)] サイコロジカルオペレーション! (ブルーアーカイブ)\02_nsjo.jpg)
+[DisplayManager] i=1, imgIdx=0, imagePath=01_fgaw.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=F:\MangaDL\wnacg\wnacg.com\同人誌\(C107) [先端トマト開発室 (ketchupi.exe)] サイコロジカルオペレーション! (ブルーアーカイブ)\01_fgaw.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=8, ImagePaths.Count=27)
+[DisplayManager] pictureBoxes.Length=8, count=8
+[DisplayManager] cols=4, count=8
+[DisplayManager] i=0, imgIdx=3, imagePath=04_lkqw.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=F:\MangaDL\wnacg\wnacg.com\同人誌\(C107) [先端トマト開発室 (ketchupi.exe)] サイコロジカルオペレーション! (ブルーアーカイブ)\04_lkqw.jpg)
+[DisplayManager] i=1, imgIdx=2, imagePath=03_njur.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=F:\MangaDL\wnacg\wnacg.com\同人誌\(C107) [先端トマト開発室 (ketchupi.exe)] サイコロジカルオペレーション! (ブルーアーカイブ)\03_njur.jpg)
+[DisplayManager] i=2, imgIdx=1, imagePath=02_nsjo.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=F:\MangaDL\wnacg\wnacg.com\同人誌\(C107) [先端トマト開発室 (ketchupi.exe)] サイコロジカルオペレーション! (ブルーアーカイブ)\02_nsjo.jpg)
+[DisplayManager] i=3, imgIdx=0, imagePath=01_fgaw.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=F:\MangaDL\wnacg\wnacg.com\同人誌\(C107) [先端トマト開発室 (ketchupi.exe)] サイコロジカルオペレーション! (ブルーアーカイブ)\01_fgaw.jpg)
+[DisplayManager] i=4, imgIdx=7, imagePath=08_alcy.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=F:\MangaDL\wnacg\wnacg.com\同人誌\(C107) [先端トマト開発室 (ketchupi.exe)] サイコロジカルオペレーション! (ブルーアーカイブ)\08_alcy.jpg)
+[DisplayManager] i=5, imgIdx=6, imagePath=07_sdni.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=F:\MangaDL\wnacg\wnacg.com\同人誌\(C107) [先端トマト開発室 (ketchupi.exe)] サイコロジカルオペレーション! (ブルーアーカイブ)\07_sdni.jpg)
+[DisplayManager] i=6, imgIdx=5, imagePath=06_mqlb.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=F:\MangaDL\wnacg\wnacg.com\同人誌\(C107) [先端トマト開発室 (ketchupi.exe)] サイコロジカルオペレーション! (ブルーアーカイブ)\06_mqlb.jpg)
+[DisplayManager] i=7, imgIdx=4, imagePath=05_yyvu.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=F:\MangaDL\wnacg\wnacg.com\同人誌\(C107) [先端トマト開発室 (ketchupi.exe)] サイコロジカルオペレーション! (ブルーアーカイブ)\05_yyvu.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=2, ImagePaths.Count=27)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=1, imagePath=02_nsjo.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=F:\MangaDL\wnacg\wnacg.com\同人誌\(C107) [先端トマト開発室 (ketchupi.exe)] サイコロジカルオペレーション! (ブルーアーカイブ)\02_nsjo.jpg)
+[DisplayManager] i=1, imgIdx=0, imagePath=01_fgaw.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=F:\MangaDL\wnacg\wnacg.com\同人誌\(C107) [先端トマト開発室 (ketchupi.exe)] サイコロジカルオペレーション! (ブルーアーカイブ)\01_fgaw.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=2, ImagePaths.Count=187)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=1, imagePath=000-01.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\000-01.jpg)
+[DisplayManager] i=1, imgIdx=0, imagePath=000-00.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\063f74a020c32c233f4f05d3daa5a8d9\000-00.jpg)

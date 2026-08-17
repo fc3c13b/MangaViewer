@@ -9,3 +9,11 @@
 # Output Style
 - 回答は簡潔かつ要点を絞って出力してください。冗長な挨拶や前置きは不要です。
 - コードを変更する場合は、修正箇所の差分（Diff）を中心に提示してください。変更のない巨大なファイルを全文再出力しないでください。
+
+# Tool Usage Rules
+- When using the `execute_command` tool, you MUST ALWAYS include both parameters: `command` and `requires_approval`.
+- Example:
+  <execute_command>
+  <command>npm test</command>
+  <requires_approval>true</requires_approval>
+  </execute_command>
