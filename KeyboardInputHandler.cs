@@ -170,8 +170,8 @@ namespace MangaViewer
                 return;
             }
 
-            // 左右矢印キー: DisplayCount分移動（ListBoxフォーカス時は無効化）
-            if (!ctrl && !alt && !listBoxFocused)
+            // 左右矢印キー: DisplayCount分移動（常にページ送り）
+            if (!ctrl && !alt)
             {
                 switch (key)
                 {

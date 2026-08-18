@@ -378,15 +378,6 @@ namespace MangaViewer
                 if (listBoxFolders.SelectedIndex >= 0 && _folderList.Count > 0)
                 {
                     _currentFolderIndex = listBoxFolders.SelectedIndex;
-                    string newFolder = _folderList[_currentFolderIndex];
-                    // 同じフォルダの場合は画像の再読み込みをスキップ（描画データを保持）
-                    if (newFolder != _currentFolder)
-                    {
-                        _currentFolder = newFolder;
-                        LoadAndSortImages(newFolder);
-                        _currentIndex = 0;
-                        DisplayImages(0);
-                    }
                 }
             };
 
