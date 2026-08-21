@@ -26,30 +26,16 @@ namespace MangaViewer
         public bool IsRankDisplayMode => _displayMode == 1;
 
         private string _rootFolder = "";
+        private string? _activeDbFile = null; // アクティブな CJ/DB のファイルパス
 
         /// <summary>
         /// キー3（DBリストモード時）で親フォルダー指定してCJを作成する。
-        /// </summary>
+/// </summary>
         public void CreateCjForParent(string parentFolder)
         {
             if (string.IsNullOrWhiteSpace(parentFolder)) return;
             if (!Directory.Exists(parentFolder)) return;
 
-            // 同じ親フォルダーのCJが既に存在するか確認（AppPaths.CacheDir 配下）
-            Directory.CreateDirectory(AppPaths.CacheDir);
-
-            if (CjManager.CjExists(parentFolder))
-            {
-                MessageBox.Show(
-                    this,
-                    "すでにあります。",
-                    "CJ 重複",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Information);
-                return;
-            }
-
-            labelInfo.Text = $"親フォルダーのCJを作成中: {parentFolder}";
             Application.DoEvents();
 
             try
@@ -102,15 +88,19 @@ namespace MangaViewer
                     Folders = folders
                 };
 
-                // CJManager.SaveCj を使用してキャッシュJSONを保存
+                string cjPath = AppPaths.GetCacheFilePath(parentFolder);
                 CjManager.SaveCj(parentFolder, cjData);
 
-                // DBリストモードの場合、評価値でフィルターして再表示（簡易版）
+                // アクティブ DB/CJ を設定（DBList モード用）
+                _activeDbFile = cjPath;
+
+                // DBリストモードの場合、アクティブ CJ から評価値順で再構築
                 if (IsRankDisplayMode)
                 {
-                    BuildRankFilteredListFromCj(folders);
+                    BuildRankFilteredListFromActiveCj();
                 }
 
+                UpdateWindowTitle();
                 labelInfo.Text = $"CJ作成完了: {parentFolder}";
             }
             catch (Exception ex)
@@ -129,20 +119,29 @@ namespace MangaViewer
         {
             if (!IsRankDisplayMode) return;
 
-            int targetRating = Constants.TargetDisplayRating;
+            // Collect valid entries
+            var list = new List<(string path, CjFolderEntry entry)>();
+            foreach (var kvp in folders)
+            {
+                if (string.IsNullOrEmpty(kvp.Key)) continue;
+                list.Add((kvp.Key, kvp.Value));
+            }
+
+            // Sort by rating descending (評価値順: 高→低), then by path for stability
+            var sorted = list.OrderByDescending(x => x.entry.Rating)
+                             .ThenBy(x => x.path)
+                             .ToList();
+
             _folderList.Clear();
             listBoxFolders.DataSource = null;
             listBoxFolders.Items.Clear();
 
-            foreach (var kvp in folders)
+            foreach (var (path, entry) in sorted)
             {
-                var entry = kvp.Value;
-                if (entry.Rating == targetRating && !string.IsNullOrEmpty(kvp.Key))
-                {
-                    _folderList.Add(kvp.Key);
-                    string folderName = Path.GetFileName(kvp.Key);
-                    listBoxFolders.Items.Add($"[{entry.Rating}] {folderName} -[{entry.ImageCount ?? 0}]");
-                }
+                _folderList.Add(path);
+                string folderName = Path.GetFileName(path);
+                int displayCount = entry.ImageCount ?? 0;
+                listBoxFolders.Items.Add($"[{entry.Rating}] {folderName} -[{displayCount}]");
             }
 
             if (_folderList.Count > 0)
@@ -321,6 +320,9 @@ namespace MangaViewer
 
                                 listBoxFolders.SelectedIndex = _currentFolderIndex;
                                 labelInfo.Text = "初期化完了";
+
+                                // Set initial window title with mode and path info
+                                UpdateWindowTitle();
                             });
                         }
                         else
@@ -476,6 +478,35 @@ namespace MangaViewer
             }
 
             _displayManager.ImagePaths = _imagePaths;
+        }
+
+        private void UpdateWindowTitle()
+        {
+            string baseTitle = Constants.AppTitle;
+
+            if (_displayMode == 0)
+            {
+                // FolderList mode: show root path or "<none>"
+                string label = string.IsNullOrWhiteSpace(_rootFolder)
+                    ? "[<none>]"
+                    : $"[{_rootFolder}]";
+                this.Text = $"{baseTitle} - FolderList {label}";
+            }
+            else
+            {
+                // DBList mode: show active DB/CJ filename
+                if (!string.IsNullOrEmpty(_activeDbFile))
+                {
+                    string dbName = Path.GetFileName(_activeDbFile);
+                    this.Text = $"{baseTitle} - DBList [{dbName}]";
+                }
+                else
+                {
+                    // Fallback to rank_display_db.json (dummy) when no CJ selected.
+                    string dbName = Constants.RankDisplayDbName;
+                    this.Text = $"{baseTitle} - DBList [{dbName}]";
+                }
+            }
         }
 
         private void InitializeComponent()
@@ -671,6 +702,8 @@ namespace MangaViewer
             SettingsManager.Save(_settings);
             BuildSubfolderList(rootPath);
             _displayManager.UpdateSettings(_settings);
+
+            UpdateWindowTitle();
 
             if (_folderList.Count > 0 && _currentFolderIndex >= 0)
             {
@@ -945,7 +978,7 @@ namespace MangaViewer
         }
 
         /// <summary>
-        /// 表示モードを切り替え：0=階層順, 1=評価値8のフォルダのみ表示。
+        /// 表示モードを切り替え：0=階層順, 1=DBList(CJベース)で評価値8のフォルダのみ表示。
         /// </summary>
         public void ToggleDisplayMode()
         {
@@ -953,8 +986,8 @@ namespace MangaViewer
 
             if (_displayMode == 1)
             {
-                // rank_display_db.json から評価値8のフォルダを取得してListBoxを更新
-                BuildRankFilteredList();
+                // DBList モード: アクティブ CJ があればそれを、なければダミー rank_display_db.json を使う
+                BuildRankFilteredListFromActiveCj();
             }
             else
             {
@@ -962,6 +995,8 @@ namespace MangaViewer
                 if (!string.IsNullOrEmpty(_rootFolder))
                     BuildSubfolderList(_rootFolder);
             }
+
+            UpdateWindowTitle();
         }
 
         /// <summary>
@@ -1029,6 +1064,37 @@ namespace MangaViewer
             {
                 labelInfo.Text = $"DB読み込みエラー: {ex.Message}";
             }
+        }
+
+        /// <summary>
+        /// DBList モード用：アクティブ CJ（またはフォールバックの rank_display_db）から評価値フィルタリストを構築。
+        /// </summary>
+        private void BuildRankFilteredListFromActiveCj()
+        {
+            // アクティブな CJ が設定されていればそれを優先
+            if (!string.IsNullOrEmpty(_activeDbFile) && File.Exists(_activeDbFile))
+            {
+                try
+                {
+                    var json = File.ReadAllText(_activeDbFile);
+                    var options = new System.Text.Json.JsonSerializerOptions();
+                    options.PropertyNameCaseInsensitive = true;
+                    var cjRoot = System.Text.Json.JsonSerializer.Deserialize<CjRoot>(json, options);
+
+                    if (cjRoot?.Folders != null)
+                    {
+                        BuildRankFilteredListFromCj(cjRoot.Folders);
+                        return;
+                    }
+                }
+                catch
+                {
+                    // 読み取り失敗時はフォールバックへ
+                }
+            }
+
+            // アクティブ CJ が未選択または無効な場合：rank_display_db.json をダミーとして使用
+            BuildRankFilteredList();
         }
 
         /// <summary>

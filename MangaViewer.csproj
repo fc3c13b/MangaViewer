@@ -1,3 +1,4 @@
+
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
@@ -9,7 +10,7 @@
     <DefineConstants>USE_SKIA</DefineConstants>
 
     <!-- バージョンの唯一の定義（csproj） -->
-    <Version>0.9.12</Version>
+    <Version>0.9.14</Version>
     <AssemblyVersion>$(Version)</AssemblyVersion>
     <FileVersion>$(Version)</FileVersion>
   </PropertyGroup>
