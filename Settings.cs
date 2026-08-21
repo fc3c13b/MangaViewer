@@ -20,6 +20,15 @@ namespace MangaViewer
         /// <summary>最小評価値（0〜10、これ未満のフォルダを非表示にする基準に使用）</summary>
         public int MinEvaluation { get; set; } = 8;
 
+        /// <summary>DBList モード：最小表示枚数</summary>
+        public int DbMinDisplayCount { get; set; } = 20;
+
+        /// <summary>DBList モード：最大表示枚数</summary>
+        public int DbMaxDisplayCount { get; set; } = 1000;
+
+        /// <summary>DBList モード：最小評価値フィルタ</summary>
+        public int DbMinEvaluation { get; set; } = 8;
+
         /// <summary>画面表示数（1, 2, または 8 のみ許可）</summary>
         public int DisplayCount 
         { 

@@ -52,6 +52,11 @@ namespace MangaViewer
         // DBフィルタ「以上/一致」切替
         private CheckBox cbDbFilterGreaterOrEqual = null!;
 
+        // DBList 専用設定コントロール
+        private NumericUpDown numDbMinDisplayCount = null!;
+        private NumericUpDown numDbMaxDisplayCount = null!;
+        private NumericUpDown numDbMinEvaluation = null!;
+
         // ルートフォルダパス（統計計算用）
         private string RootFolder => GetRootFolder();
 
@@ -95,6 +100,15 @@ namespace MangaViewer
         /// </summary>
         public string RatingOneKeywordsValue => txtRatingOneKeywords.Text?.Trim() ?? "";
 
+        /// <summary>DBList モード：最小表示枚数</summary>
+        public int DbMinDisplayCountValue => (int)numDbMinDisplayCount.Value;
+
+        /// <summary>DBList モード：最大表示枚数</summary>
+        public int DbMaxDisplayCountValue => (int)numDbMaxDisplayCount.Value;
+
+        /// <summary>DBList モード：最小評価値</summary>
+        public int DbMinEvaluationValue => (int)numDbMinEvaluation.Value;
+
         // デフォルト値
         private const int DefaultMinDisplayCount = 20;
         private const int DefaultMaxDisplayCount = 1000;
@@ -114,7 +128,7 @@ namespace MangaViewer
             // ダイアログ基本設定
             this.Text = "設定";
             this.StartPosition = FormStartPosition.CenterScreen;
-            this.Size = new System.Drawing.Size(420, 600);
+            this.Size = new System.Drawing.Size(420, 700);
             this.MinimizeBox = false;
             this.MaximizeBox = false;
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
@@ -413,6 +427,106 @@ namespace MangaViewer
             };
             this.Controls.Add(cbDbFilterGreaterOrEqual);
 
+            // DBList セクション見出し
+            Label labelDbListSection = new Label
+            {
+                Text = "DBList モード用フィルタ",
+                AutoSize = true,
+                ForeColor = Color.LimeGreen,
+                Font = new System.Drawing.Font("Meiryo UI", 10F, FontStyle.Bold),
+                Location = new System.Drawing.Point(20, 435),
+            };
+            this.Controls.Add(labelDbListSection);
+
+            // DB最小表示数
+            Label labelDbMinDisplayCount = new Label
+            {
+                Text = "DB最小表示数：",
+                AutoSize = true,
+                ForeColor = Color.White,
+                Font = new System.Drawing.Font("Meiryo UI", 9F),
+                Location = new System.Drawing.Point(20, 465),
+            };
+            this.Controls.Add(labelDbMinDisplayCount);
+
+            numDbMinDisplayCount = new NumericUpDown
+            {
+                Minimum = 2,
+                Maximum = 99999,
+                Value = 20,
+                Location = new System.Drawing.Point(140, 463),
+                Size = new System.Drawing.Size(80, 25),
+                BackColor = Color.FromArgb(60, 60, 60),
+                ForeColor = Color.White,
+            };
+            this.Controls.Add(numDbMinDisplayCount);
+
+            Label labelDbMinUnit = new Label
+            {
+                Text = "枚",
+                AutoSize = true,
+                ForeColor = Color.LightGray,
+                Font = new System.Drawing.Font("Meiryo UI", 9F),
+                Location = new System.Drawing.Point(225, 467),
+            };
+            this.Controls.Add(labelDbMinUnit);
+
+            // DB最大表示数
+            Label labelDbMaxDisplayCount = new Label
+            {
+                Text = "DB最大表示数：",
+                AutoSize = true,
+                ForeColor = Color.White,
+                Font = new System.Drawing.Font("Meiryo UI", 9F),
+                Location = new System.Drawing.Point(20, 495),
+            };
+            this.Controls.Add(labelDbMaxDisplayCount);
+
+            numDbMaxDisplayCount = new NumericUpDown
+            {
+                Minimum = 3,
+                Maximum = 100000,
+                Value = 1000,
+                Location = new System.Drawing.Point(140, 493),
+                Size = new System.Drawing.Size(80, 25),
+                BackColor = Color.FromArgb(60, 60, 60),
+                ForeColor = Color.White,
+            };
+            this.Controls.Add(numDbMaxDisplayCount);
+
+            Label labelDbMaxUnit = new Label
+            {
+                Text = "枚",
+                AutoSize = true,
+                ForeColor = Color.LightGray,
+                Font = new System.Drawing.Font("Meiryo UI", 9F),
+                Location = new System.Drawing.Point(225, 497),
+            };
+            this.Controls.Add(labelDbMaxUnit);
+
+            // DB最小評価値
+            Label labelDbMinEvaluation = new Label
+            {
+                Text = "DB最小評価値：",
+                AutoSize = true,
+                ForeColor = Color.White,
+                Font = new System.Drawing.Font("Meiryo UI", 9F),
+                Location = new System.Drawing.Point(20, 525),
+            };
+            this.Controls.Add(labelDbMinEvaluation);
+
+            numDbMinEvaluation = new NumericUpDown
+            {
+                Minimum = 0,
+                Maximum = 10,
+                Value = 8,
+                Location = new System.Drawing.Point(140, 523),
+                Size = new System.Drawing.Size(80, 25),
+                BackColor = Color.FromArgb(60, 60, 60),
+                ForeColor = Color.White,
+            };
+            this.Controls.Add(numDbMinEvaluation);
+
             // バージョン表示ラベル（下部：Constants から一元取得）
             labelVersion = new Label
             {
@@ -587,6 +701,25 @@ namespace MangaViewer
                         ratingOneKeywords = rkProp.ToString();
                     }
 
+                    // DBList 設定読み込み（存在しない場合はデフォルト）
+                    if (doc.RootElement.TryGetProperty("DbMinDisplayCount", out var dbMinProp) && dbMinProp.ValueKind == JsonValueKind.Number)
+                    {
+                        int v = dbMinProp.GetInt32();
+                        if (v >= 2 && v <= 99999) numDbMinDisplayCount.Value = v;
+                    }
+
+                    if (doc.RootElement.TryGetProperty("DbMaxDisplayCount", out var dbMaxProp) && dbMaxProp.ValueKind == JsonValueKind.Number)
+                    {
+                        int v = dbMaxProp.GetInt32();
+                        if (v >= 3 && v <= 100000) numDbMaxDisplayCount.Value = v;
+                    }
+
+                    if (doc.RootElement.TryGetProperty("DbMinEvaluation", out var dbEvalProp) && dbEvalProp.ValueKind == JsonValueKind.Number)
+                    {
+                        int v = dbEvalProp.GetInt32();
+                        if (v >= 0 && v <= 10) numDbMinEvaluation.Value = v;
+                    }
+
                     // 設定値が存在しなかった場合はデフォルト値を保存（新旧互換対応）
                     bool countExists = doc.RootElement.TryGetProperty("MinDisplayCount", out _);
                     bool maxCountExists = doc.RootElement.TryGetProperty("MaxDisplayCount", out _);
@@ -674,7 +807,16 @@ namespace MangaViewer
             string ratingOneKeywords = RatingOneKeywordsValue;
             bool dbFilterGreaterOrEqual = cbDbFilterGreaterOrEqual.Checked;
 
-            SaveSettingsToFile(minDisplayCount, maxDisplayCount, minEvaluation, displayCount, normalPercent, fullScreenPercent, ratingOneKeywords, dbFilterGreaterOrEqual);
+            // DBList 設定値を取得
+            int dbMinDisplayCount = DbMinDisplayCountValue;
+            int dbMaxDisplayCount = DbMaxDisplayCountValue;
+            int dbMinEvaluation = DbMinEvaluationValue;
+
+            SaveSettingsToFile(
+                minDisplayCount, maxDisplayCount, minEvaluation, displayCount,
+                normalPercent, fullScreenPercent, ratingOneKeywords,
+                dbFilterGreaterOrEqual,
+                dbMinDisplayCount, dbMaxDisplayCount, dbMinEvaluation);
 
             this.DialogResult = DialogResult.OK;
         }
@@ -713,9 +855,36 @@ namespace MangaViewer
             string ratingOneKeywords,
             bool dbFilterGreaterOrEqual)
         {
+            // 互換用：DBList はデフォルト値で保存
+            SaveSettingsToFile(
+                minDisplayCount,
+                maxDisplayCount,
+                minEvaluation,
+                displayCount,
+                normalPercent,
+                fullScreenPercent,
+                ratingOneKeywords,
+                dbFilterGreaterOrEqual,
+                20,   // DbMinDisplayCount default
+                1000, // DbMaxDisplayCount default
+                8);   // DbMinEvaluation default
+        }
+
+        private void SaveSettingsToFile(
+            int minDisplayCount,
+            int maxDisplayCount,
+            int minEvaluation,
+            int displayCount,
+            int normalPercent,
+            int fullScreenPercent,
+            string ratingOneKeywords,
+            bool dbFilterGreaterOrEqual,
+            int dbMinDisplayCount,
+            int dbMaxDisplayCount,
+            int dbMinEvaluation)
+        {
             try
             {
-                // 既存 JSON を保持（LastRootFolder など他の設定を壊さない）
                 var existing = new Dictionary<string, JsonElement>();
 
                 if (File.Exists(SettingsFilePath))
@@ -730,7 +899,7 @@ namespace MangaViewer
                     }
                 }
 
-                // 新キーを設定
+                // フォルダーリスト用設定
                 existing["MinDisplayCount"] = JsonSerializer.SerializeToElement(minDisplayCount);
                 existing["MaxDisplayCount"] = JsonSerializer.SerializeToElement(maxDisplayCount);
                 existing["MinEvaluation"] = JsonSerializer.SerializeToElement(minEvaluation);
@@ -740,7 +909,11 @@ namespace MangaViewer
                 existing["RatingOneKeywords"] = JsonSerializer.SerializeToElement(ratingOneKeywords ?? "");
                 existing["DbFilterGreaterOrEqual"] = JsonSerializer.SerializeToElement(dbFilterGreaterOrEqual);
 
-                // JSON を再構築（順番は保証されないが問題なし）
+                // DBList 用設定
+                existing["DbMinDisplayCount"] = JsonSerializer.SerializeToElement(dbMinDisplayCount);
+                existing["DbMaxDisplayCount"] = JsonSerializer.SerializeToElement(dbMaxDisplayCount);
+                existing["DbMinEvaluation"] = JsonSerializer.SerializeToElement(dbMinEvaluation);
+
                 var options = new JsonSerializerOptions { WriteIndented = true };
                 string resultJson = JsonSerializer.Serialize(existing, options);
                 File.WriteAllText(SettingsFilePath, resultJson);

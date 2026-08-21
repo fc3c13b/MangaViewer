@@ -281,21 +281,21 @@ namespace MangaViewer
                 int cbzFileCount = entry.CbzZipCount ?? 0;
                 int rating = entry.Rating;
 
-                // Apply filter logic (same as existing BuildFolderIndex)
+                // Apply DBList-specific filter logic (separate from folder-list filters)
                 bool inRange = true;
                 Settings settings = SettingsManager.Load();
-                
-                if (settings.MinDisplayCount > 0 && imageCount < settings.MinDisplayCount)
+
+                if (settings.DbMinDisplayCount > 0 && imageCount < settings.DbMinDisplayCount)
                     inRange = false;
-                if (settings.MaxDisplayCount > 0 && imageCount > settings.MaxDisplayCount)
+                if (settings.DbMaxDisplayCount > 0 && imageCount > settings.DbMaxDisplayCount)
                     inRange = false;
 
                 bool imageConditionOk = inRange || (cbzFileCount >= 1);
-                
-                // Rating filter (MinEvaluation > 0 is effective only then)
+
+                // Rating filter using DBList-specific MinEvaluation
                 if (!imageConditionOk) continue;
-                
-                if (settings.MinEvaluation > 0 && rating >= 0 && rating < settings.MinEvaluation)
+
+                if (settings.DbMinEvaluation > 0 && rating >= 0 && rating < settings.DbMinEvaluation)
                     continue;
 
                 entries.Add(new FolderEntry { Path = kvp.Key, ImageCount = imageCount, CbzFileCount = cbzFileCount, Rating = rating });
