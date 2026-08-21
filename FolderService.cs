@@ -10,6 +10,27 @@ using System.Threading;
 namespace MangaViewer
 {
     /// <summary>
+    /// CJ エントリのデータ構造。
+    /// </summary>
+    public class CjFolderEntry
+    {
+        public string FolderName { get; set; } = "";
+        public int? CbzZipCount { get; set; } // null=省略（0の場合）
+        public int? ImageCount { get; set; }  // null=省略（0の場合）
+        public int Rating { get; set; } = -1;
+        public long UpdatedAt { get; set; } = 0;
+    }
+
+    /// <summary>
+    /// CJ のルート構造。
+    /// </summary>
+    public class CjRoot
+    {
+        public string ParentFolder { get; set; } = "";
+        public Dictionary<string, CjFolderEntry> Folders { get; set; } = new();
+    }
+
+    /// <summary>
     /// フォルダエントリ（パス、画像数、CBZファイル数、評価値を保持）
     /// </summary>
     public struct FolderEntry
@@ -339,7 +360,7 @@ namespace MangaViewer
         /// 通常の画像ファイルのみをカウント（CBZフォールバックなし）。
         /// BuildFolderIndex など内部的に使用。
         /// </summary>
-        private static int CountImagesWithoutCbzFallback(string dir)
+        public static int CountImagesWithoutCbzFallback(string dir)
         {
             if (string.IsNullOrWhiteSpace(dir)) return 0;
             if (!Directory.Exists(dir)) return 0;
@@ -361,7 +382,7 @@ namespace MangaViewer
         /// <summary>
         /// 指定フォルダ内の CBZ ファイル数をカウント。
         /// </summary>
-        private static int CountCbzFiles(string dir)
+        public static int CountCbzFiles(string dir)
         {
             if (string.IsNullOrWhiteSpace(dir)) return 0;
             if (!Directory.Exists(dir)) return 0;
@@ -604,5 +625,287 @@ namespace MangaViewer
 
             return (imagePassCount, totalCount, ratingPassCount);
         }
+
+        #region CJ 管理メソッド
+
+        /// <summary>
+        /// 親フォルダー名からCJファイル名を生成（ユニーク化）
+        /// </summary>
+        public static string GenerateCjFileName(string parentFolder)
+        {
+            // パスの区切り文字を_に置き換え
+            string safe = Regex.Replace(parentFolder, @"[\\/:*?"+"|<>]", "_");
+            return $"ratings_cache_{safe}.json";
+        }
+
+        /// <summary>
+        /// CJファイルのフルパスを取得
+        /// </summary>
+        public static string GetCjFilePath(string parentFolder)
+        {
+            string dir = AppPaths.CacheDir;
+            if (!Directory.Exists(dir))
+                Directory.CreateDirectory(dir);
+            return Path.Combine(dir, GenerateCjFileName(parentFolder));
+        }
+
+        /// <summary>
+        /// CJファイルの存在を確認
+        /// </summary>
+        public static bool CjExists(string parentFolder)
+        {
+            return File.Exists(GetCjFilePath(parentFolder));
+        }
+
+        /// <summary>
+        /// CJを読み込む。なければnullを返す。
+        /// </summary>
+        public static CjRoot? LoadCj(string parentFolder)
+        {
+            string path = GetCjFilePath(parentFolder);
+            if (!File.Exists(path)) return null;
+
+            try
+            {
+                var json = File.ReadAllText(path);
+                using var doc = JsonDocument.Parse(json);
+                var root = new CjRoot();
+
+                if (doc.RootElement.TryGetProperty("parentFolder", out var pf))
+                    root.ParentFolder = pf.GetString() ?? "";
+
+                var folders = new Dictionary<string, CjFolderEntry>();
+                if (doc.RootElement.TryGetProperty("folders", out var fj) && fj.ValueKind == JsonValueKind.Object)
+                {
+                    foreach (var entry in fj.EnumerateObject())
+                    {
+                        var cjEntry = new CjFolderEntry();
+                        if (entry.Value.TryGetProperty("folderName", out var fn))
+                            cjEntry.FolderName = fn.GetString() ?? "";
+                        if (entry.Value.TryGetProperty("CbzZipCount", out var cz) && cz.ValueKind == JsonValueKind.Number)
+                            cjEntry.CbzZipCount = cz.GetInt32();
+                        if (entry.Value.TryGetProperty("imageCount", out var ic) && ic.ValueKind == JsonValueKind.Number)
+                            cjEntry.ImageCount = ic.GetInt32();
+                        if (entry.Value.TryGetProperty("rating", out var r) && r.ValueKind == JsonValueKind.Number)
+                            cjEntry.Rating = r.GetInt32();
+                        if (entry.Value.TryGetProperty("updatedAt", out var ua) && ua.ValueKind == JsonValueKind.Number)
+                            cjEntry.UpdatedAt = ua.GetInt64();
+
+                        folders[entry.Name] = cjEntry;
+                    }
+                }
+
+                root.Folders = folders;
+                return root;
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
+        /// CJを保存する。
+        /// </summary>
+        public static void SaveCj(string parentFolder, CjRoot cjRoot)
+        {
+            cjRoot.ParentFolder = parentFolder;
+            string path = GetCjFilePath(parentFolder);
+
+            var obj = new Dictionary<string, object>
+            {
+                ["parentFolder"] = parentFolder,
+                ["folders"] = new Dictionary<object, object>()
+            };
+
+            foreach (var kvp in cjRoot.Folders)
+            {
+                var entryObj = new Dictionary<object, object>
+                {
+                    ["folderName"] = kvp.Value.FolderName
+                };
+
+                if (kvp.Value.CbzZipCount.HasValue && kvp.Value.CbzZipCount.Value > 0)
+                    entryObj["CbzZipCount"] = kvp.Value.CbzZipCount.Value;
+                if (kvp.Value.ImageCount.HasValue && kvp.Value.ImageCount.Value > 0)
+                    entryObj["imageCount"] = kvp.Value.ImageCount.Value;
+                entryObj["rating"] = kvp.Value.Rating;
+                entryObj["updatedAt"] = kvp.Value.UpdatedAt;
+
+                ((Dictionary<object, object>)obj["folders"])[kvp.Key] = entryObj;
+            }
+
+            File.WriteAllText(path, JsonSerializer.Serialize(obj, new JsonSerializerOptions { WriteIndented = true }));
+        }
+
+        /// <summary>
+        /// CJを読み込み、存在しないエントリについて実際のフォルダーを検索してCJを更新。
+        /// 戻り値: 構築された FolderEntry リスト（フィルタは適用済み）。
+        /// </summary>
+        public List<FolderEntry> BuildFolderIndexWithCj(string rootPath)
+        {
+            var entries = new List<FolderEntry>();
+
+            if (string.IsNullOrWhiteSpace(rootPath)) return entries;
+            if (!Directory.Exists(rootPath)) return entries;
+
+            // 30秒タイムアウト機構
+            StartTimeout();
+
+            // CJ読み込み（なしなら新規作成）
+            CjRoot cjRoot = LoadCj(rootPath) ?? new CjRoot { ParentFolder = rootPath, Folders = new Dictionary<string, CjFolderEntry>() };
+
+            try
+            {
+                var dirs = Directory.GetDirectories(rootPath);
+                var sorted = dirs
+                    .Select(d => d.Replace("\\", "/"))
+                    .OrderBy(d => Path.GetFileName(d), StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                foreach (var dir in sorted)
+                {
+                    // タイムアウトチェック
+                    if (_cts != null && _cts.IsCancellationRequested)
+                    {
+                        Status("30秒経過のためフォルダスキャンを中止します（既存のデータで続行）");
+                        break;
+                    }
+
+                    try
+                    {
+                        string folderName = Path.GetFileName(dir);
+                        string jsonPath = Path.Combine(dir, $"{folderName}.json");
+                        bool djExists = File.Exists(jsonPath);
+
+                        // --- CJにエントリーがあるか？---
+                        if (cjRoot.Folders.TryGetValue(dir, out var cjEntry))
+                        {
+                            // ケース2: CJにある
+                            if (djExists)
+                            {
+                                // 2.1 DJがある → DJファイルの最終更新日時とCJ.updatedAtを比較
+                                DateTime djWriteTime = File.GetLastWriteTime(jsonPath);
+                                long djTicksMs = new DateTimeOffset(djWriteTime).ToUnixTimeMilliseconds();
+
+                                if (djTicksMs > cjEntry.UpdatedAt)
+                                {
+                                    // DJが新しい → CJを更新
+                                    var (ic, cc, r) = ReadFolderJson(jsonPath);
+                                    cjEntry.FolderName = folderName;
+                                    if (cc > 0) { cjEntry.CbzZipCount = cc; cjEntry.ImageCount = null; }
+                                    else { cjEntry.ImageCount = ic; cjEntry.CbzZipCount = null; }
+                                    cjEntry.Rating = r;
+                                    cjEntry.UpdatedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                                }
+                            }
+                            // 2.2 DJがない → スキップ（updatedAtは更新しない）
+
+                            // CJデータからエントリを構築
+                            int imageCount = cjEntry.ImageCount ?? 0;
+                            int cbzFileCount = cjEntry.CbzZipCount ?? 0;
+                            int rating = cjEntry.Rating;
+
+                            // フィルタ適用（既存と同じルール）
+                            bool inRange = true;
+                            if (_settings.MinDisplayCount > 0 && imageCount < _settings.MinDisplayCount)
+                                inRange = false;
+                            if (_settings.MaxDisplayCount > 0 && imageCount > _settings.MaxDisplayCount)
+                                inRange = false;
+                            bool imageConditionOk = inRange || (cbzFileCount >= 1);
+
+                            if (!imageConditionOk) continue;
+
+                            if (_settings.MinEvaluation > 0 && rating >= 0 && rating < _settings.MinEvaluation)
+                                continue;
+
+                            entries.Add(new FolderEntry { Path = dir, ImageCount = imageCount, CbzFileCount = cbzFileCount, Rating = rating });
+                        }
+                        else
+                        {
+                            // ケース1: CJにない
+                            if (djExists)
+                            {
+                                // 1.1 DJがある → DJのデータをCJへコピー
+                                var (ic, cc, r) = ReadFolderJson(jsonPath);
+                                var newEntry = new CjFolderEntry
+                                {
+                                    FolderName = folderName,
+                                    Rating = r,
+                                    UpdatedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+                                };
+                                if (cc > 0) { newEntry.CbzZipCount = cc; newEntry.ImageCount = null; }
+                                else { newEntry.ImageCount = ic; newEntry.CbzZipCount = null; }
+                                cjRoot.Folders[dir] = newEntry;
+
+                                // フィルタ適用
+                                bool inRange2 = true;
+                                if (_settings.MinDisplayCount > 0 && ic < _settings.MinDisplayCount) inRange2 = false;
+                                if (_settings.MaxDisplayCount > 0 && ic > _settings.MaxDisplayCount) inRange2 = false;
+                                bool imageConditionOk2 = inRange2 || (cc >= 1);
+
+                                if (imageConditionOk2)
+                                {
+                                    if (!(_settings.MinEvaluation > 0 && r >= 0 && r < _settings.MinEvaluation))
+                                    {
+                                        entries.Add(new FolderEntry { Path = dir, ImageCount = ic, CbzFileCount = cc, Rating = r });
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                // 1.2 DJがない → フォルダーを実際検索
+                                int scanImageCount = 0;
+                                int scanCbzCount = CountCbzFiles(dir);
+                                if (scanCbzCount > 0) scanImageCount = CountImagesWithoutCbzFallback(dir);
+                                else scanImageCount = 0;
+
+                                int scanRating = -1; // DJがないのでratingも未設定
+
+                                try { SaveFolderMetaJson(jsonPath, scanImageCount, scanCbzCount, scanRating); } catch { }
+
+                                var newEntry2 = new CjFolderEntry
+                                {
+                                    FolderName = folderName,
+                                    Rating = scanRating,
+                                    UpdatedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+                                };
+                                if (scanCbzCount > 0) { newEntry2.CbzZipCount = scanCbzCount; newEntry2.ImageCount = null; }
+                                else { newEntry2.ImageCount = scanImageCount; newEntry2.CbzZipCount = null; }
+                                cjRoot.Folders[dir] = newEntry2;
+
+                                // フィルタ適用
+                                bool inRange3 = true;
+                                if (_settings.MinDisplayCount > 0 && scanImageCount < _settings.MinDisplayCount) inRange3 = false;
+                                if (_settings.MaxDisplayCount > 0 && scanImageCount > _settings.MaxDisplayCount) inRange3 = false;
+                                bool imageConditionOk3 = inRange3 || (scanCbzCount >= 1);
+
+                                if (imageConditionOk3)
+                                {
+                                    entries.Add(new FolderEntry { Path = dir, ImageCount = scanImageCount, CbzFileCount = scanCbzCount, Rating = scanRating });
+                                }
+                            }
+                        }
+                    }
+                    catch (UnauthorizedAccessException) { }
+                    catch { }
+                }
+
+                // CJを保存
+                SaveCj(rootPath, cjRoot);
+            }
+            catch { /* スキャン失敗時は既存entriesを返す */ }
+
+            this.entries = entries;
+            RatingService.FlushReadOnlyCache();
+
+            return entries;
+        }
+
+        private CancellationTokenSource? _cts;
+
+        /// <summary>
+        /// タイムアウトのCancellationTokenSourceを作成（30秒）
+        /// </summary>
+        private void StartTimeout() => _cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+
+        #endregion
     }
 }

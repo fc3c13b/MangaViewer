@@ -228,7 +228,7 @@
     "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
-    "version": "0.9.10",
+    "version": "0.9.12",
     "restore": {
       "projectUniqueName": "C:\\source\\repos\\MangaViewer\\MangaViewer.csproj",
       "projectName": "MangaViewer",

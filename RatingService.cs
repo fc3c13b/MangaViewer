@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Threading;
 
@@ -390,6 +391,7 @@ namespace MangaViewer
             public int Rating { get; set; } = -1;
             public int ImageCount { get; set; }
             public string FolderName { get; set; } = "";
+            public long UpdatedAt { get; set; } = 0;
         }
     }
 }

@@ -1,9 +1,9 @@
-  復元対象のプロジェクトを決定しています...
-  復元対象のすべてのプロジェクトは最新です。
-  MangaViewer -> c:\source\repos\MangaViewer\bin\Debug\net8.0-windows\MangaViewer.dll
+c:\source\repos\MangaViewer\AppPaths.cs(55,70): error CS1009: 認識できないエスケープ シーケンスです [c:\source\repos\MangaViewer\MangaViewer.csproj]
 
-ビルドに成功しました。
+ビルドに失敗しました。
+
+c:\source\repos\MangaViewer\AppPaths.cs(55,70): error CS1009: 認識できないエスケープ シーケンスです [c:\source\repos\MangaViewer\MangaViewer.csproj]
     0 個の警告
-    0 エラー
+    1 エラー
 
-経過時間 00:00:01.12
+経過時間 00:00:03.19

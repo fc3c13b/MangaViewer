@@ -23,7 +23,135 @@ namespace MangaViewer
         internal int _currentFolderIndex = -1;
         internal bool _fullScreenMode = false;
         internal int _displayMode = 0; // 0=階層順, 1=評価値8のみ
+        public bool IsRankDisplayMode => _displayMode == 1;
+
         private string _rootFolder = "";
+
+        /// <summary>
+        /// キー3（DBリストモード時）で親フォルダー指定してCJを作成する。
+        /// </summary>
+        public void CreateCjForParent(string parentFolder)
+        {
+            if (string.IsNullOrWhiteSpace(parentFolder)) return;
+            if (!Directory.Exists(parentFolder)) return;
+
+            // 同じ親フォルダーのCJが既に存在するか確認（AppPaths.CacheDir 配下）
+            Directory.CreateDirectory(AppPaths.CacheDir);
+
+            if (CjManager.CjExists(parentFolder))
+            {
+                MessageBox.Show(
+                    this,
+                    "すでにあります。",
+                    "CJ 重複",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                return;
+            }
+
+            labelInfo.Text = $"親フォルダーのCJを作成中: {parentFolder}";
+            Application.DoEvents();
+
+            try
+            {
+                // その配下のサブフォルダを走査してCJに記録（簡易版）
+                var folders = new Dictionary<string, CjFolderEntry>();
+
+                if (Directory.Exists(parentFolder))
+                {
+                    foreach (string dir in Directory.GetDirectories(parentFolder, "*", SearchOption.TopDirectoryOnly))
+                    {
+                        try
+                        {
+                            int imageCount = 0;
+                            int cbzZipCount = 0;
+
+                            var files = Directory.GetFiles(dir, "*");
+                            foreach (var f in files)
+                            {
+                                string ext = Path.GetExtension(f)?.ToLowerInvariant();
+                                if (ext == ".cbz" || ext == ".zip")
+                                    cbzZipCount++;
+                                else if (
+                                    ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".webp")
+                                {
+                                    imageCount++;
+                                }
+                            }
+
+                            int rating = RatingService.ReadRating(dir);
+
+                            var entry = new CjFolderEntry
+                            {
+                                FolderName = Path.GetFileName(dir),
+                                ImageCount = imageCount,
+                                CbzZipCount = cbzZipCount,
+                                Rating = rating,
+                                UpdatedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+                            };
+
+                            folders[dir] = entry;
+                        }
+                        catch { /* フォルダ読み取りエラーはスキップ */ }
+                    }
+                }
+
+                var cjData = new CjRoot
+                {
+                    ParentFolder = parentFolder,
+                    Folders = folders
+                };
+
+                // CJManager.SaveCj を使用してキャッシュJSONを保存
+                CjManager.SaveCj(parentFolder, cjData);
+
+                // DBリストモードの場合、評価値でフィルターして再表示（簡易版）
+                if (IsRankDisplayMode)
+                {
+                    BuildRankFilteredListFromCj(folders);
+                }
+
+                labelInfo.Text = $"CJ作成完了: {parentFolder}";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    this,
+                    $"CJ作成エラー:\n{ex.Message}",
+                    "CJ エラー",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+                labelInfo.Text = "CJ作成に失敗しました。";
+            }
+        }
+
+        private void BuildRankFilteredListFromCj(Dictionary<string, CjFolderEntry> folders)
+        {
+            if (!IsRankDisplayMode) return;
+
+            int targetRating = Constants.TargetDisplayRating;
+            _folderList.Clear();
+            listBoxFolders.DataSource = null;
+            listBoxFolders.Items.Clear();
+
+            foreach (var kvp in folders)
+            {
+                var entry = kvp.Value;
+                if (entry.Rating == targetRating && !string.IsNullOrEmpty(kvp.Key))
+                {
+                    _folderList.Add(kvp.Key);
+                    string folderName = Path.GetFileName(kvp.Key);
+                    listBoxFolders.Items.Add($"[{entry.Rating}] {folderName} -[{entry.ImageCount ?? 0}]");
+                }
+            }
+
+            if (_folderList.Count > 0)
+            {
+                int idx = _folderList.IndexOf(_currentFolder);
+                _currentFolderIndex = idx >= 0 ? idx : 0;
+                listBoxFolders.SelectedIndex = _currentFolderIndex;
+            }
+        }
 
         private FormWindowState _savedWindowState = FormWindowState.Normal;
         private FormBorderStyle _savedFormBorderStyle = FormBorderStyle.Sizable;
