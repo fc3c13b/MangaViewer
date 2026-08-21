@@ -49,6 +49,9 @@ namespace MangaViewer
         // 評価1キーワード設定用コントロール
         private TextBox txtRatingOneKeywords = null!;
 
+        // DBフィルタ「以上/一致」切替
+        private CheckBox cbDbFilterGreaterOrEqual = null!;
+
         // ルートフォルダパス（統計計算用）
         private string RootFolder => GetRootFolder();
 
@@ -398,6 +401,18 @@ namespace MangaViewer
             };
             this.Controls.Add(labelRatingOneHint);
 
+            // DBフィルタ「以上/一致」チェックボックス
+            cbDbFilterGreaterOrEqual = new CheckBox
+            {
+                Text = "DB表示：評価値を『以上』でフィルタする（OFF=一致）",
+                Location = new System.Drawing.Point(20, 395),
+                AutoSize = true,
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(40, 40, 40),
+                Checked = true, // デフォルトは「以上」
+            };
+            this.Controls.Add(cbDbFilterGreaterOrEqual);
+
             // バージョン表示ラベル（下部：Constants から一元取得）
             labelVersion = new Label
             {
@@ -626,6 +641,21 @@ namespace MangaViewer
             // 評価1キーワードを反映
             txtRatingOneKeywords.Text = ratingOneKeywords;
 
+            // DBフィルタ「以上/一致」切替（デフォルトON）
+            if (File.Exists(SettingsFilePath))
+            {
+                try
+                {
+                    var json2 = File.ReadAllText(SettingsFilePath);
+                    using var doc2 = JsonDocument.Parse(json2);
+                    bool greaterOrEqual = true; // デフォルト「以上」
+                    if (doc2.RootElement.TryGetProperty("DbFilterGreaterOrEqual", out var gProp) && (gProp.ValueKind == JsonValueKind.True || gProp.ValueKind == JsonValueKind.False))
+                        greaterOrEqual = gProp.GetBoolean();
+                    cbDbFilterGreaterOrEqual.Checked = greaterOrEqual;
+                }
+                catch { /* デフォルト ON */ }
+            }
+
             // 初期値でフィルター統計を表示
             UpdateFilterStats();
         }
@@ -642,8 +672,9 @@ namespace MangaViewer
             int normalPercent = NormalModeImageAreaPercent;
             int fullScreenPercent = FullScreenModeImageAreaPercent;
             string ratingOneKeywords = RatingOneKeywordsValue;
+            bool dbFilterGreaterOrEqual = cbDbFilterGreaterOrEqual.Checked;
 
-            SaveSettingsToFile(minDisplayCount, maxDisplayCount, minEvaluation, displayCount, normalPercent, fullScreenPercent, ratingOneKeywords);
+            SaveSettingsToFile(minDisplayCount, maxDisplayCount, minEvaluation, displayCount, normalPercent, fullScreenPercent, ratingOneKeywords, dbFilterGreaterOrEqual);
 
             this.DialogResult = DialogResult.OK;
         }
@@ -659,6 +690,28 @@ namespace MangaViewer
             int normalPercent,
             int fullScreenPercent,
             string ratingOneKeywords)
+        {
+            // 互換用オーバーロード：DbFilterGreaterOrEqual はデフォルト true
+            SaveSettingsToFile(
+                minDisplayCount,
+                maxDisplayCount,
+                minEvaluation,
+                displayCount,
+                normalPercent,
+                fullScreenPercent,
+                ratingOneKeywords,
+                dbFilterGreaterOrEqual: true);
+        }
+
+        private void SaveSettingsToFile(
+            int minDisplayCount,
+            int maxDisplayCount,
+            int minEvaluation,
+            int displayCount,
+            int normalPercent,
+            int fullScreenPercent,
+            string ratingOneKeywords,
+            bool dbFilterGreaterOrEqual)
         {
             try
             {
@@ -685,6 +738,7 @@ namespace MangaViewer
                 existing["NormalModeImageAreaPercent"] = JsonSerializer.SerializeToElement(normalPercent);
                 existing["FullScreenModeImageAreaPercent"] = JsonSerializer.SerializeToElement(fullScreenPercent);
                 existing["RatingOneKeywords"] = JsonSerializer.SerializeToElement(ratingOneKeywords ?? "");
+                existing["DbFilterGreaterOrEqual"] = JsonSerializer.SerializeToElement(dbFilterGreaterOrEqual);
 
                 // JSON を再構築（順番は保証されないが問題なし）
                 var options = new JsonSerializerOptions { WriteIndented = true };

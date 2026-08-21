@@ -137,10 +137,12 @@ namespace MangaViewer
                         nav.ToggleFullScreen();
                         return;
 
-                    // 3 : ルートフォルダ選択ダイアログ
+                    // 3 : モード別動作
+                    // - 通常モード: ルートフォルダ変更
+                    // - DBモード: FolderBrowserDialog → CreateCjForParent → フィルタ再構築
                     case Keys.D3:
                         e.Handled = true;
-                        HandleRootFolderChange(nav);
+                        HandleD3Key(nav);
                         return;
 
                     // 4,5,6 は何もしない
@@ -202,6 +204,28 @@ namespace MangaViewer
                 }
             }
             return false;
+        }
+
+        // D3 キー：モードに応じて分岐
+        private static void HandleD3Key(INavigationActions nav)
+        {
+            if (nav.IsRankDisplayMode)
+            {
+                // DBモード: FolderBrowserDialog で親フォルダ指定 → CreateCjForParent
+                using (var dialog = new FolderBrowserDialog())
+                {
+                    var result = dialog.ShowDialog();
+                    if (result == DialogResult.OK && !string.IsNullOrEmpty(dialog.SelectedPath))
+                    {
+                        nav.CreateCjForParent(dialog.SelectedPath);
+                    }
+                }
+            }
+            else
+            {
+                // 通常モード: ルートフォルダ変更ダイアログ
+                HandleRootFolderChange(nav);
+            }
         }
 
         private static void HandleRootFolderChange(INavigationActions nav)

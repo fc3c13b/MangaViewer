@@ -49,6 +49,9 @@ namespace MangaViewer
         /// <summary>表示モード: 0=フォルダー階層順, 1=評価値ランク順</summary>
         public int DisplayMode { get; set; } = 0;
 
+        /// <summary>DB表示：評価値フィルタを「以上（≥）」で扱うか、「一致（==）」で扱うか。デフォルト=true（以上）</summary>
+        public bool DbFilterGreaterOrEqual { get; set; } = true;
+
         /// <summary>
         /// デフォルト設定（ファイルがない場合に使用）
         /// </summary>
