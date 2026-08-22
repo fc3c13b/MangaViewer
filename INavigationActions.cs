@@ -47,7 +47,10 @@ namespace MangaViewer
           // DBモードフラグ
           bool IsRankDisplayMode { get; }
 
-          // 親フォルダー指定でCJを作成（キー3用、DBリストモード時）
-          void CreateCjForParent(string parentFolder);
-    }
+           // 親フォルダー指定でCJを作成（キー3用、DBリストモード時）
+           void CreateCjForParent(string parentFolder);
+
+           // 既存 CJ を読み込んでオンメモリ保持（キー3用、DBリストモード時）
+           void LoadCjForParent(string parentFolder);
+     }
 }

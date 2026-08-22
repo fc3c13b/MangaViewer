@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace MangaViewer
 {
@@ -100,7 +102,7 @@ namespace MangaViewer
                     return false;
 
                 var cbzs = Directory.GetFiles(folderPath, "*.cbz", SearchOption.TopDirectoryOnly)
-                                    .OrderBy(Path.GetFileName)
+                                    .OrderBy(f => f, new CbzVolumeComparer())
                                     .ToList();
 
                 if (cbzs.Count == 0)
@@ -392,6 +394,43 @@ namespace MangaViewer
             catch
             {
                 // Not a valid ZIP; leave cacheDir empty.
+            }
+        }
+
+        private static int ExtractVolumeNumber(string filePath)
+        {
+            string name = Path.GetFileNameWithoutExtension(filePath);
+
+            // 第(\d+)巻
+            Match m1 = Regex.Match(name, @"第(\d+)巻");
+            if (m1.Success && int.TryParse(m1.Groups[1].Value, out var v1))
+                return v1;
+
+            // Vol.?\s*(\d+)
+            Match m2 = Regex.Match(name, @"Vol\.?\s*(\d+)", RegexOptions.IgnoreCase);
+            if (m2.Success && int.TryParse(m2.Groups[1].Value, out var v2))
+                return v2;
+
+            // 先頭が数字の場合 ^(\d+)
+            Match m3 = Regex.Match(name, @"^(\d+)");
+            if (m3.Success && int.TryParse(m3.Groups[1].Value, out var v3))
+                return v3;
+
+            return int.MaxValue; // 数値なしは末尾に配置
+        }
+
+        private class CbzVolumeComparer : IComparer<string>
+        {
+            public int Compare(string xFile, string yFile)
+            {
+                int vx = ExtractVolumeNumber(xFile);
+                int vy = ExtractVolumeNumber(yFile);
+
+                if (vx != vy && vx != int.MaxValue && vy != int.MaxValue)
+                    return vx.CompareTo(vy);
+
+                // 片方または両方が数値なしの場合は元の文字列順序で安定化
+                return string.Compare(Path.GetFileName(xFile), Path.GetFileName(yFile), StringComparison.Ordinal);
             }
         }
 

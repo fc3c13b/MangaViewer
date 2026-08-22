@@ -33,8 +33,58 @@ namespace MangaViewer
         private string _rootFolder = "";
         private string? _activeDbFile = null; // アクティブな CJ/DB のファイルパス
 
+        // オンメモリ CJ 保持（TASK09.18）
+        private CjRoot? _activeCjData;
+        private string? _activeCjParentFolder;
+
+        /// <summary>
+        /// 指定した親フォルダに対して CJ を読み込み、オンメモリに保持する。
+        /// - 既存の CJ ファイルがあればそれをロード
+        /// - なければ CreateCjForParent で新規作成
+        /// </summary>
+        public void LoadCjForParent(string parentFolder)
+        {
+            if (string.IsNullOrEmpty(parentFolder)) return;
+
+            // 同じ親フォルダで既に保持済みの場合は再読み込み不要
+            if (_activeCjParentFolder == parentFolder && _activeCjData != null)
+                return;
+
+            string? cjPath = AppPaths.GetCacheFilePath(parentFolder);
+
+            if (!string.IsNullOrEmpty(cjPath) && File.Exists(cjPath))
+            {
+                // 既存 CJ をロードしてオンメモリ保持
+                try
+                {
+                    var json = File.ReadAllText(cjPath);
+                    var options = new System.Text.Json.JsonSerializerOptions();
+                    options.PropertyNameCaseInsensitive = true;
+                    var cjRoot = System.Text.Json.JsonSerializer.Deserialize<CjRoot>(json, options);
+
+                    if (cjRoot != null)
+                    {
+                        _activeCjParentFolder = parentFolder;
+                        _activeCjData = cjRoot;
+                        _activeDbFile = cjPath;
+                    }
+                }
+                catch
+                {
+                    // パース失敗時は後続で再作成経路に任せる
+                }
+            }
+
+            // CJ がまだない、またはロード失敗した場合は新規作成
+            if (_activeCjData == null)
+            {
+                CreateCjForParent(parentFolder);
+            }
+        }
+
         /// <summary>
         /// キー3（DBリストモード時）で親フォルダー指定してCJを作成する。
+        /// 重いスキャンはバックグラウンド化し、完了後にオンメモリ CJ を保持・再構築。
 /// </summary>
         public void CreateCjForParent(string parentFolder)
         {
@@ -43,110 +93,177 @@ namespace MangaViewer
 
             Application.DoEvents();
 
-            try
-            {
-                // その配下のサブフォルダを走査してCJに記録（簡易版）
-                var folders = new Dictionary<string, CjFolderEntry>();
+            // UI に「作成中」表示
+            SafeInvokeUI(() => { labelInfo.Text = "CJ作成中…"; });
 
-                if (Directory.Exists(parentFolder))
+            Task.Run(() =>
+            {
+                try
                 {
-                    foreach (string dir in Directory.GetDirectories(parentFolder, "*", SearchOption.TopDirectoryOnly))
+                    var folders = new Dictionary<string, CjFolderEntry>();
+
+                    if (Directory.Exists(parentFolder))
                     {
-                        try
+                        foreach (string dir in Directory.GetDirectories(parentFolder, "*", SearchOption.TopDirectoryOnly))
                         {
-                            int imageCount = 0;
-                            int cbzZipCount = 0;
-
-                            var files = Directory.GetFiles(dir, "*");
-                            foreach (var f in files)
+                            try
                             {
-                                string ext = Path.GetExtension(f)?.ToLowerInvariant();
-                                if (ext == ".cbz" || ext == ".zip")
-                                    cbzZipCount++;
-                                else if (
-                                    ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".webp")
+                                int imageCount = 0;
+                                int cbzZipCount = 0;
+
+                                var files = Directory.GetFiles(dir, "*");
+                                foreach (var f in files)
                                 {
-                                    imageCount++;
+                                    string ext = Path.GetExtension(f)?.ToLowerInvariant();
+                                    if (ext == ".cbz" || ext == ".zip")
+                                        cbzZipCount++;
+                                    else if (
+                                        ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".webp")
+                                    {
+                                        imageCount++;
+                                    }
                                 }
+
+                                int rating = RatingService.ReadRating(dir);
+
+                                var entry = new CjFolderEntry
+                                {
+                                    FolderName = Path.GetFileName(dir),
+                                    ImageCount = imageCount,
+                                    CbzZipCount = cbzZipCount,
+                                    Rating = rating,
+                                    UpdatedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+                                };
+
+                                folders[dir] = entry;
                             }
-
-                            int rating = RatingService.ReadRating(dir);
-
-                            var entry = new CjFolderEntry
-                            {
-                                FolderName = Path.GetFileName(dir),
-                                ImageCount = imageCount,
-                                CbzZipCount = cbzZipCount,
-                                Rating = rating,
-                                UpdatedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-                            };
-
-                            folders[dir] = entry;
+                            catch { /* フォルダ読み取りエラーはスキップ */ }
                         }
-                        catch { /* フォルダ読み取りエラーはスキップ */ }
                     }
+
+                    var cjData = new CjRoot
+                    {
+                        ParentFolder = parentFolder,
+                        Folders = folders
+                    };
+
+                    string cjPath = AppPaths.GetCacheFilePath(parentFolder);
+                    CjManager.SaveCj(parentFolder, cjData);
+
+                    // オンメモリ CJ 保持（TASK09.18）
+                    _activeCjParentFolder = parentFolder;
+                    _activeCjData = cjData;
+
+                    // アクティブ DB/CJ を設定（DBList モード用）
+                    _activeDbFile = cjPath;
+
+                    // UI スレッドで再構築・表示更新
+                    SafeInvokeUI(() =>
+                    {
+                        if (IsRankDisplayMode)
+                        {
+                            BuildRankFilteredListFromActiveCj();
+                        }
+
+                        UpdateWindowTitle();
+                        labelInfo.Text = $"CJ作成完了: {parentFolder}";
+                    });
                 }
-
-                var cjData = new CjRoot
+                catch (Exception ex)
                 {
-                    ParentFolder = parentFolder,
-                    Folders = folders
-                };
-
-                string cjPath = AppPaths.GetCacheFilePath(parentFolder);
-                CjManager.SaveCj(parentFolder, cjData);
-
-                // アクティブ DB/CJ を設定（DBList モード用）
-                _activeDbFile = cjPath;
-
-                // DBリストモードの場合、アクティブ CJ から評価値順で再構築
-                if (IsRankDisplayMode)
-                {
-                    BuildRankFilteredListFromActiveCj();
+                    SafeInvokeUI(() =>
+                    {
+                        MessageBox.Show(
+                            this,
+                            $"CJ作成エラー:\n{ex.Message}",
+                            "CJ エラー",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error);
+                        labelInfo.Text = "CJ作成に失敗しました。";
+                    });
                 }
+            });
+        }
 
-                UpdateWindowTitle();
-                labelInfo.Text = $"CJ作成完了: {parentFolder}";
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(
-                    this,
-                    $"CJ作成エラー:\n{ex.Message}",
-                    "CJ エラー",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error);
-                labelInfo.Text = "CJ作成に失敗しました。";
-            }
+        /// <summary>
+        /// UI スレッドで安全に実行するヘルパー（Invoke/BeginInvoke 用）。
+        /// </summary>
+        private void SafeInvokeUI(Action action)
+        {
+            if (this.InvokeRequired)
+                this.BeginInvoke(action);
+            else
+                action();
         }
 
         private void BuildRankFilteredListFromCj(Dictionary<string, CjFolderEntry> folders)
         {
             if (!IsRankDisplayMode) return;
 
-            // Collect valid entries
-            var list = new List<(string path, CjFolderEntry entry)>();
-            foreach (var kvp in folders)
-            {
-                if (string.IsNullOrEmpty(kvp.Key)) continue;
-                list.Add((kvp.Key, kvp.Value));
-            }
-
-            // Sort by rating descending (評価値順: 高→低), then by path for stability
-            var sorted = list.OrderByDescending(x => x.entry.Rating)
-                             .ThenBy(x => x.path)
-                             .ToList();
+            // DBList: _activeCjData.Folders の情報だけでフィルタ（ディスクI/Oなし）
+            // 7.4: CJ に記載された順序を尊重し、フィルタリングのみ行う。
+            Settings settings = SettingsManager.Load();
+            bool dbFilterGreaterOrEqual = settings.DbFilterGreaterOrEqual;
+            int dbMinEval = settings.DbMinEvaluation;
+            int dbMinDisplay = settings.DbMinDisplayCount;
+            int dbMaxDisplay = settings.DbMaxDisplayCount;
 
             _folderList.Clear();
             listBoxFolders.DataSource = null;
             listBoxFolders.Items.Clear();
 
-            foreach (var (path, entry) in sorted)
+            foreach (var kvp in folders)
             {
-                _folderList.Add(path);
-                string folderName = Path.GetFileName(path);
-                int displayCount = entry.ImageCount ?? 0;
-                listBoxFolders.Items.Add($"[{entry.Rating}] {folderName} -[{displayCount}]");
+                if (string.IsNullOrEmpty(kvp.Key)) continue;
+
+                string folderPath = kvp.Key;
+                var entry = kvp.Value;
+                int cbzZipCount = entry.CbzZipCount ?? 0;
+                int imageCount = entry.ImageCount ?? 0;
+                int rating = entry.Rating;
+
+                bool show = false;
+
+                if (cbzZipCount >= 1)
+                {
+                    // 7.2 CBZ/ZIPありの場合
+                    if (dbFilterGreaterOrEqual)
+                    {
+                        // A: DB表示チェックON → (Rating==-1) または (Rating>=DbMinEvaluation)
+                        show = (rating == -1 || rating >= dbMinEval);
+                    }
+                    else
+                    {
+                        // B: DB表示チェックOFF → CBZ/ZIPがあれば表示
+                        show = true;
+                    }
+                }
+                else
+                {
+                    // 7.3 CBZ/ZIPなし、画像ファイルのみ
+                    bool countOk = (dbMinDisplay <= imageCount) && (imageCount <= dbMaxDisplay);
+
+                    if (!countOk) continue;
+
+                    if (dbFilterGreaterOrEqual)
+                    {
+                        // A: DB表示チェックON → Rating条件 + 枚数範囲
+                        show = (rating == -1 || rating >= dbMinEval);
+                    }
+                    else
+                    {
+                        // B: DB表示チェックOFF → 枚数範囲のみ
+                        show = true;
+                    }
+                }
+
+                if (!show) continue;
+
+                _folderList.Add(folderPath);
+
+                string folderName = Path.GetFileName(folderPath);
+                int displayCount = cbzZipCount >= 1 ? cbzZipCount : imageCount;
+                listBoxFolders.Items.Add($"[{displayCount}] {folderName}");
             }
 
             if (_folderList.Count > 0)
@@ -1072,11 +1189,35 @@ namespace MangaViewer
         }
 
         /// <summary>
+        /// Rating をオンメモリ更新＋保存（TASK09.18 §5）。
+        /// 今後 Rating 書き込み処理から共用して使用する。
+        /// </summary>
+        private void UpdateRatingInMemory(string folderPath, int newRating)
+        {
+            if (_activeCjData == null || string.IsNullOrEmpty(_activeCjParentFolder)) return;
+            if (!_activeCjData.Folders.TryGetValue(folderPath, out var entry)) return;
+
+            // オンメモリ更新
+            entry.Rating = newRating;
+
+            // ディスク保存
+            CjManager.SaveCj(_activeCjParentFolder, _activeCjData);
+        }
+
+        /// <summary>
         /// DBList モード用：アクティブ CJ（またはフォールバックの rank_display_db）から評価値フィルタリストを構築。
+        /// TASK09.18: オンメモリ _activeCjData を優先し、ファイル再読込を避ける。
         /// </summary>
         private void BuildRankFilteredListFromActiveCj()
         {
-            // アクティブな CJ が設定されていればそれを優先
+            // 1) オンメモリ CJ データがあればそれを優先使用
+            if (_activeCjData?.Folders != null && _activeCjData.Folders.Count > 0)
+            {
+                BuildRankFilteredListFromCj(_activeCjData.Folders);
+                return;
+            }
+
+            // 2) ファイルからフォールバック（_activeDbFile が存在する場合）
             if (!string.IsNullOrEmpty(_activeDbFile) && File.Exists(_activeDbFile))
             {
                 try
@@ -1088,17 +1229,19 @@ namespace MangaViewer
 
                     if (cjRoot?.Folders != null)
                     {
+                        // 次に備えてオンメモリに保持
+                        _activeCjData = cjRoot;
                         BuildRankFilteredListFromCj(cjRoot.Folders);
                         return;
                     }
                 }
                 catch
                 {
-                    // 読み取り失敗時はフォールバックへ
+                    // 読み取り失敗時は次のフォールバックへ
                 }
             }
 
-            // アクティブ CJ が未選択または無効な場合：rank_display_db.json をダミーとして使用
+            // 3) アクティブ CJ が未選択または無効な場合：rank_display_db.json をダミーとして使用
             BuildRankFilteredList();
         }
 

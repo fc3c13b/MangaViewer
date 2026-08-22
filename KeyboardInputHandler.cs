@@ -211,13 +211,24 @@ namespace MangaViewer
         {
             if (nav.IsRankDisplayMode)
             {
-                // DBモード: FolderBrowserDialog で親フォルダ指定 → CreateCjForParent
+                // DBモード: FolderBrowserDialog で親フォルダ指定 → CJありならLoad, なしならCreate
                 using (var dialog = new FolderBrowserDialog())
                 {
                     var result = dialog.ShowDialog();
                     if (result == DialogResult.OK && !string.IsNullOrEmpty(dialog.SelectedPath))
                     {
-                        nav.CreateCjForParent(dialog.SelectedPath);
+                        string selectedPath = dialog.SelectedPath;
+
+                        // CJ が既存なら LoadCjForParent を優先（CreateCjForParent は新規作成のみ）
+                        bool exists = CjManager.CjExists(selectedPath);
+                        if (exists)
+                        {
+                            nav.LoadCjForParent(selectedPath);
+                        }
+                        else
+                        {
+                            nav.CreateCjForParent(selectedPath);
+                        }
                     }
                 }
             }
