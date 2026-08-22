@@ -22,8 +22,13 @@ namespace MangaViewer
         internal List<string> _folderList = new List<string>();
         internal int _currentFolderIndex = -1;
         internal bool _fullScreenMode = false;
-        internal int _displayMode = 0; // 0=階層順, 1=評価値8のみ
+        internal int _displayMode = 0; // 0=階層順(FolderList), 1=DBList(Rank)
         public bool IsRankDisplayMode => _displayMode == 1;
+
+        /// <summary>
+        /// DBList モードかどうかを判定する（ShowSettingsDialog などから利用）。
+        /// </summary>
+        private bool IsDbListMode() => _displayMode != 0;
 
         private string _rootFolder = "";
         private string? _activeDbFile = null; // アクティブな CJ/DB のファイルパス
@@ -1116,10 +1121,18 @@ namespace MangaViewer
 
         public void ShowSettingsDialog()
         {
+            // Before-dialog snapshots (FolderList filters)
             int prevDisplayCount = _settings.DisplayCount;
             int prevMinDisplayCount = _settings.MinDisplayCount;
             int prevMaxDisplayCount = _settings.MaxDisplayCount;
             int prevMinEvaluation = _settings.MinEvaluation;
+
+            // DBList filters
+            int prevDbMinDisplayCount = _settings.DbMinDisplayCount;
+            int prevDbMaxDisplayCount = _settings.DbMaxDisplayCount;
+            int prevDbMinEvaluation = _settings.DbMinEvaluation;
+
+            // Layout ratios
             int prevNormalImageAreaPercent = _settings.NormalModeImageAreaPercent;
             int prevFullScreenImageAreaPercent = _settings.FullScreenModeImageAreaPercent;
 
@@ -1131,17 +1144,26 @@ namespace MangaViewer
                     _displayManager.UpdateSettings(_settings);
 
                     bool displayCountChanged = _settings.DisplayCount != prevDisplayCount;
-                    bool filterChanged = _settings.MinDisplayCount != prevMinDisplayCount ||
-                                         _settings.MaxDisplayCount != prevMaxDisplayCount ||
-                                         _settings.MinEvaluation != prevMinEvaluation;
                     bool layoutRatioChanged = _settings.NormalModeImageAreaPercent != prevNormalImageAreaPercent ||
                                               _settings.FullScreenModeImageAreaPercent != prevFullScreenImageAreaPercent;
 
-                    if (filterChanged)
+                    // FolderList mode filters (MinEvaluation / MinDisplayCount / MaxDisplayCount)
+                    bool folderFilterChanged = (_settings.MinDisplayCount != prevMinDisplayCount) ||
+                                               (_settings.MaxDisplayCount != prevMaxDisplayCount) ||
+                                               (_settings.MinEvaluation != prevMinEvaluation);
+
+                    // DBList mode filters (DbMinEvaluation / DbMinDisplayCount / DbMaxDisplayCount)
+                    bool dbFilterChanged = (_settings.DbMinEvaluation != prevDbMinEvaluation) ||
+                                           (_settings.DbMinDisplayCount != prevDbMinDisplayCount) ||
+                                           (_settings.DbMaxDisplayCount != prevDbMaxDisplayCount);
+
+                    if (!IsDbListMode() && folderFilterChanged)
                     {
+                        // FolderList mode: rebuild subfolder list with new filters.
                         string rootPath = string.IsNullOrEmpty(_settings.LastRootFolder)
                             ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
                             : _settings.LastRootFolder;
+
                         BuildSubfolderList(rootPath);
 
                         int newIdx = -1;
@@ -1171,6 +1193,33 @@ namespace MangaViewer
                                 _currentFolderIndex = -1;
                                 labelInfo.Text = "表示可能なフォルダがありません。";
                             }
+                        }
+                    }
+
+                    if (IsDbListMode() && dbFilterChanged)
+                    {
+                        // DBList mode: rebuild rank-filtered list with new DB filters.
+                        BuildRankFilteredListFromActiveCj();
+
+                        // Restore selection to current folder if still present.
+                        int newIdx = -1;
+                        for (int i = 0; i < _folderList.Count; i++)
+                        {
+                            if (_folderList[i] == _currentFolder) { newIdx = i; break; }
+                        }
+
+                        if (newIdx >= 0)
+                        {
+                            _currentFolderIndex = newIdx;
+                            listBoxFolders.SelectedIndex = newIdx;
+                        }
+                        else if (_folderList.Count > 0)
+                        {
+                            _currentFolderIndex = 0;
+                            LoadAndSortImages(_folderList[0]);
+                            _currentIndex = 0;
+                            DisplayImages(0);
+                            listBoxFolders.SelectedIndex = 0;
                         }
                     }
 
