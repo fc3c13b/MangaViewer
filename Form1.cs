@@ -80,6 +80,16 @@ namespace MangaViewer
             {
                 CreateCjForParent(parentFolder);
             }
+            else
+            {
+                Log($"[DB_DEBUG] LoadCjForParent: loaded existing CJ for parent={parentFolder}, folders_count={_activeCjData?.Folders?.Count ?? 0}");
+
+                // DB リストモードなら、ロードした CJ に基づいてリストを再構築
+                if (IsRankDisplayMode)
+                {
+                    BuildRankFilteredListFromActiveCj();
+                }
+            }
         }
 
         /// <summary>
@@ -157,11 +167,14 @@ namespace MangaViewer
                     // アクティブ DB/CJ を設定（DBList モード用）
                     _activeDbFile = cjPath;
 
+                    Log($"[DB_DEBUG] CreateCjForParent: CJ created/updated for parent={parentFolder}, folders_count={cjData.Folders.Count}");
+
                     // UI スレッドで再構築・表示更新
                     SafeInvokeUI(() =>
                     {
                         if (IsRankDisplayMode)
                         {
+                            Log($"[DB_DEBUG] CreateCjForParent: about to build DB list from CJ, parent={parentFolder}");
                             BuildRankFilteredListFromActiveCj();
                         }
 
@@ -198,6 +211,8 @@ namespace MangaViewer
 
         private void BuildRankFilteredListFromCj(Dictionary<string, CjFolderEntry> folders)
         {
+            Log($"[DB_DEBUG] BuildRankFilteredListFromCj: called with folders_count={folders?.Count ?? 0}");
+
             if (!IsRankDisplayMode) return;
 
             // DBList: _activeCjData.Folders の情報だけでフィルタ（ディスクI/Oなし）
@@ -265,6 +280,8 @@ namespace MangaViewer
                 int displayCount = cbzZipCount >= 1 ? cbzZipCount : imageCount;
                 listBoxFolders.Items.Add($"[{displayCount}] {folderName}");
             }
+
+            Log($"[DB_DEBUG] BuildRankFilteredListFromCj: resulting folder_list_count={_folderList.Count}");
 
             if (_folderList.Count > 0)
             {
@@ -1210,9 +1227,12 @@ namespace MangaViewer
         /// </summary>
         private void BuildRankFilteredListFromActiveCj()
         {
+            Log("[DB_DEBUG] BuildRankFilteredListFromActiveCj: start");
+
             // 1) オンメモリ CJ データがあればそれを優先使用
             if (_activeCjData?.Folders != null && _activeCjData.Folders.Count > 0)
             {
+                Log($"[DB_DEBUG] using in-memory CJ, folders_count={_activeCjData.Folders.Count}");
                 BuildRankFilteredListFromCj(_activeCjData.Folders);
                 return;
             }
