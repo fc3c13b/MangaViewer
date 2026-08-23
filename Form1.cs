@@ -302,10 +302,28 @@ namespace MangaViewer
         private bool _isDisplayModeToggling = false;
         private System.Windows.Forms.Timer? _folderDebounceTimer;
 
+        // TASK09.20: Scroll animation for selected ListBox row
+        private System.Windows.Forms.Timer? _scrollTimer;
+        private int _scrollOffsetX = 0;
+        private string _scrollText = "";
+        private long _staticPhaseEnd = 0;
+        private long _scrollStartX = 0;
+        private long _scrollTargetX = 0;
+        private float _scrollPixelsPerMs = 0f;
+        private bool _scrolling = false;
+
         public bool IsSlideshowRunning => _slideshowTimer?.Enabled ?? false;
 
         public Form1()
         {
+            // TASK09.20: Scroll animation timer
+            _scrollTimer = new System.Windows.Forms.Timer
+            {
+                Interval = 16, // ~60 FPS
+                Enabled = true
+            };
+            _scrollTimer.Tick += (s, e) => UpdateScrollAnimation();
+
             InitializeComponent();
             this.Load += Form1_Load;
 
@@ -666,16 +684,22 @@ namespace MangaViewer
             {
                 BackColor = Color.FromArgb(40, 40, 40), ForeColor = Color.White,
                 BorderStyle = BorderStyle.None, Font = new Font("Meiryo UI", 9F),
-                SelectionMode = SelectionMode.One, HorizontalScrollbar = true, TabStop = false
+                SelectionMode = SelectionMode.One, HorizontalScrollbar = true, TabStop = false,
+                DrawMode = DrawMode.OwnerDrawFixed
             };
 
             listBoxFolders.KeyDown += (s, e) => KeyboardInputHandler.HandleKeyDown(e, this);
+
+            // TASK09.20: Custom draw for scrolling selected row
+            listBoxFolders.DrawItem += ListBoxFolders_DrawItem;
 
             listBoxFolders.SelectedIndexChanged += (s, e) =>
             {
                 if (listBoxFolders.SelectedIndex >= 0 && _folderList.Count > 0)
                 {
                     _currentFolderIndex = listBoxFolders.SelectedIndex;
+                    // Start scroll animation for newly selected row
+                    ResetScrollAnimation();
                 }
             };
 
@@ -1392,6 +1416,131 @@ namespace MangaViewer
                         UpdateLayout();
                         _currentIndex = 0;
                         DisplayImages(0);
+                    }
+                }
+            }
+        }
+
+        // TASK09.20: Scroll animation helpers for selected ListBox row
+
+        private void ResetScrollAnimation()
+        {
+            if (listBoxFolders == null || listBoxFolders.SelectedIndex < 0) return;
+
+            string text = listBoxFolders.Items[listBoxFolders.SelectedIndex]?.ToString() ?? "";
+            if (string.IsNullOrEmpty(text)) return;
+
+            // Fully reset animation state for new selection.
+            _scrollOffsetX = 0;
+            _scrolling = false;
+            _scrollPixelsPerMs = 0f;
+
+            using (var font = new Font("Meiryo UI", 9f))
+            {
+                SizeF textSize = Graphics.FromHwnd(IntPtr.Zero).MeasureString(text, font);
+                int textWidthPx = (int)(textSize.Width + 10);
+                int clientWidth = listBoxFolders.ClientRectangle.Width;
+
+                // We want to scroll until the entire text is off-screen to the left.
+                _scrollStartX = 0;
+                _scrollTargetX = Math.Max(clientWidth, textWidthPx);
+            }
+
+            _staticPhaseEnd = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + 3000; // 3s static phase
+        }
+
+        private void UpdateScrollAnimation()
+        {
+            if (listBoxFolders == null || listBoxFolders.SelectedIndex < 0) return;
+
+            long nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
+            // Phase: static -> scrolling when time is up and parameters are set.
+            if (!_scrolling && _scrollTargetX > 0 && nowMs >= _staticPhaseEnd)
+            {
+                long scrollWidth = _scrollTargetX - _scrollStartX;
+                if (scrollWidth > 0)
+                {
+                    // Slower scroll: doubled time factor (half the previous speed).
+                    float durationMs = Math.Max(500, scrollWidth * 3.6f);
+                    _scrollPixelsPerMs = scrollWidth / durationMs;
+                    _scrolling = true;
+                }
+            }
+
+            // Phase: scrolling -> loop back to static after full scroll.
+            if (_scrolling && _scrollPixelsPerMs > 0)
+            {
+                long totalScrollWidth = Math.Max(1, _scrollTargetX - _scrollStartX);
+                _scrollOffsetX += (int)(_scrollPixelsPerMs * 16); // ~per frame at 60 FPS
+
+                if (_scrollOffsetX >= totalScrollWidth)
+                {
+                    // Instant reset to left and start a new static phase.
+                    _scrollOffsetX = 0;
+                    _scrolling = false;
+                    _staticPhaseEnd = nowMs + 3000;
+                }
+
+                // Invalidate only the selected row to reduce flicker.
+                int idx = listBoxFolders.SelectedIndex;
+                if (idx >= 0 && idx < listBoxFolders.Items.Count)
+                {
+                    Rectangle r = listBoxFolders.GetItemRectangle(idx);
+                    listBoxFolders.Invalidate(r, false);
+                }
+            }
+        }
+
+        private void ListBoxFolders_DrawItem(object sender, DrawItemEventArgs e)
+        {
+            if (e.Index < 0 || e.Index >= listBoxFolders.Items.Count) return;
+
+            // Background
+            bool selected = (e.State & DrawItemState.Selected) != 0;
+            using (var brush = new SolidBrush(selected ? Color.FromArgb(60, 60, 120) : panelList.BackColor))
+            {
+                e.Graphics.FillRectangle(brush, e.Bounds);
+            }
+
+            string text = listBoxFolders.Items[e.Index]?.ToString() ?? "";
+            if (string.IsNullOrEmpty(text)) return;
+
+            // For selected row: apply scroll animation
+            bool isSelectedRow = (e.Index == listBoxFolders.SelectedIndex);
+
+            using (var font = new Font("Meiryo UI", 9f))
+            {
+                SizeF textSize = e.Graphics.MeasureString(text, font, e.Bounds.Width);
+
+                if (isSelectedRow)
+                {
+                    // Update scroll text reference for this row
+                    _scrollText = text;
+                    long textWidthPx = (long)(textSize.Width + 10);
+                    long clientWidth = listBoxFolders.ClientRectangle.Width;
+
+                    // Ensure initial values set once per selection change
+                    if (_scrollStartX == 0 && _scrollTargetX == 0)
+                    {
+                        _scrollOffsetX = 0;
+                        _scrollStartX = 0;
+                        _scrollTargetX = Math.Max(clientWidth, textWidthPx); // ensure scroll distance
+                        ResetScrollAnimation();
+                    }
+
+                    int drawX = e.Bounds.X - _scrollOffsetX;
+                    using (var b = new SolidBrush(Color.White))
+                    {
+                        e.Graphics.DrawString(text, font, b, drawX, e.Bounds.Y + 2);
+                    }
+                }
+                else
+                {
+                    // Normal rows: no scroll
+                    using (var b = new SolidBrush(listBoxFolders.ForeColor))
+                    {
+                        e.Graphics.DrawString(text, font, b, e.Bounds.X + 2, e.Bounds.Y + 2);
                     }
                 }
             }
