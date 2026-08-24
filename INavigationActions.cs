@@ -41,11 +41,7 @@ namespace MangaViewer
           void NavigateCbzNext();
           void NavigateCbzPrev();
 
-          // 表示モード切替（フォルダー階層順 ⇔ 評価値ランク順）
-          void ToggleDisplayMode();
 
-          // DBモードフラグ
-          bool IsRankDisplayMode { get; }
 
            // 親フォルダー指定でCJを作成（キー3用、DBリストモード時）
            void CreateCjForParent(string parentFolder);

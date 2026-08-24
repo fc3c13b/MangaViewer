@@ -151,10 +151,8 @@ namespace MangaViewer
                     case Keys.D6:
                         return;
 
-                    // 7 : 表示モード切替（フォルダー階層順 ⇔ 評価値ランク順）
+                    // 7 : なし（モード切替廃止）
                     case Keys.D7:
-                        e.Handled = true;
-                        nav.ToggleDisplayMode();
                         return;
 
                     case Keys.D0:
@@ -206,39 +204,31 @@ namespace MangaViewer
             return false;
         }
 
-        // D3 キー：モードに応じて分岐
+        // D3 キー：DBList モード固定（フォルダ選択 → CJ Load/Create）
         private static void HandleD3Key(INavigationActions nav)
         {
-            if (nav.IsRankDisplayMode)
+            using (var dialog = new FolderBrowserDialog())
             {
-                // DBモード: FolderBrowserDialog で親フォルダ指定 → CJありならLoad, なしならCreate
-                using (var dialog = new FolderBrowserDialog())
+                var result = dialog.ShowDialog();
+                if (result == DialogResult.OK && !string.IsNullOrEmpty(dialog.SelectedPath))
                 {
-                    var result = dialog.ShowDialog();
-                    if (result == DialogResult.OK && !string.IsNullOrEmpty(dialog.SelectedPath))
-                    {
-                        string selectedPath = dialog.SelectedPath;
+                    string selectedPath = dialog.SelectedPath;
 
-                        // CJ が既存なら LoadCjForParent を優先（CreateCjForParent は新規作成のみ）
-                        bool exists = CjManager.CjExists(selectedPath);
-                        if (exists)
-                        {
-                            nav.LoadCjForParent(selectedPath);
-                        }
-                        else
-                        {
-                            nav.CreateCjForParent(selectedPath);
-                        }
+                    // CJ が既存なら LoadCjForParent を優先（CreateCjForParent は新規作成のみ）
+                    bool exists = CjManager.CjExists(selectedPath);
+                    if (exists)
+                    {
+                        nav.LoadCjForParent(selectedPath);
+                    }
+                    else
+                    {
+                        nav.CreateCjForParent(selectedPath);
                     }
                 }
             }
-            else
-            {
-                // 通常モード: ルートフォルダ変更ダイアログ
-                HandleRootFolderChange(nav);
-            }
         }
 
+        // 後方互換用（外部から呼ばれている可能性のため残す）
         private static void HandleRootFolderChange(INavigationActions nav)
         {
             using (var dialog = new FolderBrowserDialog())

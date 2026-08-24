@@ -760,6 +760,9 @@ namespace MangaViewer
                     .OrderBy(d => Path.GetFileName(d), StringComparer.OrdinalIgnoreCase)
                     .ToList();
 
+                // ディスク上に実際に存在する子フォルダの集合
+                var existingPaths = new HashSet<string>(sorted, StringComparer.OrdinalIgnoreCase);
+
                 foreach (var dir in sorted)
                 {
                     // タイムアウトチェック
@@ -775,65 +778,49 @@ namespace MangaViewer
                         string jsonPath = Path.Combine(dir, $"{folderName}.json");
                         bool djExists = File.Exists(jsonPath);
 
+                        // フォルダ自体の最終更新時刻（TASK09.22: ディレクトリ基準）
+                        DateTime folderWriteTime;
+                        try { folderWriteTime = Directory.GetLastWriteTime(dir); }
+                        catch { folderWriteTime = DateTime.MinValue; }
+                        long folderMs = new DateTimeOffset(folderWriteTime).ToUnixTimeMilliseconds();
+
                         // --- CJにエントリーがあるか？---
                         if (cjRoot.Folders.TryGetValue(dir, out var cjEntry))
                         {
-                            // ケース2: CJにある
-                            if (djExists)
-                            {
-                                // 2.1 DJがある → DJファイルの最終更新日時とCJ.updatedAtを比較
-                                DateTime djWriteTime = File.GetLastWriteTime(jsonPath);
-                                long djTicksMs = new DateTimeOffset(djWriteTime).ToUnixTimeMilliseconds();
+                            // ケースA: CJ に存在
+                            // updatedAt とフォルダ最終更新時刻を比較
+                            bool needsRescan = folderMs > cjEntry.UpdatedAt;
 
-                                if (djTicksMs > cjEntry.UpdatedAt)
-                                {
-                                    // DJが新しい → CJを更新
-                                    var (ic, cc, r) = ReadFolderJson(jsonPath);
-                                    cjEntry.FolderName = folderName;
-                                    if (cc > 0) { cjEntry.CbzZipCount = cc; cjEntry.ImageCount = null; }
-                                    else { cjEntry.ImageCount = ic; cjEntry.CbzZipCount = null; }
-                                    cjEntry.Rating = r;
-                                    cjEntry.UpdatedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-                                }
+                            if (!needsRescan)
+                            {
+                                // 変更なし → そのまま使用
+                                int imageCount = cjEntry.ImageCount ?? 0;
+                                int cbzFileCount = cjEntry.CbzZipCount ?? 0;
+                                int rating = cjEntry.Rating;
+
+                                bool inRange = true;
+                                if (_settings.MinDisplayCount > 0 && imageCount < _settings.MinDisplayCount)
+                                    inRange = false;
+                                if (_settings.MaxDisplayCount > 0 && imageCount > _settings.MaxDisplayCount)
+                                    inRange = false;
+                                bool imageConditionOk = inRange || (cbzFileCount >= 1);
+
+                                if (!imageConditionOk) continue;
+                                if (_settings.MinEvaluation > 0 && rating >= 0 && rating < _settings.MinEvaluation)
+                                    continue;
+
+                                entries.Add(new FolderEntry { Path = dir, ImageCount = imageCount, CbzFileCount = cbzFileCount, Rating = rating });
                             }
-                            // 2.2 DJがない → スキップ（updatedAtは更新しない）
-
-                            // CJデータからエントリを構築
-                            int imageCount = cjEntry.ImageCount ?? 0;
-                            int cbzFileCount = cjEntry.CbzZipCount ?? 0;
-                            int rating = cjEntry.Rating;
-
-                            // フィルタ適用（既存と同じルール）
-                            bool inRange = true;
-                            if (_settings.MinDisplayCount > 0 && imageCount < _settings.MinDisplayCount)
-                                inRange = false;
-                            if (_settings.MaxDisplayCount > 0 && imageCount > _settings.MaxDisplayCount)
-                                inRange = false;
-                            bool imageConditionOk = inRange || (cbzFileCount >= 1);
-
-                            if (!imageConditionOk) continue;
-
-                            if (_settings.MinEvaluation > 0 && rating >= 0 && rating < _settings.MinEvaluation)
-                                continue;
-
-                            entries.Add(new FolderEntry { Path = dir, ImageCount = imageCount, CbzFileCount = cbzFileCount, Rating = rating });
-                        }
-                        else
-                        {
-                            // ケース1: CJにない
-                            if (djExists)
+                            else
                             {
-                                // 1.1 DJがある → DJのデータをCJへコピー
-                                var (ic, cc, r) = ReadFolderJson(jsonPath);
-                                var newEntry = new CjFolderEntry
-                                {
-                                    FolderName = folderName,
-                                    Rating = r,
-                                    UpdatedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-                                };
-                                if (cc > 0) { newEntry.CbzZipCount = cc; newEntry.ImageCount = null; }
-                                else { newEntry.ImageCount = ic; newEntry.CbzZipCount = null; }
-                                cjRoot.Folders[dir] = newEntry;
+                                // updatedAt が古い → この子フォルダを再スキャン（DJ ベースの特殊ルール）
+                                var (ic, cc, r) = RescanFolderUsingRules(dir, folderName, jsonPath);
+
+                                cjEntry.FolderName = folderName;
+                                if (cc > 0) { cjEntry.CbzZipCount = cc; cjEntry.ImageCount = null; }
+                                else { cjEntry.ImageCount = ic; cjEntry.CbzZipCount = null; }
+                                cjEntry.Rating = r;
+                                cjEntry.UpdatedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
                                 // フィルタ適用
                                 bool inRange2 = true;
@@ -841,52 +828,51 @@ namespace MangaViewer
                                 if (_settings.MaxDisplayCount > 0 && ic > _settings.MaxDisplayCount) inRange2 = false;
                                 bool imageConditionOk2 = inRange2 || (cc >= 1);
 
-                                if (imageConditionOk2)
-                                {
-                                    if (!(_settings.MinEvaluation > 0 && r >= 0 && r < _settings.MinEvaluation))
-                                    {
-                                        entries.Add(new FolderEntry { Path = dir, ImageCount = ic, CbzFileCount = cc, Rating = r });
-                                    }
-                                }
+                                if (!imageConditionOk2) continue;
+                                if (_settings.MinEvaluation > 0 && r >= 0 && r < _settings.MinEvaluation)
+                                    continue;
+
+                                entries.Add(new FolderEntry { Path = dir, ImageCount = ic, CbzFileCount = cc, Rating = r });
                             }
-                            else
+                        }
+                        else
+                        {
+                            // ケースB: CJ に存在しない（新規追加）→ スキャンして作成
+                            var (ic, cc, r) = RescanFolderUsingRules(dir, folderName, jsonPath);
+
+                            var newEntry = new CjFolderEntry
                             {
-                                // 1.2 DJがない → フォルダーを実際検索
-                                int scanImageCount = 0;
-                                int scanCbzCount = CountCbzFiles(dir);
-                                if (scanCbzCount > 0) scanImageCount = CountImagesWithoutCbzFallback(dir);
-                                else scanImageCount = 0;
+                                FolderName = folderName,
+                                Rating = r,
+                                UpdatedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+                            };
+                            if (cc > 0) { newEntry.CbzZipCount = cc; newEntry.ImageCount = null; }
+                            else { newEntry.ImageCount = ic; newEntry.CbzZipCount = null; }
+                            cjRoot.Folders[dir] = newEntry;
 
-                                int scanRating = -1; // DJがないのでratingも未設定
+                            // フィルタ適用
+                            bool inRange3 = true;
+                            if (_settings.MinDisplayCount > 0 && ic < _settings.MinDisplayCount) inRange3 = false;
+                            if (_settings.MaxDisplayCount > 0 && ic > _settings.MaxDisplayCount) inRange3 = false;
+                            bool imageConditionOk3 = inRange3 || (cc >= 1);
 
-                                try { SaveFolderMetaJson(jsonPath, scanImageCount, scanCbzCount, scanRating); } catch { }
+                            if (!imageConditionOk3) continue;
+                            if (_settings.MinEvaluation > 0 && r >= 0 && r < _settings.MinEvaluation)
+                                continue;
 
-                                var newEntry2 = new CjFolderEntry
-                                {
-                                    FolderName = folderName,
-                                    Rating = scanRating,
-                                    UpdatedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-                                };
-                                if (scanCbzCount > 0) { newEntry2.CbzZipCount = scanCbzCount; newEntry2.ImageCount = null; }
-                                else { newEntry2.ImageCount = scanImageCount; newEntry2.CbzZipCount = null; }
-                                cjRoot.Folders[dir] = newEntry2;
-
-                                // フィルタ適用
-                                bool inRange3 = true;
-                                if (_settings.MinDisplayCount > 0 && scanImageCount < _settings.MinDisplayCount) inRange3 = false;
-                                if (_settings.MaxDisplayCount > 0 && scanImageCount > _settings.MaxDisplayCount) inRange3 = false;
-                                bool imageConditionOk3 = inRange3 || (scanCbzCount >= 1);
-
-                                if (imageConditionOk3)
-                                {
-                                    entries.Add(new FolderEntry { Path = dir, ImageCount = scanImageCount, CbzFileCount = scanCbzCount, Rating = scanRating });
-                                }
-                            }
+                            entries.Add(new FolderEntry { Path = dir, ImageCount = ic, CbzFileCount = cc, Rating = r });
                         }
                     }
                     catch (UnauthorizedAccessException) { }
                     catch { }
                 }
+
+                // ディスク上に存在しないフォルダのエントリを CJ から削除
+                var toRemove = cjRoot.Folders.Keys
+                    .Where(p => !existingPaths.Contains(p))
+                    .ToList();
+                foreach (var p in toRemove)
+                    cjRoot.Folders.Remove(p);
 
                 // CJを保存
                 SaveCj(rootPath, cjRoot);
@@ -897,6 +883,59 @@ namespace MangaViewer
             RatingService.FlushReadOnlyCache();
 
             return entries;
+        }
+
+        /// <summary>
+        /// 指定フォルダに対して BuildFolderIndex と同じ「DJ ベースの特殊ルール」で再スキャンし、
+        /// (imageCount, cbzFileCount, rating) を返す。
+        /// </summary>
+        private (int imageCount, int cbzFileCount, int rating) RescanFolderUsingRules(string dir, string folderName, string jsonPath)
+        {
+            bool djExists = File.Exists(jsonPath);
+
+            // DJ ベースの特殊ルール（BuildFolderIndex と同等）
+            if (djExists)
+            {
+                var (ic, cc, r) = ReadFolderJson(jsonPath);
+                bool hasDjRating = r != -1;
+                bool hasDjGc = ic > 0 || cc > 0;
+                int cachedRating = RatingService.GetCachedRating(dir);
+                bool hasCjRating = cachedRating != -1;
+
+                // 規則1: DJにRあり + CJにRあり → スキャンスキップ、キャッシュの評価値を優先
+                if (hasDjRating && hasCjRating)
+                {
+                    r = cachedRating;
+                }
+                // 規則2: DJにRあり + CJにRなし → RをCJにコピー、スキャンスキップ
+                else if (hasDjRating && !hasCjRating)
+                {
+                    RatingService.SetReadOnlyCacheRating(dir, r, ic, folderName);
+                }
+                // 規則3: DJにRなし + DJにGCあり → スキャンスキップ（値そのままでOK）
+                // else (規則4): DJにRなし + DJにGCなし → フォルダをスキャン
+                else if (!hasDjRating && !hasDjGc)
+                {
+                    cc = CountCbzFiles(dir);
+                    ic = (cc > 0) ? CountImagesWithoutCbzFallback(dir) : 0;
+
+                    try { SaveFolderMetaJson(jsonPath, ic, cc, r); } catch { }
+                }
+
+                return (ic, cc, r);
+            }
+            else
+            {
+                // DJ が存在しない場合：画像数・CBZ/ZIP数を直接カウント
+                int scanCbzCount = CountCbzFiles(dir);
+                int scanImageCount = 0;
+                if (scanCbzCount > 0)
+                    scanImageCount = CountImagesWithoutCbzFallback(dir);
+
+                try { SaveFolderMetaJson(jsonPath, scanImageCount, scanCbzCount, -1); } catch { }
+
+                return (scanImageCount, scanCbzCount, -1);
+            }
         }
 
         private CancellationTokenSource? _cts;

@@ -111,11 +111,11 @@ namespace MangaViewer
 
         #region 評価表示DB
 
-        /// <summary>評価値別表示用DBファイル名</summary>
-        internal const string RankDisplayDbName = "rank_display_db.json";
-
         /// <summary>フィルタ対象の評価値（固定）</summary>
         internal const int TargetDisplayRating = 8;
+
+        /// <summary>rank_display_db.json のファイル名</summary>
+        public const string RankDisplayDbName = "rank_display_db.json";
 
         #endregion
     }

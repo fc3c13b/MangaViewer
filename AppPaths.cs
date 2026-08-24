@@ -72,26 +72,12 @@ namespace MangaViewer
             "folder_scan_cache.json");
 
         /// <summary>
-        /// 評価値別表示用DBファイルのフルパス。
-        /// BaseDirectory の深さに関わらず、複数候補から最初の存在するものを使用する。
+        /// rank_display_db.json のパス (data/rank_display_db.json)。
         /// </summary>
-        public static string RankDisplayDbPath => _rankDisplayDbPath.Value;
+        public static string RankDisplayDbPath => Path.Combine(
+            AppDomain.CurrentDomain.BaseDirectory,
+            "data",
+            "rank_display_db.json");
 
-        private static readonly Lazy<string> _rankDisplayDbPath = new Lazy<string>(() =>
-        {
-            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            var candidates = new[]
-            {
-                Path.GetFullPath(Path.Combine(baseDir, "data", Constants.RankDisplayDbName)),
-                Path.GetFullPath(Path.Combine(baseDir, "..", "..", "data", Constants.RankDisplayDbName)),
-                Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", "data", Constants.RankDisplayDbName))
-            };
-            return candidates.FirstOrDefault(p => File.Exists(p)) ?? candidates[0];
-        });
-
-        /// <summary>
-        /// 評価値別表示用DBファイルのディレクトリパス。
-        /// </summary>
-        public static string RankDirPath => Path.GetDirectoryName(RankDisplayDbPath) ?? "data";
     }
 }

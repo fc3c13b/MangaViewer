@@ -22,13 +22,14 @@ namespace MangaViewer
         internal List<string> _folderList = new List<string>();
         internal int _currentFolderIndex = -1;
         internal bool _fullScreenMode = false;
-        internal int _displayMode = 0; // 0=階層順(FolderList), 1=DBList(Rank)
-        public bool IsRankDisplayMode => _displayMode == 1;
+        // TASK09.24: DBList モード固定（モード切替廃止）
+        public bool IsRankDisplayMode => true;
 
         /// <summary>
         /// DBList モードかどうかを判定する（ShowSettingsDialog などから利用）。
+        /// 常に true。
         /// </summary>
-        private bool IsDbListMode() => _displayMode != 0;
+        private bool IsDbListMode() => true;
 
         private string _rootFolder = "";
         private string? _activeDbFile = null; // アクティブな CJ/DB のファイルパス
@@ -312,6 +313,9 @@ namespace MangaViewer
         private float _scrollPixelsPerMs = 0f;
         private bool _scrolling = false;
 
+        // TASK09.23: cached font to reduce allocations in DrawItem / animation
+        private static readonly Font ListFont = new Font("Meiryo UI", 9f);
+
         public bool IsSlideshowRunning => _slideshowTimer?.Enabled ?? false;
 
         public Form1()
@@ -444,19 +448,32 @@ namespace MangaViewer
                     : _settings.LastRootFolder;
                 Log($"Root path: {rootPath}");
 
-                // 重い処理をバックグラウンドで実行
+                // TASK09.24: 起動時は前回使用したフォルダの CJ を自動読み込み（DBList モード固定）
+                string lastRoot = _settings.LastRootFolder;
+                Log($"LastRootFolder from settings: {lastRoot}");
+
                 Task.Run(async () =>
                 {
                     try
                     {
                         await Task.Yield(); // UI描画を優先
-                        
-                        this.Invoke(() => BuildSubfolderList(rootPath));
-                        Log($"BuildSubfolderList done. Folders: {_folderList.Count}, Index: {_currentFolderIndex}");
+
+                        bool loadedCj = false;
+
+                        if (!string.IsNullOrEmpty(lastRoot) && Directory.Exists(lastRoot))
+                        {
+                            this.Invoke(() =>
+                            {
+                                LoadCjForParent(lastRoot);
+                                BuildRankFilteredListFromActiveCj();
+                            });
+                            Log($"Loaded CJ for LastRootFolder. Folders: {_folderList.Count}, Index: {_currentFolderIndex}");
+                            loadedCj = true;
+                        }
 
                         _displayManager.UpdateSettings(_settings);
 
-                        if (_folderList.Count > 0 && _currentFolderIndex >= 0)
+                        if (loadedCj && _folderList.Count > 0 && _currentFolderIndex >= 0)
                         {
                             this.Invoke(() => LoadAndSortImages(_folderList[_currentFolderIndex]));
                             Log($"LoadAndSortImages done. Images: {_imagePaths.Count}");
@@ -489,9 +506,10 @@ namespace MangaViewer
                                 _displayManager.InitializePictureBoxes();
                                 UpdateLayout();
                                 _displayManager.DisplayImages(0);
-                                labelInfo.Text = "表示可能なフォルダがありません。";
+                                labelInfo.Text = "DBList が空です。キー3でフォルダを選択してください。";
                             });
                         }
+
                         Log("Form1_Load complete");
                     }
                     catch (Exception ex)
@@ -639,30 +657,21 @@ namespace MangaViewer
 
         private void UpdateWindowTitle()
         {
+            // TASK09.24: Always DBList mode (no more FolderList mode).
             string baseTitle = Constants.AppTitle;
 
-            if (_displayMode == 0)
+            if (!string.IsNullOrEmpty(_activeDbFile))
             {
-                // FolderList mode: show root path or "<none>"
-                string label = string.IsNullOrWhiteSpace(_rootFolder)
-                    ? "[<none>]"
-                    : $"[{_rootFolder}]";
-                this.Text = $"{baseTitle} - FolderList {label}";
+                string dbName = Path.GetFileName(_activeDbFile);
+                this.Text = $"{baseTitle} - DBList [{dbName}]";
             }
             else
             {
-                // DBList mode: show active DB/CJ filename
-                if (!string.IsNullOrEmpty(_activeDbFile))
-                {
-                    string dbName = Path.GetFileName(_activeDbFile);
-                    this.Text = $"{baseTitle} - DBList [{dbName}]";
-                }
-                else
-                {
-                    // Fallback to rank_display_db.json (dummy) when no CJ selected.
-                    string dbName = Constants.RankDisplayDbName;
-                    this.Text = $"{baseTitle} - DBList [{dbName}]";
-                }
+                // Fallback when no CJ selected.
+                string label = string.IsNullOrWhiteSpace(_rootFolder)
+                    ? "[<none>]"
+                    : $"[{_rootFolder}]";
+                this.Text = $"{baseTitle} - DBList {label}";
             }
         }
 
@@ -1141,93 +1150,13 @@ namespace MangaViewer
         }
 
         /// <summary>
-        /// 表示モードを切り替え：0=階層順, 1=DBList(CJベース)で評価値8のフォルダのみ表示。
+        /// TASK09.24: モード切替廃止。常に DBList 動作のみとする（空実装）。
         /// </summary>
         public void ToggleDisplayMode()
         {
-            _displayMode = _displayMode == 0 ? 1 : 0;
-
-            if (_displayMode == 1)
-            {
-                // DBList モード: アクティブ CJ があればそれを、なければダミー rank_display_db.json を使う
-                BuildRankFilteredListFromActiveCj();
-            }
-            else
-            {
-                // 元の階層順に戻す
-                if (!string.IsNullOrEmpty(_rootFolder))
-                    BuildSubfolderList(_rootFolder);
-            }
-
-            UpdateWindowTitle();
+            // No-op: DBList mode is fixed; no more toggle.
         }
 
-        /// <summary>
-        /// rank_display_db.json を読み込み、評価値が Constants.TargetDisplayRating に一致するフォルダをリスト表示する。
-        /// </summary>
-        private void BuildRankFilteredList()
-        {
-            const int targetRating = Constants.TargetDisplayRating;
-            string dbPath = AppPaths.RankDisplayDbPath;
-
-            labelInfo.Text = $"評価値{targetRating}のフォルダを読み込み中...";
-            Application.DoEvents();
-
-            _folderList.Clear();
-            listBoxFolders.DataSource = null;
-            listBoxFolders.Items.Clear();
-
-            try
-            {
-                if (!File.Exists(dbPath))
-                {
-                    labelInfo.Text = $"DBファイルが見つかりません: {dbPath}";
-                    return;
-                }
-
-                var json = File.ReadAllText(dbPath);
-                var options = new System.Text.Json.JsonSerializerOptions();
-                options.PropertyNameCaseInsensitive = true;
-                var root = System.Text.Json.JsonSerializer.Deserialize<RankDbRoot>(json, options);
-
-                if (root?.Folders == null)
-                {
-                    labelInfo.Text = "DBファイルの読み込みに失敗しました。";
-                    return;
-                }
-
-                int count = 0;
-                foreach (var folder in root.Folders)
-                {
-                    string path = folder.Key;
-                    var entry = folder.Value;
-                    if (entry.Rating == targetRating && !string.IsNullOrEmpty(path))
-                    {
-                        _folderList.Add(path);
-                        string folderName = Path.GetFileName(path);
-                        listBoxFolders.Items.Add($"[{entry.Rating}] {folderName} -[{entry.ImageCount}]");
-                        count++;
-                    }
-                }
-
-                if (_folderList.Count > 0)
-                {
-                    int idx = _folderList.IndexOf(_currentFolder);
-                    _currentFolderIndex = idx >= 0 ? idx : 0;
-                    listBoxFolders.SelectedIndex = _currentFolderIndex;
-                }
-                else
-                {
-                    labelInfo.Text = $"評価値{targetRating}のフォルダが見つかりません。";
-                }
-
-                labelInfo.Text = $"評価値{targetRating}: {count}件表示中";
-            }
-            catch (Exception ex)
-            {
-                labelInfo.Text = $"DB読み込みエラー: {ex.Message}";
-            }
-        }
 
         /// <summary>
         /// Rating をオンメモリ更新＋保存（TASK09.18 §5）。
@@ -1246,8 +1175,8 @@ namespace MangaViewer
         }
 
         /// <summary>
-        /// DBList モード用：アクティブ CJ（またはフォールバックの rank_display_db）から評価値フィルタリストを構築。
-        /// TASK09.18: オンメモリ _activeCjData を優先し、ファイル再読込を避ける。
+        /// DBList モード用：アクティブ CJ から評価値フィルタリストを構築。
+        /// rank_display_db.json は不使用（TASK09.24）。
         /// </summary>
         private void BuildRankFilteredListFromActiveCj()
         {
@@ -1281,29 +1210,14 @@ namespace MangaViewer
                 }
                 catch
                 {
-                    // 読み取り失敗時は次のフォールバックへ
+                    Log("[DB_DEBUG] failed to load CJ from file, clearing list");
                 }
             }
 
-            // 3) アクティブ CJ が未選択または無効な場合：rank_display_db.json をダミーとして使用
-            BuildRankFilteredList();
-        }
-
-        /// <summary>
-        /// rank_display_db.json のルート構造。
-        /// </summary>
-        private class RankDbRoot
-        {
-            public Dictionary<string, RankDbFolderEntry> Folders { get; set; }
-        }
-
-        /// <summary>
-        /// rank_display_db.json のフォルダエントリ（フォルダパスがキーとして使用される）。
-        /// </summary>
-        private class RankDbFolderEntry
-        {
-            public int Rating { get; set; }
-            public int ImageCount { get; set; }
+            // 3) アクティブ CJ が未選択または無効な場合：リストを空にする（rank_display_db.json は不使用）
+            _folderList.Clear();
+            listBoxFolders.DataSource = null;
+            listBoxFolders.Items.Clear();
         }
 
         public void ShowSettingsDialog()
@@ -1435,9 +1349,9 @@ namespace MangaViewer
             _scrolling = false;
             _scrollPixelsPerMs = 0f;
 
-            using (var font = new Font("Meiryo UI", 9f))
+            using (var g = listBoxFolders.CreateGraphics())
             {
-                SizeF textSize = Graphics.FromHwnd(IntPtr.Zero).MeasureString(text, font);
+                SizeF textSize = g.MeasureString(text, ListFont);
                 int textWidthPx = (int)(textSize.Width + 10);
                 int clientWidth = listBoxFolders.ClientRectangle.Width;
 
@@ -1509,39 +1423,36 @@ namespace MangaViewer
             // For selected row: apply scroll animation
             bool isSelectedRow = (e.Index == listBoxFolders.SelectedIndex);
 
-            using (var font = new Font("Meiryo UI", 9f))
+            SizeF textSize = e.Graphics.MeasureString(text, ListFont, e.Bounds.Width);
+
+            if (isSelectedRow)
             {
-                SizeF textSize = e.Graphics.MeasureString(text, font, e.Bounds.Width);
+                // Update scroll text reference for this row
+                _scrollText = text;
+                long textWidthPx = (long)(textSize.Width + 10);
+                long clientWidth = listBoxFolders.ClientRectangle.Width;
 
-                if (isSelectedRow)
+                // Ensure initial values set once per selection change
+                if (_scrollStartX == 0 && _scrollTargetX == 0)
                 {
-                    // Update scroll text reference for this row
-                    _scrollText = text;
-                    long textWidthPx = (long)(textSize.Width + 10);
-                    long clientWidth = listBoxFolders.ClientRectangle.Width;
-
-                    // Ensure initial values set once per selection change
-                    if (_scrollStartX == 0 && _scrollTargetX == 0)
-                    {
-                        _scrollOffsetX = 0;
-                        _scrollStartX = 0;
-                        _scrollTargetX = Math.Max(clientWidth, textWidthPx); // ensure scroll distance
-                        ResetScrollAnimation();
-                    }
-
-                    int drawX = e.Bounds.X - _scrollOffsetX;
-                    using (var b = new SolidBrush(Color.White))
-                    {
-                        e.Graphics.DrawString(text, font, b, drawX, e.Bounds.Y + 2);
-                    }
+                    _scrollOffsetX = 0;
+                    _scrollStartX = 0;
+                    _scrollTargetX = Math.Max(clientWidth, textWidthPx); // ensure scroll distance
+                    ResetScrollAnimation();
                 }
-                else
+
+                int drawX = e.Bounds.X - _scrollOffsetX;
+                using (var b = new SolidBrush(Color.White))
                 {
-                    // Normal rows: no scroll
-                    using (var b = new SolidBrush(listBoxFolders.ForeColor))
-                    {
-                        e.Graphics.DrawString(text, font, b, e.Bounds.X + 2, e.Bounds.Y + 2);
-                    }
+                    e.Graphics.DrawString(text, ListFont, b, drawX, e.Bounds.Y + 2);
+                }
+            }
+            else
+            {
+                // Normal rows: no scroll
+                using (var b = new SolidBrush(listBoxFolders.ForeColor))
+                {
+                    e.Graphics.DrawString(text, ListFont, b, e.Bounds.X + 2, e.Bounds.Y + 2);
                 }
             }
         }
