@@ -207,16 +207,10 @@ namespace MangaViewer
             return base.ProcessCmdKey(ref m, keyData);
         }
 
-        private static readonly string LogPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "error.log");
-
         private void Form1_Load(object? sender, EventArgs e)
         {
             StartupHandler.Initialize(this);
         }
-
-        // Minimal logging (kept for crash investigation only).
-        private void Log(string msg) =>
-            File.AppendAllText(LogPath, $"{DateTime.Now}: {msg}{Environment.NewLine}");
 
         internal void EnsureBasicLayout()
         {
