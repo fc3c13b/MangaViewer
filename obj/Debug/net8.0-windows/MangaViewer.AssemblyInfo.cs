@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MangaViewer")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("0.9.25")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("0.9.25+7d15667ed96637344162717bacea401af9a9a5fd")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("0.9.25+b613441cb1bd64eafb9a6805dd7b0b73c2ee1125")]
 [assembly: System.Reflection.AssemblyProductAttribute("MangaViewer")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MangaViewer")]
 [assembly: System.Reflection.AssemblyVersionAttribute("0.9.25")]

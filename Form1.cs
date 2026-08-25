@@ -22,150 +22,64 @@ namespace MangaViewer
         internal List<string> _folderList = new List<string>();
         internal int _currentFolderIndex = -1;
         internal bool _fullScreenMode = false;
-        // TASK09.24: DBList モード固定（モード切替廃止）
+
+        // DBList モード固定（モード切替廃止）
         public bool IsRankDisplayMode => true;
 
-        /// <summary>
-        /// DBList モードかどうかを判定する（ShowSettingsDialog などから利用）。
-        /// 常に true。
-        /// </summary>
-        private bool IsDbListMode() => true;
-
         private string _rootFolder = "";
-        private string? _activeDbFile = null; // アクティブな CJ/DB のファイルパス
+        internal string? _activeDbFile = null;
 
-        // オンメモリ CJ 保持（TASK09.18）
-        private CjRoot? _activeCjData;
-        private string? _activeCjParentFolder;
+        // オンメモリ CJ 保持 (FormNavigator からアクセス)
+        internal CjRoot? _activeCjData;
+        internal string? _activeCjParentFolder;
 
         /// <summary>
-        /// 指定した親フォルダに対して CJ を読み込み、オンメモリに保持する。
-        /// - 既存の CJ ファイルがあればそれをロード
-        /// - なければ CreateCjForParent で新規作成
+        /// CJ を読み込み、オンメモリに保持する（CjService 委譲）。
         /// </summary>
         public void LoadCjForParent(string parentFolder)
         {
             if (string.IsNullOrEmpty(parentFolder)) return;
-
-            // 同じ親フォルダで既に保持済みの場合は再読み込み不要
             if (_activeCjParentFolder == parentFolder && _activeCjData != null)
                 return;
 
-            string? cjPath = AppPaths.GetCacheFilePath(parentFolder);
-
-            if (!string.IsNullOrEmpty(cjPath) && File.Exists(cjPath))
+            var result = CjService.FindAndLoadCj(parentFolder);
+            if (result.HasValue)
             {
-                // 既存 CJ をロードしてオンメモリ保持
-                try
-                {
-                    var json = File.ReadAllText(cjPath);
-                    var options = new System.Text.Json.JsonSerializerOptions();
-                    options.PropertyNameCaseInsensitive = true;
-                    var cjRoot = System.Text.Json.JsonSerializer.Deserialize<CjRoot>(json, options);
+                _activeCjParentFolder = parentFolder;
+                _activeCjData = result.Value.data;
+                _activeDbFile = result.Value.cjFile;
+                Log($"[DB_DEBUG] LoadCjForParent: loaded existing CJ for parent={parentFolder}, folders_count={_activeCjData?.Folders?.Count ?? 0}");
 
-                    if (cjRoot != null)
-                    {
-                        _activeCjParentFolder = parentFolder;
-                        _activeCjData = cjRoot;
-                        _activeDbFile = cjPath;
-                    }
-                }
-                catch
-                {
-                    // パース失敗時は後続で再作成経路に任せる
-                }
-            }
-
-            // CJ がまだない、またはロード失敗した場合は新規作成
-            if (_activeCjData == null)
-            {
-                CreateCjForParent(parentFolder);
+                if (IsRankDisplayMode)
+                    BuildRankFilteredListFromActiveCj();
             }
             else
             {
-                Log($"[DB_DEBUG] LoadCjForParent: loaded existing CJ for parent={parentFolder}, folders_count={_activeCjData?.Folders?.Count ?? 0}");
-
-                // DB リストモードなら、ロードした CJ に基づいてリストを再構築
-                if (IsRankDisplayMode)
-                {
-                    BuildRankFilteredListFromActiveCj();
-                }
+                CreateCjForParent(parentFolder);
             }
         }
 
         /// <summary>
-        /// キー3（DBリストモード時）で親フォルダー指定してCJを作成する。
-        /// 重いスキャンはバックグラウンド化し、完了後にオンメモリ CJ を保持・再構築。
-/// </summary>
+        /// キー3（DBリストモード時）で親フォルダー指定してCJを作成する（CjService 委譲）。
+        /// </summary>
         public void CreateCjForParent(string parentFolder)
         {
             if (string.IsNullOrWhiteSpace(parentFolder)) return;
             if (!Directory.Exists(parentFolder)) return;
 
             Application.DoEvents();
-
-            // UI に「作成中」表示
             SafeInvokeUI(() => { labelInfo.Text = "CJ作成中…"; });
 
             Task.Run(() =>
             {
                 try
                 {
-                    var folders = new Dictionary<string, CjFolderEntry>();
+                    // CjService に実質処理を委譲（スキャン・保存含む）
+                    var (cjPath, cjData) = CjService.CreateForParent(parentFolder);
 
-                    if (Directory.Exists(parentFolder))
-                    {
-                        foreach (string dir in Directory.GetDirectories(parentFolder, "*", SearchOption.TopDirectoryOnly))
-                        {
-                            try
-                            {
-                                int imageCount = 0;
-                                int cbzZipCount = 0;
-
-                                var files = Directory.GetFiles(dir, "*");
-                                foreach (var f in files)
-                                {
-                                    string ext = Path.GetExtension(f)?.ToLowerInvariant();
-                                    if (ext == ".cbz" || ext == ".zip")
-                                        cbzZipCount++;
-                                    else if (
-                                        ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".webp")
-                                    {
-                                        imageCount++;
-                                    }
-                                }
-
-                                int rating = RatingService.ReadRating(dir);
-
-                                var entry = new CjFolderEntry
-                                {
-                                    FolderName = Path.GetFileName(dir),
-                                    ImageCount = imageCount,
-                                    CbzZipCount = cbzZipCount,
-                                    Rating = rating,
-                                    UpdatedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-                                };
-
-                                folders[dir] = entry;
-                            }
-                            catch { /* フォルダ読み取りエラーはスキップ */ }
-                        }
-                    }
-
-                    var cjData = new CjRoot
-                    {
-                        ParentFolder = parentFolder,
-                        Folders = folders
-                    };
-
-                    string cjPath = AppPaths.GetCacheFilePath(parentFolder);
-                    CjManager.SaveCj(parentFolder, cjData);
-
-                    // オンメモリ CJ 保持（TASK09.18）
+                    // オンメモリ CJ 保持
                     _activeCjParentFolder = parentFolder;
                     _activeCjData = cjData;
-
-                    // アクティブ DB/CJ を設定（DBList モード用）
                     _activeDbFile = cjPath;
 
                     Log($"[DB_DEBUG] CreateCjForParent: CJ created/updated for parent={parentFolder}, folders_count={cjData.Folders.Count}");
@@ -199,9 +113,6 @@ namespace MangaViewer
             });
         }
 
-        /// <summary>
-        /// UI スレッドで安全に実行するヘルパー（Invoke/BeginInvoke 用）。
-        /// </summary>
         private void SafeInvokeUI(Action action)
         {
             if (this.InvokeRequired)
@@ -210,124 +121,31 @@ namespace MangaViewer
                 action();
         }
 
-        private void BuildRankFilteredListFromCj(Dictionary<string, CjFolderEntry> folders)
+        /// <summary>
+        /// DBList モード用：アクティブ CJ から評価値フィルタリストを構築（FormNavigator 委譲）。
+        /// </summary>
+        internal void BuildRankFilteredListFromActiveCj()
         {
-            Log($"[DB_DEBUG] BuildRankFilteredListFromCj: called with folders_count={folders?.Count ?? 0}");
-
-            if (!IsRankDisplayMode) return;
-
-            // DBList: _activeCjData.Folders の情報だけでフィルタ（ディスクI/Oなし）
-            // 7.4: CJ に記載された順序を尊重し、フィルタリングのみ行う。
-            Settings settings = SettingsManager.Load();
-            bool dbFilterGreaterOrEqual = settings.DbFilterGreaterOrEqual;
-            int dbMinEval = settings.DbMinEvaluation;
-            int dbMinDisplay = settings.DbMinDisplayCount;
-            int dbMaxDisplay = settings.DbMaxDisplayCount;
-
-            _folderList.Clear();
-            listBoxFolders.DataSource = null;
-            listBoxFolders.Items.Clear();
-
-            foreach (var kvp in folders)
-            {
-                if (string.IsNullOrEmpty(kvp.Key)) continue;
-
-                string folderPath = kvp.Key;
-                var entry = kvp.Value;
-                int cbzZipCount = entry.CbzZipCount ?? 0;
-                int imageCount = entry.ImageCount ?? 0;
-                int rating = entry.Rating;
-
-                bool show = false;
-
-                if (cbzZipCount >= 1)
-                {
-                    // 7.2 CBZ/ZIPありの場合
-                    if (dbFilterGreaterOrEqual)
-                    {
-                        // A: DB表示チェックON → (Rating==-1) または (Rating>=DbMinEvaluation)
-                        show = (rating == -1 || rating >= dbMinEval);
-                    }
-                    else
-                    {
-                        // B: DB表示チェックOFF → CBZ/ZIPがあれば表示
-                        show = true;
-                    }
-                }
-                else
-                {
-                    // 7.3 CBZ/ZIPなし、画像ファイルのみ
-                    bool countOk = (dbMinDisplay <= imageCount) && (imageCount <= dbMaxDisplay);
-
-                    if (!countOk) continue;
-
-                    if (dbFilterGreaterOrEqual)
-                    {
-                        // A: DB表示チェックON → Rating条件 + 枚数範囲
-                        show = (rating == -1 || rating >= dbMinEval);
-                    }
-                    else
-                    {
-                        // B: DB表示チェックOFF → 枚数範囲のみ
-                        show = true;
-                    }
-                }
-
-                if (!show) continue;
-
-                _folderList.Add(folderPath);
-
-                string folderName = Path.GetFileName(folderPath);
-                int displayCount = cbzZipCount >= 1 ? cbzZipCount : imageCount;
-                listBoxFolders.Items.Add($"[{displayCount}] {folderName}");
-            }
-
-            Log($"[DB_DEBUG] BuildRankFilteredListFromCj: resulting folder_list_count={_folderList.Count}");
-
-            if (_folderList.Count > 0)
-            {
-                int idx = _folderList.IndexOf(_currentFolder);
-                _currentFolderIndex = idx >= 0 ? idx : 0;
-                listBoxFolders.SelectedIndex = _currentFolderIndex;
-            }
+            FormNavigator.BuildRankFiltered(this);
         }
 
         private FormWindowState _savedWindowState = FormWindowState.Normal;
         private FormBorderStyle _savedFormBorderStyle = FormBorderStyle.Sizable;
         private Size _savedSize = new Size(Constants.InitialWidth, Constants.InitialHeight);
 
-        private Settings _settings = new Settings();
-        private readonly ImageService _imageService = new ImageService();
-        private FolderService? _folderService;
+        internal Settings _settings = new Settings();
+        internal readonly ImageService _imageService = new ImageService();
+        internal FolderService? _folderService;
         private Timer? _slideshowTimer;
-        private bool _isDisplayModeToggling = false;
         private System.Windows.Forms.Timer? _folderDebounceTimer;
 
-        // TASK09.20: Scroll animation for selected ListBox row
-        private System.Windows.Forms.Timer? _scrollTimer;
-        private int _scrollOffsetX = 0;
-        private string _scrollText = "";
-        private long _staticPhaseEnd = 0;
-        private long _scrollStartX = 0;
-        private long _scrollTargetX = 0;
-        private float _scrollPixelsPerMs = 0f;
-        private bool _scrolling = false;
-
-        // TASK09.23: cached font to reduce allocations in DrawItem / animation
-        private static readonly Font ListFont = new Font("Meiryo UI", 9f);
+        // ListBox scroll/draw helper (TASK09.25)
+        private ListBoxScrollHelper? _listBoxScrollHelper;
 
         public bool IsSlideshowRunning => _slideshowTimer?.Enabled ?? false;
 
         public Form1()
         {
-            // TASK09.20: Scroll animation timer
-            _scrollTimer = new System.Windows.Forms.Timer
-            {
-                Interval = 16, // ~60 FPS
-                Enabled = true
-            };
-            _scrollTimer.Tick += (s, e) => UpdateScrollAnimation();
-
             InitializeComponent();
             this.Load += Form1_Load;
 
@@ -411,131 +229,18 @@ namespace MangaViewer
             return base.ProcessCmdKey(ref m, keyData);
         }
 
-        private static readonly string LoadLogFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "error.log");
+        private static readonly string LogPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "error.log");
 
         private void Form1_Load(object? sender, EventArgs e)
         {
-            try
-            {
-                Log("Form1_Load start");
-                var (loadedSettings, errors) = SettingsManager.LoadWithValidation();
-                _settings = loadedSettings;
-                Log($"Settings loaded. Errors: {errors.Count}");
-
-                if (errors.Count > 0)
-                {
-                    MessageBox.Show(
-                        this,
-                        "設定に不正な値が含まれているため、該当項目はデフォルト値を使用します。" + Environment.NewLine +
-                            Environment.NewLine + string.Join(Environment.NewLine, errors),
-                        "設定エラー",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Warning);
-                }
-
-                _displayManager = new DisplayManager(this, _settings, _imageService);
-                _displayManager.ImagePaths = _imagePaths;
-                Log("DisplayManager created");
-
-                // 基本レイアウトを先に確保してフォームを表示
-                EnsureBasicLayout();
-                labelInfo.Text = "読み込み中...";
-                UpdateLayout();
-                Application.DoEvents();
-
-                string rootPath = string.IsNullOrEmpty(_settings.LastRootFolder)
-                    ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
-                    : _settings.LastRootFolder;
-                Log($"Root path: {rootPath}");
-
-                // TASK09.24: 起動時は前回使用したフォルダの CJ を自動読み込み（DBList モード固定）
-                string lastRoot = _settings.LastRootFolder;
-                Log($"LastRootFolder from settings: {lastRoot}");
-
-                Task.Run(async () =>
-                {
-                    try
-                    {
-                        await Task.Yield(); // UI描画を優先
-
-                        bool loadedCj = false;
-
-                        if (!string.IsNullOrEmpty(lastRoot) && Directory.Exists(lastRoot))
-                        {
-                            this.Invoke(() =>
-                            {
-                                LoadCjForParent(lastRoot);
-                                BuildRankFilteredListFromActiveCj();
-                            });
-                            Log($"Loaded CJ for LastRootFolder. Folders: {_folderList.Count}, Index: {_currentFolderIndex}");
-                            loadedCj = true;
-                        }
-
-                        _displayManager.UpdateSettings(_settings);
-
-                        if (loadedCj && _folderList.Count > 0 && _currentFolderIndex >= 0)
-                        {
-                            this.Invoke(() => LoadAndSortImages(_folderList[_currentFolderIndex]));
-                            Log($"LoadAndSortImages done. Images: {_imagePaths.Count}");
-
-                            this.Invoke(() =>
-                            {
-                                _displayManager.ImagePaths = _imagePaths;
-                                _currentIndex = 0;
-                                _displayManager.InitializePictureBoxes();
-                                Log("InitializePictureBoxes done");
-
-                                this.PerformLayout();
-                                UpdateLayout();
-                                Log("UpdateLayout done");
-
-                                _displayManager.DisplayImages(0);
-                                Log("DisplayImages done");
-
-                                listBoxFolders.SelectedIndex = _currentFolderIndex;
-                                labelInfo.Text = "初期化完了";
-
-                                // Set initial window title with mode and path info
-                                UpdateWindowTitle();
-                            });
-                        }
-                        else
-                        {
-                            this.Invoke(() =>
-                            {
-                                _displayManager.InitializePictureBoxes();
-                                UpdateLayout();
-                                _displayManager.DisplayImages(0);
-                                labelInfo.Text = "DBList が空です。キー3でフォルダを選択してください。";
-                            });
-                        }
-
-                        Log("Form1_Load complete");
-                    }
-                    catch (Exception ex)
-                    {
-                        this.Invoke(() => EnsureBasicLayout());
-                        try { File.AppendAllText(LoadLogFile, $"Background init error: {ex}{Environment.NewLine}"); } catch { }
-                        this.Invoke(() => { labelInfo.Text = "初期化エラーが発生しました。"; });
-                    }
-                });
-            }
-            catch (Exception ex)
-            {
-                EnsureBasicLayout();
-
-                try { File.AppendAllText(LoadLogFile, $"Form1_Load error: {ex}{Environment.NewLine}"); } catch { }
-
-                labelInfo.Text = "初期化エラーが発生しました。";
-            }
+            StartupHandler.Initialize(this);
         }
 
-        private void Log(string msg)
-        {
-            try { File.AppendAllText(LoadLogFile, $"{DateTime.Now}: {msg}{Environment.NewLine}"); } catch { }
-        }
+        // Minimal logging (kept for crash investigation only).
+        private void Log(string msg) =>
+            File.AppendAllText(LogPath, $"{DateTime.Now}: {msg}{Environment.NewLine}");
 
-        private void EnsureBasicLayout()
+        internal void EnsureBasicLayout()
         {
             if (this.ClientSize.Width < Constants.MinWidth || this.ClientSize.Height < Constants.MinHeight)
                 this.Size = new Size(Constants.InitialWidth, Constants.InitialHeight);
@@ -655,7 +360,7 @@ namespace MangaViewer
             _displayManager.ImagePaths = _imagePaths;
         }
 
-        private void UpdateWindowTitle()
+        internal void UpdateWindowTitle()
         {
             // TASK09.24: Always DBList mode (no more FolderList mode).
             string baseTitle = Constants.AppTitle;
@@ -699,8 +404,8 @@ namespace MangaViewer
 
             listBoxFolders.KeyDown += (s, e) => KeyboardInputHandler.HandleKeyDown(e, this);
 
-            // TASK09.20: Custom draw for scrolling selected row
-            listBoxFolders.DrawItem += ListBoxFolders_DrawItem;
+            // TASK09.25: ListBoxScrollHelper handles DrawItem + scroll animation
+            _listBoxScrollHelper = new ListBoxScrollHelper(listBoxFolders, panelList);
 
             listBoxFolders.SelectedIndexChanged += (s, e) =>
             {
@@ -733,27 +438,14 @@ namespace MangaViewer
             _displayManager.ImagePaths = _imagePaths;
             _displayManager.DisplayImages(startIndex);
 
-            string folderName = Path.GetFileName(_currentFolder);
-            string cbzInfo = "";
-            if (_cbzManager != null && _cbzManager.CbxFiles.Count > 0)
-            {
-                int idx = Math.Clamp(_cbzManager.ActiveCbxIndex, 0, _cbzManager.CbxFiles.Count - 1);
-                string cbzFileName = Path.GetFileNameWithoutExtension(_cbzManager.CbxFiles[idx]);
-                // ファイル名から巻数情報を抽出（例: "Vol1", "001", "巻1" など）
-                int volNum = FolderService.ExtractNumberFromFileName(cbzFileName);
-                if (volNum > 0)
-                    cbzInfo = $" [{cbzFileName}]";
-            }
-
-            string folderDisplay = $"{folderName}{cbzInfo}";
-
+            string folderDisplay = BuildFolderDisplayWithCbz();
             string infoText = _displayManager.GetInfoText(_currentFolder, _currentFolderIndex, _folderService!.entries);
             if (!string.IsNullOrEmpty(infoText))
                 labelInfo.Text = $"[{folderDisplay}] {infoText.TrimStart()}";
             else
                 labelInfo.Text = $"[{folderDisplay}] 表示可能な画像がありません。";
 
-            // CBZ表示中、残り16ページ以下なら次のCBZをプレロード（バックグラウンドスレッドでUIブロックしない）
+            // CBZ: preload next when near end.
             if (_cbzManager != null && _imagePaths.Count > 0)
             {
                 int remainingPages = _imagePaths.Count - startIndex;
@@ -764,7 +456,7 @@ namespace MangaViewer
             }
         }
 
-        private void UpdateLayout()
+        internal void UpdateLayout()
         {
             if (panelList == null || labelInfo == null) return;
             if (_displayManager == null) return;
@@ -803,7 +495,6 @@ namespace MangaViewer
                 _savedFormBorderStyle = this.FormBorderStyle;
                 _savedWindowState = this.WindowState;
                 _savedSize = this.Size;
-
                 this.FormBorderStyle = FormBorderStyle.None;
                 this.WindowState = FormWindowState.Maximized;
             }
@@ -814,35 +505,44 @@ namespace MangaViewer
                 this.Size = _savedSize;
             }
 
-            string folderName2 = Path.GetFileName(_currentFolder);
-            string cbzInfo2 = "";
-            if (_cbzManager != null && _cbzManager.CbxFiles.Count > 0)
-            {
-                int idx2 = Math.Clamp(_cbzManager.ActiveCbxIndex, 0, _cbzManager.CbxFiles.Count - 1);
-                string cbzFileName2 = Path.GetFileNameWithoutExtension(_cbzManager.CbxFiles[idx2]);
-                int volNum2 = FolderService.ExtractNumberFromFileName(cbzFileName2);
-                if (volNum2 > 0)
-                    cbzInfo2 = $" [{cbzFileName2}]";
-            }
-
-            string folderDisplay2 = $"{folderName2}{cbzInfo2}";
-
-            string infoText = _displayManager.GetInfoText(_currentFolder, _currentFolderIndex, _folderService!.entries);
-            if (!string.IsNullOrEmpty(infoText))
-                labelInfo.Text = $"[{folderDisplay2}] {infoText.TrimStart()}";
-            else
-                labelInfo.Text = $"[{folderDisplay2}] 表示可能な画像がありません。";
-
+            UpdateInfoLabelAfterToggle();
             UpdateLayout();
         }
 
-        #region INavigationActions implementation
+        // Shared label update for DisplayImages/ToggleFullScreen.
+        private void UpdateInfoLabelAfterToggle()
+        {
+            string folderDisplay = BuildFolderDisplayWithCbz();
+            string infoText = _displayManager.GetInfoText(_currentFolder, _currentFolderIndex, _folderService!.entries);
+            if (!string.IsNullOrEmpty(infoText))
+                labelInfo.Text = $"[{folderDisplay}] {infoText.TrimStart()}";
+            else
+                labelInfo.Text = $"[{folderDisplay}] 表示可能な画像がありません。";
+        }
+
+        // Build folder+CBZ display string.
+        private string BuildFolderDisplayWithCbz()
+        {
+            string folderName = Path.GetFileName(_currentFolder);
+            string cbzInfo = "";
+            if (_cbzManager != null && _cbzManager.CbxFiles.Count > 0)
+            {
+                int idx = Math.Clamp(_cbzManager.ActiveCbxIndex, 0, _cbzManager.CbxFiles.Count - 1);
+                string name = Path.GetFileNameWithoutExtension(_cbzManager.CbxFiles[idx]);
+                if (FolderService.ExtractNumberFromFileName(name) > 0)
+                    cbzInfo = $" [{name}]";
+            }
+            return $"{folderName}{cbzInfo}";
+        }
+
+        #region INavigationActions implementation (thin wrappers → FormNavigator)
 
         public int ImageCount => _imagePaths.Count;
         public int DisplayCount => _settings.DisplayCount;
         public int FolderListCount => _folderList.Count;
         public string CurrentFolder => _currentFolder;
 
+        // Root folder dialog + ChangeRootFolder delegated.
         public void ShowRootFolderDialog()
         {
             using (var dialog = new FolderBrowserDialog())
@@ -856,58 +556,17 @@ namespace MangaViewer
 
                 if (result == DialogResult.OK && !string.IsNullOrEmpty(dialog.SelectedPath))
                 {
-                    ChangeRootFolder(dialog.SelectedPath);
+                    FormNavigator.ChangeRootFolder(this, dialog.SelectedPath);
                 }
             }
         }
 
-        // 指定パスをルートフォルダとして再構築（内部用）
         public void ChangeRootFolder(string rootPath)
         {
-            if (this.InvokeRequired)
-            {
-                this.BeginInvoke(new Action<string>(ChangeRootFolder), rootPath);
-                return;
-            }
-
-            _settings.LastRootFolder = rootPath;
-            SettingsManager.Save(_settings);
-            BuildSubfolderList(rootPath);
-            _displayManager.UpdateSettings(_settings);
-
-            UpdateWindowTitle();
-
-            if (_folderList.Count > 0 && _currentFolderIndex >= 0)
-            {
-                LoadAndSortImages(_folderList[_currentFolderIndex]);
-                _currentIndex = 0;
-                DisplayImages(_currentIndex);
-                listBoxFolders.SelectedIndex = _currentFolderIndex;
-            }
-            else if (_folderList.Count == 0)
-            {
-                _folderList.Clear();
-                _currentFolderIndex = -1;
-
-                // If rootPath is valid, try to use it as a single image folder.
-                if (!string.IsNullOrEmpty(rootPath) && Directory.Exists(rootPath))
-                {
-                    LoadAndSortImages(rootPath);
-                    _currentIndex = 0;
-                    DisplayImages(_currentIndex);
-                }
-                else
-                {
-                    _imagePaths.Clear();
-                    _currentFolder = "";
-                    _currentIndex = 0;
-                    DisplayImages(0);
-                }
-
-                labelInfo.Text = "表示可能なフォルダがありません。";
-            }
+            FormNavigator.ChangeRootFolder(this, rootPath);
         }
 
+        // Navigation: delegate to FormNavigator.
         public void NavigateBackwardTwoPages()
         {
             if (_imagePaths.Count > 0)
@@ -920,17 +579,7 @@ namespace MangaViewer
 
         public void NavigateForwardTwoPages()
         {
-            if (_imagePaths.Count > 0)
-            {
-                _currentIndex += _displayManager.NavigationStep;
-                int maxIndex = _imagePaths.Count - (_imagePaths.Count % _displayManager.DisplayCount == 0 ? _displayManager.DisplayCount : 1);
-                if (_currentIndex > maxIndex) _currentIndex = maxIndex;
-                DisplayImages(_currentIndex);
-            }
-            else if (_imagePaths.Count == 1)
-            {
-                DisplayImages(0);
-            }
+            FormNavigator.NavigateForward(this, 2);
         }
 
         public void NavigateFolderUp()
@@ -945,202 +594,52 @@ namespace MangaViewer
 
         public void NavigateFolderBy(int delta)
         {
-            if (_folderList.Count == 0) return;
-            int newIndex = _currentFolderIndex + delta;
-            if (newIndex < 0) newIndex = 0;
-            if (newIndex >= _folderList.Count) newIndex = _folderList.Count - 1;
-            if (newIndex == _currentFolderIndex) return;
-
-            _currentFolderIndex = newIndex;
-            LoadAndSortImages(_folderList[_currentFolderIndex]);
-            _currentIndex = 0;
-            DisplayImages(0);
-            listBoxFolders.SetSelected(_currentFolderIndex, true);
+            FormNavigator.NavigateFolderBy(this, delta);
         }
 
         public void NavigateFolders(int delta)
         {
-            if (_folderList.Count == 0 || _currentFolderIndex < 0) return;
-            int newIndex = _currentFolderIndex + delta;
-            if (newIndex < 0) newIndex = 0;
-            if (newIndex >= _folderList.Count) newIndex = _folderList.Count - 1;
-            if (newIndex == _currentFolderIndex) return;
-
-            _currentFolderIndex = newIndex;
-            LoadAndSortImages(_folderList[_currentFolderIndex]);
-            _currentIndex = 0;
-            DisplayImages(0);
-            listBoxFolders.SetSelected(_currentFolderIndex, true);
+            FormNavigator.NavigateFolderBy(this, delta);
         }
-
 
         public void NavigateToNextUnrated()
         {
-            for (int i = 0; i < _folderList.Count; i++)
-            {
-                if (RatingService.ReadRating(_folderList[i]) == -1)
-                {
-                    _currentFolderIndex = i;
-                    LoadAndSortImages(_folderList[i]);
-                    _currentIndex = 0;
-                    DisplayImages(0);
-                    listBoxFolders.SelectedIndex = i;
-                    return;
-                }
-            }
-        }
-
-        private static void DebugLog(string msg)
-        {
-            try { File.AppendAllText(LoadLogFile, $"[SetDisplay] {DateTime.Now}: {msg}{Environment.NewLine}"); } catch { }
+            FormNavigator.NavigateToNextUnrated(this);
         }
 
         public void SetDisplayCount(int count)
         {
-            DebugLog($">>> Enter count={count}, currentDisplayCount={_settings.DisplayCount}, imagePaths.Count={_imagePaths.Count}, currentIndex={_currentIndex}");
-            if (count <= 0) { DebugLog("count<=0, returning"); return; }
-            
-            int prevDisplayCount = _settings.DisplayCount;
-            _settings.DisplayCount = count;
-            DebugLog($"_settings.DisplayCount: {prevDisplayCount} -> {_settings.DisplayCount}");
-            
-            SettingsManager.Save(_settings);
-            DebugLog("Settings saved");
-            
-            _displayManager.UpdateSettings(_settings);
-            DebugLog($"UpdateSettings done, DisplayManager.DisplayCount={_displayManager.DisplayCount}");
-
-            if (_settings.DisplayCount != prevDisplayCount)
-            {
-                DebugLog("DisplayCount changed, calling InitializePictureBoxes...");
-                _displayManager.InitializePictureBoxes();
-                DebugLog($"InitializePictureBoxes done, pictureBoxes.Length={_displayManager.pictureBoxes.Length}");
-                
-                DebugLog("Calling UpdateLayout...");
-                UpdateLayout();
-                DebugLog("UpdateLayout done");
-                
-                _currentIndex = 0;
-                DebugLog($"_currentIndex set to 0, imagePaths.Count={_imagePaths.Count}");
-                
-                if (_imagePaths.Count > 0)
-                {
-                    DebugLog("Calling DisplayImages(0)...");
-                    DisplayImages(0);
-                    DebugLog("DisplayImages(0) done");
-                }
-                else
-                {
-                    DebugLog("_imagePaths.Count is 0, skipping DisplayImages");
-                }
-            }
-            else
-            {
-                DebugLog("DisplayCount unchanged, skipping redraw");
-            }
-            
-            this.Focus();
-            DebugLog("<<< Exit SetDisplayCount complete");
+            FormNavigator.SetDisplayCount(this, count);
         }
 
-        // N-page jump (for Ctrl/Alt + arrow keys)
+        // N-page jump for Ctrl/Alt+arrows.
         public void NavigateForward(int pageCount)
         {
-            if (_imagePaths.Count == 0 || pageCount <= 0) return;
-
-            _currentIndex += pageCount;
-
-            int maxIndex = Math.Max(0, _imagePaths.Count - (_imagePaths.Count % _displayManager.DisplayCount == 0 ? _displayManager.DisplayCount : 1));
-            if (maxIndex < 0) maxIndex = 0;
-
-            // CBZ末尾を超えた場合、次のCBZに切り替え
-            if (_currentIndex > maxIndex && _cbzManager != null)
-            {
-                var nextPaths = _cbzManager.MoveToNextCbxIfEndReached();
-                if (nextPaths.Any())
-                {
-                    _imagePaths = nextPaths;
-                    _currentIndex = 0;
-                }
-                else
-                {
-                    _currentIndex = maxIndex;
-                }
-            }
-            else if (_currentIndex > maxIndex)
-            {
-                _currentIndex = maxIndex;
-            }
-
-            DisplayImages(_currentIndex);
+            FormNavigator.NavigateForward(this, pageCount);
         }
 
         public void NavigateBackward(int pageCount)
         {
-            if (_imagePaths.Count == 0 || pageCount <= 0) return;
-
-            _currentIndex -= pageCount;
-
-            // CBZ先頭を超えた場合、前のCBZに切り替え
-            if (_currentIndex < 0 && _cbzManager != null)
-            {
-                var prevPaths = _cbzManager.MoveToPreviousCbxIfAtStart();
-                if (prevPaths.Any())
-                {
-                    _imagePaths = prevPaths;
-                    _currentIndex = Math.Max(0, _imagePaths.Count - (_imagePaths.Count % _displayManager.DisplayCount == 0 ? _displayManager.DisplayCount : 1));
-                }
-                else
-                {
-                    _currentIndex = 0;
-                }
-            }
-            else if (_currentIndex < 0)
-            {
-                _currentIndex = 0;
-            }
-
-            DisplayImages(_currentIndex);
+            FormNavigator.NavigateBackward(this, pageCount);
         }
 
         public void NavigateCbzNext()
         {
-            if (_cbzManager == null || _cbzManager.CbxFiles.Count <= 1) return;
-            
-            var nextCbx = _cbzManager.SwitchToNextCbx();
-            if (nextCbx != null)
-            {
-                _imagePaths = _cbzManager.CurrentImagePaths;
-                _currentIndex = 0;
-                DisplayImages(0);
-            }
+            FormNavigator.NavigateCbzNext(this);
         }
 
         public void NavigateCbzPrev()
         {
-            if (_cbzManager == null || _cbzManager.CbxFiles.Count <= 1) return;
-            
-            var prevCbx = _cbzManager.SwitchToPreviousCbx();
-            if (prevCbx != null)
-            {
-                _imagePaths = _cbzManager.CurrentImagePaths;
-                _currentIndex = 0;
-                DisplayImages(0);
-            }
+            FormNavigator.NavigateCbzPrev(this);
         }
 
-
-
+        // Slideshow.
         public void StartSlideshow()
         {
             if (_slideshowTimer == null)
                 _slideshowTimer = new Timer { Interval = 3000 };
-            
-            _slideshowTimer.Tick += (s, e) =>
-            {
-                NavigateForwardTwoPages();
-            };
-            
+
+            _slideshowTimer.Tick += (s, e) => NavigateForwardTwoPages();
             _slideshowTimer.Start();
         }
 
@@ -1149,19 +648,10 @@ namespace MangaViewer
             _slideshowTimer?.Stop();
         }
 
-        /// <summary>
-        /// TASK09.24: モード切替廃止。常に DBList 動作のみとする（空実装）。
-        /// </summary>
-        public void ToggleDisplayMode()
-        {
-            // No-op: DBList mode is fixed; no more toggle.
-        }
+        // Mode toggle removed; DBList-only.
+        public void ToggleDisplayMode() { /* no-op */ }
 
-
-        /// <summary>
-        /// Rating をオンメモリ更新＋保存（TASK09.18 §5）。
-        /// 今後 Rating 書き込み処理から共用して使用する。
-        /// </summary>
+        // Rating in-memory update.
         private void UpdateRatingInMemory(string folderPath, int newRating)
         {
             if (_activeCjData == null || string.IsNullOrEmpty(_activeCjParentFolder)) return;
@@ -1174,287 +664,16 @@ namespace MangaViewer
             CjManager.SaveCj(_activeCjParentFolder, _activeCjData);
         }
 
-        /// <summary>
-        /// DBList モード用：アクティブ CJ から評価値フィルタリストを構築。
-        /// rank_display_db.json は不使用（TASK09.24）。
-        /// </summary>
-        private void BuildRankFilteredListFromActiveCj()
-        {
-            Log("[DB_DEBUG] BuildRankFilteredListFromActiveCj: start");
-
-            // 1) オンメモリ CJ データがあればそれを優先使用
-            if (_activeCjData?.Folders != null && _activeCjData.Folders.Count > 0)
-            {
-                Log($"[DB_DEBUG] using in-memory CJ, folders_count={_activeCjData.Folders.Count}");
-                BuildRankFilteredListFromCj(_activeCjData.Folders);
-                return;
-            }
-
-            // 2) ファイルからフォールバック（_activeDbFile が存在する場合）
-            if (!string.IsNullOrEmpty(_activeDbFile) && File.Exists(_activeDbFile))
-            {
-                try
-                {
-                    var json = File.ReadAllText(_activeDbFile);
-                    var options = new System.Text.Json.JsonSerializerOptions();
-                    options.PropertyNameCaseInsensitive = true;
-                    var cjRoot = System.Text.Json.JsonSerializer.Deserialize<CjRoot>(json, options);
-
-                    if (cjRoot?.Folders != null)
-                    {
-                        // 次に備えてオンメモリに保持
-                        _activeCjData = cjRoot;
-                        BuildRankFilteredListFromCj(cjRoot.Folders);
-                        return;
-                    }
-                }
-                catch
-                {
-                    Log("[DB_DEBUG] failed to load CJ from file, clearing list");
-                }
-            }
-
-            // 3) アクティブ CJ が未選択または無効な場合：リストを空にする（rank_display_db.json は不使用）
-            _folderList.Clear();
-            listBoxFolders.DataSource = null;
-            listBoxFolders.Items.Clear();
-        }
-
+        // Settings dialog delegated.
         public void ShowSettingsDialog()
         {
-            // Before-dialog snapshots (FolderList filters)
-            int prevDisplayCount = _settings.DisplayCount;
-            int prevMinDisplayCount = _settings.MinDisplayCount;
-            int prevMaxDisplayCount = _settings.MaxDisplayCount;
-            int prevMinEvaluation = _settings.MinEvaluation;
-
-            // DBList filters
-            int prevDbMinDisplayCount = _settings.DbMinDisplayCount;
-            int prevDbMaxDisplayCount = _settings.DbMaxDisplayCount;
-            int prevDbMinEvaluation = _settings.DbMinEvaluation;
-
-            // Layout ratios
-            int prevNormalImageAreaPercent = _settings.NormalModeImageAreaPercent;
-            int prevFullScreenImageAreaPercent = _settings.FullScreenModeImageAreaPercent;
-
-            using (var dialog = new SettingsDialog())
-            {
-                if (dialog.ShowDialog(this) == DialogResult.OK)
-                {
-                    (_settings, _) = SettingsManager.LoadWithValidation();
-                    _displayManager.UpdateSettings(_settings);
-
-                    bool displayCountChanged = _settings.DisplayCount != prevDisplayCount;
-                    bool layoutRatioChanged = _settings.NormalModeImageAreaPercent != prevNormalImageAreaPercent ||
-                                              _settings.FullScreenModeImageAreaPercent != prevFullScreenImageAreaPercent;
-
-                    // FolderList mode filters (MinEvaluation / MinDisplayCount / MaxDisplayCount)
-                    bool folderFilterChanged = (_settings.MinDisplayCount != prevMinDisplayCount) ||
-                                               (_settings.MaxDisplayCount != prevMaxDisplayCount) ||
-                                               (_settings.MinEvaluation != prevMinEvaluation);
-
-                    // DBList mode filters (DbMinEvaluation / DbMinDisplayCount / DbMaxDisplayCount)
-                    bool dbFilterChanged = (_settings.DbMinEvaluation != prevDbMinEvaluation) ||
-                                           (_settings.DbMinDisplayCount != prevDbMinDisplayCount) ||
-                                           (_settings.DbMaxDisplayCount != prevDbMaxDisplayCount);
-
-                    if (!IsDbListMode() && folderFilterChanged)
-                    {
-                        // FolderList mode: rebuild subfolder list with new filters.
-                        string rootPath = string.IsNullOrEmpty(_settings.LastRootFolder)
-                            ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
-                            : _settings.LastRootFolder;
-
-                        BuildSubfolderList(rootPath);
-
-                        int newIdx = -1;
-                        for (int i = 0; i < _folderList.Count; i++)
-                        {
-                            if (_folderList[i] == _currentFolder) { newIdx = i; break; }
-                        }
-
-                        if (newIdx >= 0)
-                        {
-                            _currentFolderIndex = newIdx;
-                            listBoxFolders.SelectedIndex = newIdx;
-                        }
-                        else
-                        {
-                            if (_folderList.Count > 0)
-                            {
-                                _currentFolderIndex = 0;
-                                LoadAndSortImages(_folderList[0]);
-                                _currentIndex = 0;
-                                DisplayImages(0);
-                                listBoxFolders.SelectedIndex = 0;
-                            }
-                            else
-                            {
-                                _folderList.Clear();
-                                _currentFolderIndex = -1;
-                                labelInfo.Text = "表示可能なフォルダがありません。";
-                            }
-                        }
-                    }
-
-                    if (IsDbListMode() && dbFilterChanged)
-                    {
-                        // DBList mode: rebuild rank-filtered list with new DB filters.
-                        BuildRankFilteredListFromActiveCj();
-
-                        // Restore selection to current folder if still present.
-                        int newIdx = -1;
-                        for (int i = 0; i < _folderList.Count; i++)
-                        {
-                            if (_folderList[i] == _currentFolder) { newIdx = i; break; }
-                        }
-
-                        if (newIdx >= 0)
-                        {
-                            _currentFolderIndex = newIdx;
-                            listBoxFolders.SelectedIndex = newIdx;
-                        }
-                        else if (_folderList.Count > 0)
-                        {
-                            _currentFolderIndex = 0;
-                            LoadAndSortImages(_folderList[0]);
-                            _currentIndex = 0;
-                            DisplayImages(0);
-                            listBoxFolders.SelectedIndex = 0;
-                        }
-                    }
-
-                    if (displayCountChanged || layoutRatioChanged)
-                    {
-                        _displayManager.InitializePictureBoxes();
-                        UpdateLayout();
-                        _currentIndex = 0;
-                        DisplayImages(0);
-                    }
-                }
-            }
+            FormNavigator.ApplySettingsChanges(this);
         }
 
-        // TASK09.20: Scroll animation helpers for selected ListBox row
-
+        // Scroll animation reset.
         private void ResetScrollAnimation()
         {
-            if (listBoxFolders == null || listBoxFolders.SelectedIndex < 0) return;
-
-            string text = listBoxFolders.Items[listBoxFolders.SelectedIndex]?.ToString() ?? "";
-            if (string.IsNullOrEmpty(text)) return;
-
-            // Fully reset animation state for new selection.
-            _scrollOffsetX = 0;
-            _scrolling = false;
-            _scrollPixelsPerMs = 0f;
-
-            using (var g = listBoxFolders.CreateGraphics())
-            {
-                SizeF textSize = g.MeasureString(text, ListFont);
-                int textWidthPx = (int)(textSize.Width + 10);
-                int clientWidth = listBoxFolders.ClientRectangle.Width;
-
-                // We want to scroll until the entire text is off-screen to the left.
-                _scrollStartX = 0;
-                _scrollTargetX = Math.Max(clientWidth, textWidthPx);
-            }
-
-            _staticPhaseEnd = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + 3000; // 3s static phase
-        }
-
-        private void UpdateScrollAnimation()
-        {
-            if (listBoxFolders == null || listBoxFolders.SelectedIndex < 0) return;
-
-            long nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-
-            // Phase: static -> scrolling when time is up and parameters are set.
-            if (!_scrolling && _scrollTargetX > 0 && nowMs >= _staticPhaseEnd)
-            {
-                long scrollWidth = _scrollTargetX - _scrollStartX;
-                if (scrollWidth > 0)
-                {
-                    // Slower scroll: doubled time factor (half the previous speed).
-                    float durationMs = Math.Max(500, scrollWidth * 3.6f);
-                    _scrollPixelsPerMs = scrollWidth / durationMs;
-                    _scrolling = true;
-                }
-            }
-
-            // Phase: scrolling -> loop back to static after full scroll.
-            if (_scrolling && _scrollPixelsPerMs > 0)
-            {
-                long totalScrollWidth = Math.Max(1, _scrollTargetX - _scrollStartX);
-                _scrollOffsetX += (int)(_scrollPixelsPerMs * 16); // ~per frame at 60 FPS
-
-                if (_scrollOffsetX >= totalScrollWidth)
-                {
-                    // Instant reset to left and start a new static phase.
-                    _scrollOffsetX = 0;
-                    _scrolling = false;
-                    _staticPhaseEnd = nowMs + 3000;
-                }
-
-                // Invalidate only the selected row to reduce flicker.
-                int idx = listBoxFolders.SelectedIndex;
-                if (idx >= 0 && idx < listBoxFolders.Items.Count)
-                {
-                    Rectangle r = listBoxFolders.GetItemRectangle(idx);
-                    listBoxFolders.Invalidate(r, false);
-                }
-            }
-        }
-
-        private void ListBoxFolders_DrawItem(object sender, DrawItemEventArgs e)
-        {
-            if (e.Index < 0 || e.Index >= listBoxFolders.Items.Count) return;
-
-            // Background
-            bool selected = (e.State & DrawItemState.Selected) != 0;
-            using (var brush = new SolidBrush(selected ? Color.FromArgb(60, 60, 120) : panelList.BackColor))
-            {
-                e.Graphics.FillRectangle(brush, e.Bounds);
-            }
-
-            string text = listBoxFolders.Items[e.Index]?.ToString() ?? "";
-            if (string.IsNullOrEmpty(text)) return;
-
-            // For selected row: apply scroll animation
-            bool isSelectedRow = (e.Index == listBoxFolders.SelectedIndex);
-
-            SizeF textSize = e.Graphics.MeasureString(text, ListFont, e.Bounds.Width);
-
-            if (isSelectedRow)
-            {
-                // Update scroll text reference for this row
-                _scrollText = text;
-                long textWidthPx = (long)(textSize.Width + 10);
-                long clientWidth = listBoxFolders.ClientRectangle.Width;
-
-                // Ensure initial values set once per selection change
-                if (_scrollStartX == 0 && _scrollTargetX == 0)
-                {
-                    _scrollOffsetX = 0;
-                    _scrollStartX = 0;
-                    _scrollTargetX = Math.Max(clientWidth, textWidthPx); // ensure scroll distance
-                    ResetScrollAnimation();
-                }
-
-                int drawX = e.Bounds.X - _scrollOffsetX;
-                using (var b = new SolidBrush(Color.White))
-                {
-                    e.Graphics.DrawString(text, ListFont, b, drawX, e.Bounds.Y + 2);
-                }
-            }
-            else
-            {
-                // Normal rows: no scroll
-                using (var b = new SolidBrush(listBoxFolders.ForeColor))
-                {
-                    e.Graphics.DrawString(text, ListFont, b, e.Bounds.X + 2, e.Bounds.Y + 2);
-                }
-            }
+            _listBoxScrollHelper?.OnSelectedIndexChanged();
         }
 
         #endregion INavigationActions implementation
