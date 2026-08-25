@@ -66232,3 +66232,5 @@
 [DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\e34d4a11b8e3eb74bcb36669aa0563b4\[新条透] 冷徹魔王様の秘書 第01巻\002.jpg)
 [DisplayManager] i=1, imgIdx=0, imagePath=001.jpg
 [DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\e34d4a11b8e3eb74bcb36669aa0563b4\[新条透] 冷徹魔王様の秘書 第01巻\001.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=2, ImagePaths.Count=0)
+[DisplayManager] pictureBoxes.Length=2, count=2

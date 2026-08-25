@@ -33,9 +33,6 @@ namespace MangaViewer
         internal CjRoot? _activeCjData;
         internal string? _activeCjParentFolder;
 
-        /// <summary>
-        /// CJ を読み込み、オンメモリに保持する（CjService 委譲）。
-        /// </summary>
         public void LoadCjForParent(string parentFolder)
         {
             if (string.IsNullOrEmpty(parentFolder)) return;
@@ -48,8 +45,6 @@ namespace MangaViewer
                 _activeCjParentFolder = parentFolder;
                 _activeCjData = result.Value.data;
                 _activeDbFile = result.Value.cjFile;
-                Log($"[DB_DEBUG] LoadCjForParent: loaded existing CJ for parent={parentFolder}, folders_count={_activeCjData?.Folders?.Count ?? 0}");
-
                 if (IsRankDisplayMode)
                     BuildRankFilteredListFromActiveCj();
             }
@@ -59,40 +54,28 @@ namespace MangaViewer
             }
         }
 
-        /// <summary>
-        /// キー3（DBリストモード時）で親フォルダー指定してCJを作成する（CjService 委譲）。
-        /// </summary>
         public void CreateCjForParent(string parentFolder)
         {
             if (string.IsNullOrWhiteSpace(parentFolder)) return;
             if (!Directory.Exists(parentFolder)) return;
 
             Application.DoEvents();
-            SafeInvokeUI(() => { labelInfo.Text = "CJ作成中…"; });
+            SafeInvokeUI(() => labelInfo.Text = "CJ作成中…");
 
             Task.Run(() =>
             {
                 try
                 {
-                    // CjService に実質処理を委譲（スキャン・保存含む）
                     var (cjPath, cjData) = CjService.CreateForParent(parentFolder);
 
-                    // オンメモリ CJ 保持
                     _activeCjParentFolder = parentFolder;
                     _activeCjData = cjData;
                     _activeDbFile = cjPath;
 
-                    Log($"[DB_DEBUG] CreateCjForParent: CJ created/updated for parent={parentFolder}, folders_count={cjData.Folders.Count}");
-
-                    // UI スレッドで再構築・表示更新
                     SafeInvokeUI(() =>
                     {
                         if (IsRankDisplayMode)
-                        {
-                            Log($"[DB_DEBUG] CreateCjForParent: about to build DB list from CJ, parent={parentFolder}");
                             BuildRankFilteredListFromActiveCj();
-                        }
-
                         UpdateWindowTitle();
                         labelInfo.Text = $"CJ作成完了: {parentFolder}";
                     });
@@ -101,12 +84,7 @@ namespace MangaViewer
                 {
                     SafeInvokeUI(() =>
                     {
-                        MessageBox.Show(
-                            this,
-                            $"CJ作成エラー:\n{ex.Message}",
-                            "CJ エラー",
-                            MessageBoxButtons.OK,
-                            MessageBoxIcon.Error);
+                        MessageBox.Show(this, "CJ作成エラー:\n" + ex.Message, "CJ エラー", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         labelInfo.Text = "CJ作成に失敗しました。";
                     });
                 }
@@ -263,101 +241,13 @@ namespace MangaViewer
         internal void BuildSubfolderList(string rootPath)
         {
             _rootFolder = rootPath;
-            _folderList.Clear();
-            _currentFolderIndex = -1;
-
-            labelInfo.Text = "フォルダを読み込み中...";
-            Application.DoEvents();
-
-            if (_folderService == null)
-                _folderService = new FolderService(_settings);
-
-            // ステータスコールバックを設定（CBZカウント中などのメッセージをlabelInfoに表示）
-            _folderService.SetStatusCallback(msg =>
-            {
-                labelInfo.Text = msg;
-                Application.DoEvents();
-            });
-
-            try
-            {
-                var entries = _folderService.BuildFolderIndex(rootPath);
-                _folderList.Clear();
-                listBoxFolders.DataSource = null;
-                listBoxFolders.Items.Clear();
-
-                int firstUnratedIndex = -1;
-
-                for (int i = 0; i < entries.Count; i++)
-                {
-                    var entry = entries[i];
-                    _folderList.Add(entry.Path);
-                    string folderName = Path.GetFileName(entry.Path);
-                    int rating = RatingService.ReadRating(entry.Path);
-                    string ratingPrefix = rating >= 0 ? $"[{rating}] " : "";
-                    listBoxFolders.Items.Add($"{ratingPrefix}{folderName} -[{entry.ImageCount}]");
-
-                    if (firstUnratedIndex < 0 && rating < 0)
-                        firstUnratedIndex = i;
-                }
-
-                if (_folderList.Count > 0)
-                {
-                    int initialIndex = firstUnratedIndex >= 0 ? firstUnratedIndex : 0;
-                    listBoxFolders.SelectedIndex = initialIndex;
-                    _currentFolderIndex = initialIndex;
-                }
-            }
-            catch
-            {
-                _folderList.Clear();
-                _currentFolderIndex = -1;
-            }
-            finally
-            {
-                labelInfo.Text = "";
-                Application.DoEvents();
-            }
+            FolderListBuilder.Build(this, rootPath);
         }
 
         internal void LoadAndSortImages(string folderPath)
         {
             _currentFolder = folderPath;
-            if (_folderService == null)
-                _folderService = new FolderService(_settings);
-            _imagePaths = _folderService.LoadAndSortImages(folderPath);
-
-            // If no images found, try CBZ via CbzManager as fallback
-            if ((_imagePaths == null || _imagePaths.Count == 0) && Directory.Exists(folderPath))
-            {
-                string[] cbzFiles;
-                try
-                {
-                    cbzFiles = System.IO.Directory.GetFiles(folderPath, "*.cbz", System.IO.SearchOption.TopDirectoryOnly);
-                }
-                catch (UnauthorizedAccessException)
-                {
-                    // 権限不足：CBZスキャンはスキップ
-                    cbzFiles = Array.Empty<string>();
-                }
-                catch
-                {
-                    // その他エラーもスキップ（クラッシュ防止）
-                    cbzFiles = Array.Empty<string>();
-                }
-
-                if (cbzFiles.Length > 0)
-                {
-                    if (_cbzManager == null) _cbzManager = new CbzManager();
-                    bool ok = _cbzManager.InitializeForFolder(folderPath);
-                    if (ok && _cbzManager.CurrentImagePaths != null && _cbzManager.CurrentImagePaths.Count > 0)
-                    {
-                        _imagePaths = _cbzManager.CurrentImagePaths;
-                    }
-                }
-            }
-
-            _displayManager.ImagePaths = _imagePaths;
+            ImageLoader.Load(this);
         }
 
         internal void UpdateWindowTitle()
