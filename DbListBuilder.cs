@@ -6,28 +6,18 @@ using System.Text.Json;
 
 namespace MangaViewer
 {
-    /// <summary>
-    /// DBList（CJベース）のフィルタリング・再構築ロジックを一元管理。
-    /// Form1 から呼ばれるだけで、内部計算はここに閉じる。
-    /// </summary>
     public static class DbListBuilder
     {
-        /// <summary>
-        /// アクティブ CJ（オンメモリまたはファイル）から _folderList を再構築するロジック。
-        /// 戻り値: フィルタリング済みフォルダパスリスト。
-        /// </summary>
         public static List<string> BuildFromActiveCj(
             CjRoot? activeCjData,
             string? activeDbFile,
             Settings settings)
         {
-            // 1) オンメモリ CJ データがあればそれを優先使用
             if (activeCjData?.Folders != null && activeCjData.Folders.Count > 0)
             {
                 return BuildFromCj(activeCjData.Folders, settings);
             }
 
-            // 2) ファイルからフォールバック（activeDbFile が存在する場合）
             if (!string.IsNullOrEmpty(activeDbFile) && File.Exists(activeDbFile))
             {
                 try
@@ -44,18 +34,13 @@ namespace MangaViewer
                 }
                 catch
                 {
-                    // 読み込み失敗時は空リストを返す（Form1 でログ出力可）
+                    // ignore
                 }
             }
 
-            // 3) アクティブ CJ が未選択または無効な場合：空リスト
             return new List<string>();
         }
 
-        /// <summary>
-        /// CJ の Folders から評価値・画像数フィルタを適用し、
-        /// ソート済みフォルダパスリストを生成。
-        /// </summary>
         public static List<string> BuildFromCj(
             Dictionary<string, CjFolderEntry> folders,
             Settings settings)
@@ -63,51 +48,125 @@ namespace MangaViewer
             if (folders == null || folders.Count == 0)
                 return new List<string>();
 
-            // DBList モードのフィルタ設定を使用
             int minEvaluation = settings.DbMinEvaluation;
-            int dbMinImageCount = settings.DbMinDisplayCount;   // DbMinDisplayCount を画像数フィルタとして流用
+            bool greaterOrEqual = settings.DbFilterGreaterOrEqual;
+            int dbMinImageCount = settings.DbMinDisplayCount;
             int dbMaxImageCount = settings.DbMaxDisplayCount;
 
             var filtered = folders
                 .Where(f => ShouldIncludeFolder(
                     f.Value.Rating,
                     f.Value.ImageCount ?? 0,
+                    f.Value.CbzZipCount ?? 0,
                     minEvaluation,
+                    greaterOrEqual,
                     dbMinImageCount,
                     dbMaxImageCount))
                 .ToList();
 
-            // ソート: 評価値降順 → ImageCount 降順
             var sorted = filtered
                 .OrderByDescending(f => f.Value.Rating)
                 .ThenByDescending(f => f.Value.ImageCount ?? 0)
                 .Select(f => f.Key)
                 .ToList();
 
+            // フィルタログ：全判定後、一度に書き込み（逐次禁止）
+            bool dbFilterActive = (minEvaluation > 0) || (dbMinImageCount > 0) || (dbMaxImageCount > 0);
+            if (dbFilterActive && folders.Count > 0)
+            {
+                try
+                {
+                    var lines = new List<string>();
+                    lines.Add("=== BuildFromCj filter log ===");
+                    lines.Add($"minEvaluation={minEvaluation}, greaterOrEqual={greaterOrEqual}, dbMinImageCount={dbMinImageCount}, dbMaxImageCount={dbMaxImageCount}");
+                    lines.Add($"FoldersBeforeFilter={folders.Count}, FoldersAfterFilter={sorted.Count}");
+
+                    foreach (var f in folders)
+                    {
+                        string folderName = Path.GetFileName(f.Key);
+                        int rating = f.Value.Rating;
+                        int imgCount = f.Value.ImageCount ?? 0;
+                        int cbzZipCount = f.Value.CbzZipCount ?? 0;
+                        var reason = GetExclusionReason(rating, imgCount, cbzZipCount, minEvaluation, greaterOrEqual, dbMinImageCount, dbMaxImageCount);
+                        lines.Add($"Folder={folderName}, Rating={rating}, ImageCount={imgCount}, CbzZipCount={cbzZipCount}, Reason={reason}");
+                    }
+
+                    string logDir = Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                        "MangaViewer");
+                    Directory.CreateDirectory(logDir);
+                    string logPath = Path.Combine(logDir, "filter_log.txt");
+
+                    using (var sw = new StreamWriter(logPath, append: false))
+                    {
+                        foreach (var line in lines) sw.WriteLine(line);
+                    }
+                }
+                catch { /* ignore */ }
+            }
+
             return sorted;
         }
 
-        /// <summary>
-        /// フォルダを含めるかどうかを判定（DBList モード用）。
-        /// </summary>
-        private static bool ShouldIncludeFolder(
+        private static string GetExclusionReason(
             int rating,
             int imageCount,
+            int cbzZipCount,
             int minEvaluation,
+            bool greaterOrEqual,
             int dbMinImageCount,
             int dbMaxImageCount)
         {
-            // 評価値フィルタ（minEvaluation が設定されている場合）
-            if (rating < minEvaluation && minEvaluation > 0)
-                return false;
+            var reasons = new List<string>();
 
-            // ImageCount フィルタ
-            if (dbMinImageCount > 0 && imageCount < dbMinImageCount)
-                return false;
+            if (minEvaluation > 0 && rating >= 0)
+            {
+                if (greaterOrEqual)
+                {
+                    if (rating < minEvaluation)
+                        reasons.Add($"RatingTooLow({rating}<{minEvaluation})");
+                }
+                else
+                {
+                    if (rating != minEvaluation)
+                        reasons.Add($"RatingNotEqual({rating}!={minEvaluation})");
+                }
+            }
+
+            // Same rule as ShouldIncludeFolder: skip min check if cbzZipCount >= 1
+            if (cbzZipCount < 1 && dbMinImageCount > 0 && imageCount < dbMinImageCount)
+                reasons.Add($"ImageCountTooLow({imageCount}<{dbMinImageCount})");
 
             if (dbMaxImageCount > 0 && imageCount > dbMaxImageCount)
-                return false;
+                reasons.Add($"ImageCountTooHigh({imageCount}>{dbMaxImageCount})");
 
+            return reasons.Count == 0 ? "Included" : string.Join("+", reasons);
+        }
+
+        private static bool ShouldIncludeFolder(
+            int rating,
+            int imageCount,
+            int cbzZipCount,
+            int minEvaluation,
+            bool greaterOrEqual,
+            int dbMinImageCount,
+            int dbMaxImageCount)
+        {
+            if (minEvaluation > 0 && rating != -1)
+            {
+                if (greaterOrEqual)
+                {
+                    if (rating < minEvaluation) return false;
+                }
+                else
+                {
+                    if (rating != minEvaluation) return false;
+                }
+            }
+
+            // Key fix: only enforce dbMinImageCount when cbzZipCount < 1
+            if (cbzZipCount < 1 && dbMinImageCount > 0 && imageCount < dbMinImageCount) return false;
+            if (dbMaxImageCount > 0 && imageCount > dbMaxImageCount) return false;
             return true;
         }
     }

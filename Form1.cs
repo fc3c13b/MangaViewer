@@ -33,24 +33,59 @@ namespace MangaViewer
         internal CjRoot? _activeCjData;
         internal string? _activeCjParentFolder;
 
+        // INavigationActions implementation (exact signature required)
         public void LoadCjForParent(string parentFolder)
         {
-            if (string.IsNullOrEmpty(parentFolder)) return;
-            if (_activeCjParentFolder == parentFolder && _activeCjData != null)
-                return;
+            LoadCjForParentInternal(parentFolder, autoCreate: true);
+        }
 
-            var result = CjService.FindAndLoadCj(parentFolder);
-            if (result.HasValue)
+        private void LoadCjForParentInternal(string parentFolder, bool autoCreate)
+        {
+            try
             {
-                _activeCjParentFolder = parentFolder;
-                _activeCjData = result.Value.data;
-                _activeDbFile = result.Value.cjFile;
-                if (IsRankDisplayMode)
-                    BuildRankFilteredListFromActiveCj();
+                StartupHandler.Log($"[Form1] LoadCjForParent called: {parentFolder}, autoCreate={autoCreate}");
+
+                if (string.IsNullOrEmpty(parentFolder))
+                {
+                    StartupHandler.Log("[Form1] LoadCjForParent: empty parentFolder, returning.");
+                    return;
+                }
+
+                if (_activeCjParentFolder == parentFolder && _activeCjData != null)
+                {
+                    StartupHandler.Log($"[Form1] LoadCjForParent: already loaded for {parentFolder}, skipping.");
+                    return;
+                }
+
+                var result = CjService.FindAndLoadCj(parentFolder);
+
+                if (result.HasValue)
+                {
+                    _activeCjParentFolder = parentFolder;
+                    _activeCjData = result.Value.data;
+                    _activeDbFile = result.Value.cjFile;
+
+                    StartupHandler.Log(
+                        $"[Form1] LoadCjForParent OK: cjFile={_activeDbFile}, " +
+                        $"FoldersMapCount={_activeCjData.Folders.Count}");
+
+                    if (IsRankDisplayMode)
+                        BuildRankFilteredListFromActiveCj();
+                }
+                else if (autoCreate)
+                {
+                    StartupHandler.Log($"[Form1] LoadCjForParent: no CJ found for {parentFolder}, creating new.");
+                    CreateCjForParent(parentFolder);
+                }
+                else
+                {
+                    // autoCreate=false → DB not found, do nothing so caller can handle.
+                    StartupHandler.Log($"[Form1] LoadCjForParent: no CJ found for {parentFolder}, autoCreate=false.");
+                }
             }
-            else
+            catch (Exception ex)
             {
-                CreateCjForParent(parentFolder);
+                StartupHandler.LogError($"[Form1] LoadCjForParent error: {ex}");
             }
         }
 
@@ -59,36 +94,27 @@ namespace MangaViewer
             if (string.IsNullOrWhiteSpace(parentFolder)) return;
             if (!Directory.Exists(parentFolder)) return;
 
-            Application.DoEvents();
-            SafeInvokeUI(() => labelInfo.Text = "CJ作成中…");
-
-            Task.Run(() =>
+            try
             {
-                try
-                {
-                    var (cjPath, cjData) = CjService.CreateForParent(parentFolder);
+                Application.DoEvents();
+                SafeInvokeUI(() => labelInfo.Text = "CJ作成中…");
 
-                    _activeCjParentFolder = parentFolder;
-                    _activeCjData = cjData;
-                    _activeDbFile = cjPath;
+                var (cjPath, cjData) = CjService.CreateForParent(parentFolder);
 
-                    SafeInvokeUI(() =>
-                    {
-                        if (IsRankDisplayMode)
-                            BuildRankFilteredListFromActiveCj();
-                        UpdateWindowTitle();
-                        labelInfo.Text = $"CJ作成完了: {parentFolder}";
-                    });
-                }
-                catch (Exception ex)
-                {
-                    SafeInvokeUI(() =>
-                    {
-                        MessageBox.Show(this, "CJ作成エラー:\n" + ex.Message, "CJ エラー", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        labelInfo.Text = "CJ作成に失敗しました。";
-                    });
-                }
-            });
+                _activeCjParentFolder = parentFolder;
+                _activeCjData = cjData;
+                _activeDbFile = cjPath;
+
+                if (IsRankDisplayMode)
+                    BuildRankFilteredListFromActiveCj();
+                UpdateWindowTitle();
+                labelInfo.Text = $"CJ作成完了: {parentFolder}";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, "CJ作成エラー:\n" + ex.Message, "CJ エラー", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                labelInfo.Text = "CJ作成に失敗しました。";
+            }
         }
 
         private void SafeInvokeUI(Action action)
@@ -114,7 +140,7 @@ namespace MangaViewer
         internal Settings _settings = new Settings();
         internal readonly ImageService _imageService = new ImageService();
         internal FolderService? _folderService;
-        private Timer? _slideshowTimer;
+        private System.Windows.Forms.Timer? _slideshowTimer;
         private System.Windows.Forms.Timer? _folderDebounceTimer;
 
         // ListBox scroll/draw helper (TASK09.25)

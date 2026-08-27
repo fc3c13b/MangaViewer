@@ -13,7 +13,7 @@ namespace MangaViewer
 
         private ListBox _listBox;
         private Panel _panelList;
-        private Timer? _scrollTimer;
+        private System.Windows.Forms.Timer? _scrollTimer;
 
         private int _scrollOffsetX;
         private bool _scrolling;

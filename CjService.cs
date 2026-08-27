@@ -103,6 +103,52 @@ namespace MangaViewer
             return (cjPath, cjData);
         }
 
+        /// 指定された JSON ファイルを CjRoot として読み込む。
+        /// StartupHandler など、外部から直接ファイル指定してロードしたい場合に使う。
+        public static CjRoot? LoadCjFromFile(string path)
+        {
+            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return null;
+
+            try
+            {
+                var json = File.ReadAllText(path);
+                using var doc = JsonDocument.Parse(json);
+                var cjRoot = new CjRoot();
+
+                if (doc.RootElement.TryGetProperty("parentFolder", out var pf))
+                    cjRoot.ParentFolder = pf.GetString() ?? "";
+
+                var folders = new Dictionary<string, CjFolderEntry>();
+                if (doc.RootElement.TryGetProperty("folders", out var fj) && fj.ValueKind == JsonValueKind.Object)
+                {
+                    foreach (var entry in fj.EnumerateObject())
+                    {
+                        var cjEntry = new CjFolderEntry();
+                        if (entry.Value.TryGetProperty("folderName", out var fn))
+                            cjEntry.FolderName = fn.GetString() ?? "";
+                        if (entry.Value.TryGetProperty("CbzZipCount", out var cz) && cz.ValueKind == JsonValueKind.Number)
+                            cjEntry.CbzZipCount = cz.GetInt32();
+                        if (entry.Value.TryGetProperty("imageCount", out var ic) && ic.ValueKind == JsonValueKind.Number)
+                            cjEntry.ImageCount = ic.GetInt32();
+                        if (entry.Value.TryGetProperty("rating", out var r) && r.ValueKind == JsonValueKind.Number)
+                            cjEntry.Rating = r.GetInt32();
+                        if (entry.Value.TryGetProperty("updatedAt", out var ua) && ua.ValueKind == JsonValueKind.Number)
+                            cjEntry.UpdatedAt = ua.GetInt64();
+
+                        folders[entry.Name] = cjEntry;
+                    }
+                }
+
+                cjRoot.Folders = folders;
+
+                return cjRoot.Folders.Count > 0 ? cjRoot : null;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
         // 親フォルダ配下のサブフォルダをスキャンしてCJを作成・保存し、結果を返す。
         // UI直結は行わず、データ構築＋ファイル操作のみを担当（Form1から非UIスレッドで呼ばれる）。
         public static (string cjPath, CjRoot data) CreateForParent(string parentFolder)
