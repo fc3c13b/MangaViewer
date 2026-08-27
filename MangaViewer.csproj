@@ -9,7 +9,7 @@
     <DefineConstants>USE_SKIA</DefineConstants>
 
     <!-- バージョンの唯一の定義（csproj） -->
-    <Version>0.9.28</Version>
+    <Version>0.9.29</Version>
     <AssemblyVersion>$(Version)</AssemblyVersion>
     <FileVersion>$(Version)</FileVersion>
     <!-- 自動生成される AssemblyInfo との重複を防ぐ -->

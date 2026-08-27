@@ -13,31 +13,14 @@ namespace MangaViewer
             string? activeDbFile,
             Settings settings)
         {
+            // DB(JSON) は起動時に1回だけ読み込み済み（_activeCjData）。
+            // ここではメモリ内のデータのみを使用し、ファイル再読込を行わない。
             if (activeCjData?.Folders != null && activeCjData.Folders.Count > 0)
             {
                 return BuildFromCj(activeCjData.Folders, settings);
             }
 
-            if (!string.IsNullOrEmpty(activeDbFile) && File.Exists(activeDbFile))
-            {
-                try
-                {
-                    var json = File.ReadAllText(activeDbFile);
-                    var options = new JsonSerializerOptions();
-                    options.PropertyNameCaseInsensitive = true;
-                    var cjRoot = JsonSerializer.Deserialize<CjRoot>(json, options);
-
-                    if (cjRoot?.Folders != null)
-                    {
-                        return BuildFromCj(cjRoot.Folders, settings);
-                    }
-                }
-                catch
-                {
-                    // ignore
-                }
-            }
-
+            // _activeCjData が未設定または空なら、何もしない（再読込禁止）。
             return new List<string>();
         }
 

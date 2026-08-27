@@ -30,8 +30,10 @@ namespace MangaViewer
         internal string? _activeDbFile = null;
 
         // オンメモリ CJ 保持 (FormNavigator からアクセス)
+        // 「起動時に1回だけ」DB(JSON)を読み込み、以降は再読込しない（TASK09.29）。
         internal CjRoot? _activeCjData;
         internal string? _activeCjParentFolder;
+        internal bool _dbLoadedOnce = false;  // 起動時のDB読み込みが完了したか（TASK09.29）
 
         // INavigationActions implementation (exact signature required)
         public void LoadCjForParent(string parentFolder)

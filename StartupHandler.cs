@@ -10,6 +10,7 @@ namespace MangaViewer
     /// <summary>
     /// Form1_Load の初期化フローを整理し、Form1 を短く保つ。
     /// 依存関係の構築・初期設定・エラーハンドリングを一元管理。
+    /// TASK09.29: DB(JSON) は起動時に「1回だけ」読み込み、以降は再読込しない。
     /// </summary>
     public static class StartupHandler
     {
@@ -74,87 +75,38 @@ namespace MangaViewer
                     Log($"[Startup] LastRootFolder={lastRoot}, Exists={Directory.Exists(lastRoot)}");
 
                     bool loadedCj = false;
-                    var allFailReasons = new List<string>();
+                    string? failReason = null;
 
-                    // ===== 1. LastRootFolder の DB を試す（確認ダイアログ付き） =====
+                    // ===== 1. LastRootFolder の DB を試す（1回のみ） =====
                     if (!string.IsNullOrEmpty(lastRoot) && Directory.Exists(lastRoot))
                     {
-                        // ステータスに現在読み込んでいるDBを表示
-                        form.Invoke((Action)(() =>
-                        {
-                            form.labelInfo.Text = $"[1] DB読み込み中: {lastRoot}";
-                            Application.DoEvents();
-                        }));
+                        Log("[Startup] LoadCjForParent start");
+                        form.Invoke((Action)(() => form.LoadCjForParent(lastRoot)));
 
-                        // このDBを読み込むか確認（何を読み込むかを明示）
-                        string confirmMsg =
-                            "次のDBを読み込みます。よろしいですか？" + Environment.NewLine +
-                            Environment.NewLine +
-                            "  タイプ: 最後に使用したフォルダのDB" + Environment.NewLine +
-                            "  フォルダ: " + lastRoot;
-
-                        bool confirmed = false;
-                        form.Invoke((Action)(() =>
+                        var (ok, reason) = EvaluateLoadResult(form);
+                        if (ok)
                         {
-                            DialogResult dr = MessageBox.Show(
-                                form,
-                                confirmMsg,
-                                "DB の読み込み確認",
-                                MessageBoxButtons.OKCancel,
-                                MessageBoxIcon.Question);
-                            confirmed = (dr == DialogResult.OK);
-                        }));
-
-                        if (!confirmed)
-                        {
-                            allFailReasons.Add("[LastRootFolder] ユーザーが読み込みをキャンセルしました。");
-                            Log("[Startup] User cancelled loading LastRootFolder DB.");
+                            loadedCj = true;
+                            // TASK09.29: DB読み込み完了フラグ（起動時1回のみ）
+                            form.Invoke((Action)(() => { form._dbLoadedOnce = true; }));
                         }
                         else
-                        {
-                            Log("[Startup] LoadCjForParent start");
-                            form.Invoke((Action)(() => form.LoadCjForParent(lastRoot)));
-                            Log($"[Startup] After LoadCjForParent: _activeCjData={(form._activeCjData != null ? "OK" : "NULL")}, FoldersMapCount={(form._activeCjData?.Folders.Count ?? -1)}, _activeDbFile={form._activeDbFile}");
-
-                            form.Invoke((Action)(() =>
-                            {
-                                form.BuildRankFilteredListFromActiveCj();
-                            }));
-                            Log($"[Startup] After BuildRankFiltered: DBList count={form._folderList.Count}");
-
-                            // ロード結果判定（詳細な理由分類）
-                            var (ok, reason) = EvaluateLoadResult(form);
-                            if (!ok && !string.IsNullOrEmpty(reason))
-                                allFailReasons.Add($"[LastRootFolder] {reason}");
-
-                            if (ok)
-                            {
-                                loadedCj = true;
-                            }
-                        }
-                    }
-                    else if (string.IsNullOrEmpty(lastRoot))
-                    {
-                        allFailReasons.Add("[LastRootFolder] 設定されたフォルダが空です。");
-                        Log("[Startup] LastRootFolder is empty.");
+                            failReason = $"[LastRootFolder] {reason ?? "原因不明"}";
                     }
                     else
                     {
-                        // フォルダが存在しない場合
-                        string reason = Directory.Exists(lastRoot)
-                            ? "[LastRootFolder] DBの初期化に失敗しました。"
+                        failReason = string.IsNullOrEmpty(lastRoot)
+                            ? "[LastRootFolder] 設定されたフォルダが空です。"
                             : $"[LastRootFolder] 指定フォルダが見つかりません: {lastRoot}";
-                        allFailReasons.Add(reason);
-                        Log("[Startup] LastRootFolder invalid or missing.");
                     }
 
-                    // ===== 2. キャッシュDBを順次試す（確認ダイアログ付き） =====
+                    // ===== 2. キャッシュDBから「最新1つ」のみ試す（TASK09.29） =====
                     if (!loadedCj)
                     {
-                        Log("LastRootFolder failed/empty. Trying cache DBs one by one...");
-                        var (cacheLoaded, cacheReasons) = TryRestoreFromCacheSequential(form);
+                        Log("LastRootFolder failed/empty. Trying latest cache DB only...");
+                        var (cacheLoaded, cacheReason) = TryRestoreFromLatestCache(form);
                         loadedCj = cacheLoaded;
-                        allFailReasons.AddRange(cacheReasons);
+                        failReason ??= cacheReason;
                     }
 
                     form._displayManager.UpdateSettings(settings);
@@ -164,15 +116,11 @@ namespace MangaViewer
                     {
                         Log($"[Startup] Final OK path: DBList={form._folderList.Count}");
 
-                        // フォルダインデックスを適切に設定（未指定なら0）
                         if (form._currentFolderIndex < 0)
                             form._currentFolderIndex = 0;
 
                         form.Invoke((Action)(() =>
                         {
-                            form.labelInfo.Text = "画像読み込み中...";
-                            Application.DoEvents();
-
                             string selectedFolder = EnsureValidFolderIndex(form);
                             form.LoadAndSortImages(selectedFolder);
                             form._currentIndex = 0;
@@ -186,8 +134,6 @@ namespace MangaViewer
                             if (listBoxFoldersSafe(form, out var lb))
                                 lb.SelectedIndex = form._currentFolderIndex;
                             form.labelInfo.Text = "初期化完了";
-
-                            // Set initial window title with mode and path info
                             form.UpdateWindowTitle();
                         }));
                     }
@@ -195,19 +141,14 @@ namespace MangaViewer
                     {
                         Log($"[Startup] Final EMPTY: loadedCj={loadedCj}, DBListCount={(int)(form._folderList?.Count ?? 0)}");
 
-                        // DBが使えない理由を簡易表示
-                        string message = "DBList が空です。キー3でフォルダを選択してください。";
-                        if (allFailReasons.Count > 0)
-                            message += Environment.NewLine + "原因:" + Environment.NewLine + string.Join(Environment.NewLine, allFailReasons);
-
                         form.Invoke((Action)(() =>
                         {
                             form._displayManager.InitializePictureBoxes();
                             form.UpdateLayout();
                             form._displayManager.DisplayImages(0);
                             form.labelInfo.Text = "DBList が空です。キー3でフォルダを選択してください。";
-                            if (allFailReasons.Count > 0)
-                                ShowDbUnavailableNotice(form, allFailReasons);
+                            if (!string.IsNullOrEmpty(failReason))
+                                LogError($"[Startup] DB load failed: {failReason}");
                         }));
                     }
 
@@ -314,262 +255,75 @@ namespace MangaViewer
         }
 
         /// <summary>
-        /// キャッシュDBを順次試す（確認ダイアログ付き）。
-        /// 全て試した場合は「最後まで読み込んだ」ことを通知。
+        /// キャッシュDBのうち「最新1つ」のみを試す（TASK09.29）。
+        /// ダイアログなし・再試行なし。起動時のフォールバックとして1回だけ使う。
         /// </summary>
-        private static (bool loaded, List<string> failReasons) TryRestoreFromCacheSequential(Form1 form)
+        private static (bool loaded, string? reason) TryRestoreFromLatestCache(Form1 form)
         {
-            var failReasons = new List<string>();
-
             try
             {
-                // Get cache directory
                 var cacheDir = AppPaths.CacheDir;
-                Log($"[TryRestoreFromCache] CacheDir={cacheDir}, Exists={Directory.Exists(cacheDir)}");
+                Log($"[TryRestoreFromLatestCache] CacheDir={cacheDir}, Exists={Directory.Exists(cacheDir)}");
 
                 if (!Directory.Exists(cacheDir))
-                {
-                    failReasons.Add("[キャッシュ] キャッシュディレクトリが見つかりません。");
-                    return (false, failReasons);
-                }
+                    return (false, "[キャッシュ] キャッシュディレクトリが見つかりません。");
 
                 // Find all ratings_cache_*.json files
                 var cacheFiles = Directory.GetFiles(cacheDir, "ratings_cache_*.json");
-                Log($"[TryRestoreFromCache] CacheFilesCount={cacheFiles.Length}");
+                Log($"[TryRestoreFromLatestCache] CacheFilesCount={cacheFiles.Length}");
 
                 if (cacheFiles.Length == 0)
-                {
-                    failReasons.Add("[キャッシュ] キャッシュDBが見つかりませんでした。");
-                    return (false, failReasons);
-                }
+                    return (false, "[キャッシュ] キャッシュDBが見つかりませんでした。");
 
-                // Sort by last write time descending (most recent first)
+                // Sort by last write time descending; take only the latest.
                 Array.Sort(cacheFiles, (a, b) =>
-                    DateTime.Compare(
-                        File.GetLastWriteTimeUtc(b),
-                        File.GetLastWriteTimeUtc(a)));
+                    DateTime.Compare(File.GetLastWriteTimeUtc(b), File.GetLastWriteTimeUtc(a)));
 
-                Log($"Found {cacheFiles.Length} cache files. Trying sequentially.");
+                var cacheFile = cacheFiles[0];
+                Log($"[TryRestoreFromLatestCache] Using latest: {cacheFile}");
 
-                // Try each cache file until we find one with valid folders
-                int dbIndex = 0;
-                foreach (var cacheFile in cacheFiles)
-                {
-                    dbIndex++;
-                    try
-                    {
-                        var cjData = CjService.LoadCjFromFile(cacheFile);
-                        Log($"[TryRestoreFromCache #{dbIndex}] File={cacheFile}, cjData={(cjData != null ? "OK" : "NULL")}, ParentFolder={cjData?.ParentFolder}, FoldersCount={(cjData?.Folders.Count ?? -1)}");
+                // Load DB
+                var cjData = CjService.LoadCjFromFile(cacheFile);
+                if (cjData == null || cjData.Folders.Count == 0)
+                    return (false, "[キャッシュ] DBの読み込みに失敗または空DBです。");
 
-                        // DBファイル読み込み失敗 or 空DB → その場で理由を表示
-                        if (cjData == null || cjData.Folders.Count == 0)
-                        {
-                            string reason = cjData == null
-                                ? $"[キャッシュ #{dbIndex}/{cacheFiles.Length}] DBファイルの読み込みに失敗しました。"
-                                : $"[キャッシュ #{dbIndex}/{cacheFiles.Length}] DBが空です（フォルダ情報=0）。";
-                            failReasons.Add(reason);
+                // Determine root folder
+                string? restoredRoot = (!string.IsNullOrEmpty(cjData.ParentFolder) && Directory.Exists(cjData.ParentFolder))
+                    ? cjData.ParentFolder
+                    : InferParentFolderFromCacheName(Path.GetFileNameWithoutExtension(cacheFile));
 
-                            // ステータスに現在試しているDBを表示
-                            form.Invoke((Action)(() =>
-                            {
-                                form.labelInfo.Text = $"[{dbIndex}/{cacheFiles.Length}] DB検証中: {Path.GetFileName(cacheFile)}";
-                                Application.DoEvents();
-                            }));
+                if (string.IsNullOrEmpty(restoredRoot) || !Directory.Exists(restoredRoot))
+                    return (false, "[キャッシュ] DB内のフォルダパスが見つかりません。");
 
-                            MessageBox.Show(
-                                form,
-                                reason + Environment.NewLine +
-                                    "DB: " + cacheFile,
-                                "DB 読み込みエラー",
-                                MessageBoxButtons.OK,
-                                MessageBoxIcon.Warning);
-
-                            LogError($"[TryRestoreFromCache #{dbIndex}] DB null or empty: {cacheFile}");
-                            continue;
-                        }
-
-                        // Use parentFolder from JSON; fall back to filename inference only when invalid.
-                        string? restoredRoot = !string.IsNullOrEmpty(cjData.ParentFolder) ? cjData.ParentFolder : null;
-
-                        Log($"[TryRestoreFromCache #{dbIndex}] Before fallback: restoredRoot={restoredRoot}, Exists={(Directory.Exists(restoredRoot) ? "true" : "false")}");
-
-                        if (string.IsNullOrEmpty(restoredRoot) || !Directory.Exists(restoredRoot))
-                        {
-                            var fileName = Path.GetFileNameWithoutExtension(cacheFile);
-                            restoredRoot = InferParentFolderFromCacheName(fileName);
-                            Log($"[TryRestoreFromCache #{dbIndex}] After infer: restoredRoot={restoredRoot}");
-                        }
-
-                        // パス不一致 → DB内部のファイルパスを表示して次のDBへ
-                        if (string.IsNullOrEmpty(restoredRoot) || !Directory.Exists(restoredRoot))
-                        {
-                            string dbParent = cjData.ParentFolder ?? "(未設定)";
-                            string reason =
-                                $"[キャッシュ #{dbIndex}/{cacheFiles.Length}] DB内のフォルダパスが見つかりません。" + Environment.NewLine +
-                                "  DB: " + cacheFile + Environment.NewLine +
-                                "  DB内部の親フォルダ: " + dbParent;
-
-                            failReasons.Add(reason);
-
-                            form.Invoke((Action)(() =>
-                            {
-                                MessageBox.Show(
-                                    form,
-                                    reason,
-                                    "DB 読み込みエラー",
-                                    MessageBoxButtons.OK,
-                                    MessageBoxIcon.Warning);
-                            }));
-
-                            LogError($"[TryRestoreFromCache #{dbIndex}] Path not found: DB={cacheFile}, dbParent={dbParent}");
-                            continue;
-                        }
-
-                        // ここで確認ダイアログ：何を読み込むか表示してOKを待つ（詳細情報付き）
-                        string cacheName = Path.GetFileName(cacheFile);
-                        string msg =
-                            $"次のDB ({dbIndex}/{cacheFiles.Length}) を読み込みます。よろしいですか？" + Environment.NewLine +
-                            Environment.NewLine +
-                            "  ファイル: " + cacheName + Environment.NewLine +
-                            "  フォルダ: " + restoredRoot + Environment.NewLine +
-                            "  DB内フォルダ数: " + cjData.Folders.Count;
-
-                        bool confirmed = false;
-                        form.Invoke((Action)(() =>
-                        {
-                            DialogResult dr = MessageBox.Show(
-                                form,
-                                msg,
-                                "DB の読み込み確認",
-                                MessageBoxButtons.OKCancel,
-                                MessageBoxIcon.Question);
-                            confirmed = (dr == DialogResult.OK);
-                        }));
-
-                        if (!confirmed)
-                        {
-                            // ユーザーが拒否 → 次のDBを試す（中断ではない）
-                            Log($"[TryRestoreFromCache #{dbIndex}] User cancelled loading this DB.");
-                            continue;
-                        }
-
-                        // ステータスに現在読み込んでいるDBを表示
-                        form.Invoke((Action)(() =>
-                        {
-                            form.labelInfo.Text = $"[{dbIndex}/{cacheFiles.Length}] DB読み込み中: {cacheName}";
-                            Application.DoEvents();
-                        }));
-
-                        // このキャッシュをアクティブに設定
-                        form.Invoke((Action)(() =>
-                        {
-                            form._activeCjData = cjData;
-                            form._activeDbFile = cacheFile;
-                            form._activeCjParentFolder = restoredRoot;
-                            Log($"[TryRestoreFromCache #{dbIndex}] Before BuildRankFiltered: DBListCount={form._folderList.Count}");
-                            form.BuildRankFilteredListFromActiveCj();
-                            Log($"[TryRestoreFromCache #{dbIndex}] After BuildRankFiltered: DBListCount={form._folderList.Count}");
-                        }));
-
-                        // ロード結果評価（詳細な理由付き）
-                        var (ok, evalReason) = EvaluateLoadResult(form);
-                        if (!ok)
-                        {
-                            string failMsg = $"[キャッシュ #{dbIndex}/{cacheFiles.Length}] {evalReason ?? "原因不明"}";
-                            failReasons.Add(failMsg);
-
-                            // このDBがなぜ使えないかを即座に通知してから次のDBへ進む
-                            form.Invoke((Action)(() =>
-                            {
-                                MessageBox.Show(
-                                    form,
-                                    "このDBの読み込みに失敗しました。" + Environment.NewLine +
-                                        Environment.NewLine + failMsg.Replace("\n", Environment.NewLine),
-                                    "DB 読み込みエラー",
-                                    MessageBoxButtons.OK,
-                                    MessageBoxIcon.Warning);
-                            }));
-
-                            LogError($"[TryRestoreFromCache #{dbIndex}] EvaluateLoadResult failed: {evalReason}");
-                            continue;
-                        }
-
-                        Log($"Restored from cache: {cacheFile} -> root={restoredRoot}, folders added up to {form._folderList.Count}");
-                        // Continue trying remaining DBs instead of stopping here.
-                    }
-                    catch (Exception ex)
-                    {
-                        string errFailMsg = $"[キャッシュ #{dbIndex}/{cacheFiles.Length}] エラー: {Path.GetFileName(cacheFile)} - {ex.Message}";
-                        LogError($"Failed to restore from cache file {cacheFile}: {ex}");
-                        failReasons.Add(errFailMsg);
-
-                        // エラー理由を即座に通知
-                        form.Invoke((Action)(() =>
-                        {
-                            MessageBox.Show(
-                                form,
-                                "このDBの読み込みに失敗しました。" + Environment.NewLine +
-                                    Environment.NewLine + errFailMsg,
-                                "DB 読み込みエラー",
-                                MessageBoxButtons.OK,
-                                MessageBoxIcon.Warning);
-                        }));
-                    }
-                }
-
-                // ここに到達＝全てのキャッシュDBの処理が完了した（成功・失敗・キャンセルを含む）
-                bool anyLoaded = false;
-                int initialCountBeforeSummary = 0;
-
+                // Apply in-memory only; no extra file I/O.
                 form.Invoke((Action)(() =>
                 {
-                    initialCountBeforeSummary = form._folderList.Count;
+                    // TASK09.29: キャッシュ復元も「起動時1回のみ」に含める
+                    if (form._dbLoadedOnce) return;
+
+                    form._activeCjData = cjData;
+                    form._activeDbFile = cacheFile;
+                    form._activeCjParentFolder = restoredRoot;
+                    Log($"[TryRestoreFromLatestCache] Before BuildRankFiltered: DBListCount={form._folderList.Count}");
+                    form.BuildRankFilteredListFromActiveCj();
+                    Log($"[TryRestoreFromLatestCache] After BuildRankFiltered: DBListCount={form._folderList.Count}");
                 }));
 
-                // If we have folders now, consider it loaded.
-                if (initialCountBeforeSummary > 0)
-                    anyLoaded = true;
+                var (ok, evalReason) = EvaluateLoadResult(form);
+                if (!ok)
+                    return (false, "[キャッシュ] " + (evalReason ?? "原因不明"));
 
-                var summaryReasons = new StringBuilder();
-                summaryReasons.AppendLine("利用可能なDBを全て試しました。");
-                summaryReasons.AppendLine($"確認したDB数: {cacheFiles.Length} 個");
-                if (anyLoaded)
-                    summaryReasons.AppendLine("読み込み成功: はい（フォルダ一覧に反映済み）");
-                else
-                    summaryReasons.AppendLine("読み込み成功: いいえ（有効なDBが見つかりませんでした）");
+                // TASK09.29: キャッシュ復元成功 → DB読み込み完了として固定
+                form.Invoke((Action)(() => { form._dbLoadedOnce = true; }));
 
-                // Add failure reasons if any.
-                if (failReasons.Count > 0)
-                {
-                    summaryReasons.AppendLine();
-                    foreach (var r in failReasons)
-                        summaryReasons.AppendLine(r);
-                }
-
-                // 「最後まで読んだ」ことをユーザーに明示的に通知（詳細付き）
-                form.Invoke((Action)(() =>
-                {
-                    MessageBox.Show(
-                        form,
-                        summaryReasons.ToString().Trim(),
-                        "DB 読み込み完了",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Information);
-                }));
-
-                Log($"[TryRestoreFromCache] All {cacheFiles.Length} DB(s) processed. AnyLoaded={anyLoaded}. Failures:");
-                foreach (var r in failReasons)
-                    Log($"[TryRestoreFromCache] - {r}");
-
-                return (anyLoaded, failReasons);
+                Log($"Restored from latest cache: {cacheFile} -> root={restoredRoot}, DBListCount={form._folderList.Count}");
+                return (true, null);
             }
             catch (Exception ex)
             {
                 LogError($"Cache fallback failed: {ex}");
-                failReasons.Add($"キャッシュ復元に失敗しました: {ex.Message}");
+                return (false, "[キャッシュ] 復元に失敗しました: " + ex.Message);
             }
-
-            return (false, failReasons);
         }
 
         /// <summary>
@@ -578,24 +332,17 @@ namespace MangaViewer
         /// </summary>
         private static string? InferParentFolderFromCacheName(string cacheName)
         {
-            // Format: ratings_cache_{escaped_name}.json
             if (cacheName.StartsWith("ratings_cache_"))
             {
                 var escaped = cacheName.Substring("ratings_cache_".Length);
 
-                // Try to reconstruct original path from escaped name
-                // The escaping replaces non-alphanumeric chars with '_' except '.', '-'
-                // Common patterns: O__NEW3 -> O:\NEW3, F__MangaDL... -> F:\MangaDL\...
-                
                 // Simple heuristic: first char is drive letter, second underscore is root separator
                 if (escaped.Length > 2 && escaped[1] == '_')
                 {
                     string drive = escaped.Substring(0, 1);
                     string rest = escaped.Substring(2);
 
-                    // Replace underscores with backslashes for path reconstruction
-                    // This is a best-effort approach; exact paths may vary
-                    string reconstructedPath = drive + ":" + System.IO.Path.DirectorySeparatorChar + 
+                    string reconstructedPath = drive + ":" + System.IO.Path.DirectorySeparatorChar +
                         rest.Replace('_', '\\');
 
                     if (Directory.Exists(reconstructedPath))
