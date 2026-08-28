@@ -11,10 +11,10 @@ venv/
 .venv/
 
 # ログファイル・一時ファイル
-*.log
-logs/
-tmp/
-.cache/
+#*.log
+#logs/
+#tmp/
+#.cache/
 
 # バージョン管理・エディタ設定
 .git/

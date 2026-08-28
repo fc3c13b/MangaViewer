@@ -151,6 +151,12 @@ namespace MangaViewer
         // ListBox scroll/draw helper (TASK09.25)
         private ListBoxScrollHelper? _listBoxScrollHelper;
 
+        // CBZ List overlay dialog (TASK09.31)
+        private Panel? panelCbzListOverlay;
+        private ListBox? listBoxCbzFiles;
+        private Button? btnCbzOk;
+        private Button? btnCbzCancel;
+
         public bool IsSlideshowRunning => _slideshowTimer?.Enabled ?? false;
 
         public Form1()
@@ -161,8 +167,26 @@ namespace MangaViewer
             this.KeyPreview = true;
             this.KeyDown += (s, e) =>
             {
-                // 上下キー：リストの選択移動＋フォルダ表示を一括処理
-                if (e.KeyCode == Keys.Up || e.KeyCode == Keys.Down)
+                // L キー: CBZ/ZIP ファイル選択ダイアログの表示/非表示（TASK09.31）
+                if (!e.Control && !e.Alt && e.KeyCode == Keys.L)
+                {
+                    e.Handled = true;
+                    this.ToggleCbzListDialog();
+                    return;
+                }
+
+                // ダイアログ表示中の Esc: ダイアログを閉じる（フルスクリーン切替を行わない）
+                if (e.KeyCode == Keys.Escape && IsCbzListVisible)
+                {
+                    e.Handled = true;
+                    this.HideCbzSelectDialog();
+                    return;
+                }
+
+                // CBZ List 表示中の Enter は ProcessCmdKey で一元処理するため、ここでは扱わない。
+
+                // 上下キー：CBZ List 非表示時のみフォルダリスト操作（TASK09.31）
+                if ((e.KeyCode == Keys.Up || e.KeyCode == Keys.Down) && !IsCbzListVisible)
                 {
                     HandleFolderListArrowKey(e);
                     return;
@@ -218,6 +242,13 @@ namespace MangaViewer
 
         protected override bool ProcessCmdKey(ref Message m, Keys keyData)
         {
+            // CBZ List 表示中の Enter で確定（TASK09.31 バグ修正：確実に補足）
+            if (IsCbzListVisible && keyData == Keys.Enter)
+            {
+                CbzListOnOk();
+                return true;
+            }
+
             if (keyData == (Keys.Control | Keys.Up) || keyData == (Keys.Control | Keys.Down) ||
                 keyData == (Keys.Control | Keys.Left) || keyData == (Keys.Control | Keys.Right) ||
                 keyData == (Keys.Alt | Keys.Left) || keyData == (Keys.Alt | Keys.Right))
@@ -227,8 +258,8 @@ namespace MangaViewer
                 return true;
             }
 
-            // 上下キーもここで補足し、Form の KeyDown と同じ処理を行う
-            if (keyData == Keys.Up || keyData == Keys.Down)
+            // 上下キーもここで補足し、Form の KeyDown と同じ処理を行う（CBZ List 非表示時のみ）
+            if (!IsCbzListVisible && (keyData == Keys.Up || keyData == Keys.Down))
             {
                 var e = new KeyEventArgs(keyData);
                 HandleFolderListArrowKey(e);
@@ -601,6 +632,245 @@ namespace MangaViewer
         {
             _listBoxScrollHelper?.OnSelectedIndexChanged();
         }
+
+        #region CBZ List Overlay (TASK09.31)
+
+        internal bool IsCbzListVisible => panelCbzListOverlay?.Visible ?? false;
+
+        private void EnsureCbzListControls()
+        {
+            if (panelCbzListOverlay != null) return; // already created
+
+            int cw = this.ClientSize.Width;
+            int ch = this.ClientSize.Height;
+
+            // Overlay panel
+            panelCbzListOverlay = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.FromArgb(200, 15, 15, 15),
+                Visible = false
+            };
+            this.Controls.Add(panelCbzListOverlay);
+
+            // Content panel
+            int boxW = Math.Max(360, (int)(cw * 0.4));
+            int boxH = Math.Max(280, (int)(ch * 0.5));
+            int x = (cw - boxW) / 2;
+            int y = (ch - boxH) / 2;
+
+            var contentPanel = new Panel
+            {
+                BackColor = Color.FromArgb(35, 35, 35),
+                BorderStyle = BorderStyle.FixedSingle,
+                Location = new Point(x, y),
+                Size = new Size(boxW, boxH)
+            };
+
+            // Title label
+            var lblTitle = new Label
+            {
+                Text = "CBZ / ZIP ファイルを選択",
+                ForeColor = Color.White,
+                Font = new Font("Meiryo UI", 10F),
+                AutoSize = true,
+                Location = new Point(10, 8)
+            };
+            contentPanel.Controls.Add(lblTitle);
+
+            // ListBox
+            listBoxCbzFiles = new ListBox
+            {
+                Location = new Point(10, 34),
+                Size = new Size(boxW - 20, boxH - 95),
+                SelectionMode = SelectionMode.One,
+                BackColor = Color.FromArgb(40, 40, 40),
+                ForeColor = Color.White
+            };
+            contentPanel.Controls.Add(listBoxCbzFiles);
+
+            // OK button
+            btnCbzOk = new Button
+            {
+                Text = "OK",
+                Location = new Point(boxW - 175, boxH - 36),
+                Size = new Size(70, 24)
+            };
+            contentPanel.Controls.Add(btnCbzOk);
+
+            // Cancel button
+            btnCbzCancel = new Button
+            {
+                Text = "キャンセル",
+                Location = new Point(boxW - 95, boxH - 36),
+                Size = new Size(70, 24)
+            };
+            contentPanel.Controls.Add(btnCbzCancel);
+
+            // Wire events
+            btnCbzOk.Click += (s, e) => CbzListOnOk();
+            btnCbzCancel.Click += (s, e) => HideCbzSelectDialog();
+
+            // Mark Enter as input key so ListBox raises it in KeyDown.
+            listBoxCbzFiles.PreviewKeyDown += (s, ev) =>
+            {
+                if (ev.KeyCode == Keys.Enter)
+                    ev.IsInputKey = true;
+            };
+
+            // Enter key on ListBox triggers OK
+            listBoxCbzFiles.KeyDown += (s, ev) =>
+            {
+                if (ev.KeyCode == Keys.Enter)
+                {
+                    ev.Handled = true;
+                    CbzListOnOk();
+                }
+            };
+
+            panelCbzListOverlay.Controls.Add(contentPanel);
+        }
+
+        public void ToggleCbzListDialog()
+        {
+            if (IsCbzListVisible)
+            {
+                HideCbzSelectDialog();
+            }
+            else
+            {
+                ShowCbzSelectDialog();
+            }
+        }
+
+        private void ShowCbzSelectDialog()
+        {
+            EnsureCbzListControls();
+            if (panelCbzListOverlay == null || listBoxCbzFiles == null) return;
+
+            // Clear previous items
+            listBoxCbzFiles.Items.Clear();
+
+            if (string.IsNullOrEmpty(_currentFolder))
+            {
+                HideCbzSelectDialog();
+                return;
+            }
+
+            var cbzFiles = GetCbzZipListInCurrentFolder();
+            foreach (var f in cbzFiles)
+            {
+                listBoxCbzFiles.Items.Add(f);
+            }
+
+            if (listBoxCbzFiles.Items.Count == 0)
+            {
+                HideCbzSelectDialog();
+                return;
+            }
+
+            // Select first item
+            listBoxCbzFiles.SelectedIndex = 0;
+
+            panelCbzListOverlay.Visible = true;
+            panelCbzListOverlay.BringToFront();
+            listBoxCbzFiles.Focus();
+        }
+
+        private void HideCbzSelectDialog()
+        {
+            if (panelCbzListOverlay != null)
+                panelCbzListOverlay.Visible = false;
+        }
+
+        private void CbzListOnOk()
+        {
+            if (listBoxCbzFiles == null || listBoxCbzFiles.SelectedIndex < 0)
+            {
+                HideCbzSelectDialog();
+                return;
+            }
+
+            var selectedItem = listBoxCbzFiles.SelectedItem as string;
+            if (string.IsNullOrEmpty(selectedItem))
+            {
+                HideCbzSelectDialog();
+                return;
+            }
+
+            // Build full path of selected file
+            string cbzPath = Path.Combine(_currentFolder, selectedItem);
+            if (!File.Exists(cbzPath))
+            {
+                HideCbzSelectDialog();
+                return;
+            }
+
+            // Open this CBZ/ZIP via CbzManager and reload images
+            try
+            {
+                if (_cbzManager == null)
+                    _cbzManager = new CbzManager();
+
+                // Initialize for folder to set up multi-CBZ list, then switch to selected.
+                bool ok = _cbzManager.InitializeForFolder(_currentFolder);
+                if (!ok || !_cbzManager.CbxFiles.Any())
+                {
+                    HideCbzSelectDialog();
+                    return;
+                }
+
+                // Find index of the chosen file in CbxFiles list
+                int idx = _cbzManager.CbxFiles.FindIndex(p => string.Equals(
+                    Path.GetFullPath(p), Path.GetFullPath(cbzPath)));
+
+                if (idx >= 0)
+                {
+                    _cbzManager.SwitchToCbx(idx);
+                }
+
+                // Reload images for current folder (mix JPG + CBZ).
+                LoadAndSortImages(_currentFolder);
+                _currentIndex = 0;
+                DisplayImages(0);
+            }
+            catch
+            {
+                // On error, just close dialog.
+            }
+
+            HideCbzSelectDialog();
+        }
+
+        private List<string> GetCbzZipListInCurrentFolder()
+        {
+            if (string.IsNullOrEmpty(_currentFolder)) return new List<string>();
+
+            var result = new List<string>();
+
+            try
+            {
+                string[] cbzs = Directory.GetFiles(_currentFolder, "*.cbz", SearchOption.TopDirectoryOnly);
+                string[] zips = Directory.GetFiles(_currentFolder, "*.zip", SearchOption.TopDirectoryOnly);
+
+                foreach (var p in cbzs) result.Add(Path.GetFileName(p));
+                foreach (var p in zips) result.Add(Path.GetFileName(p));
+            }
+            catch
+            {
+                return new List<string>();
+            }
+
+            // Sort by filename ignoring extension
+            result = result.OrderBy(
+                    f => f,
+                    StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            return result;
+        }
+
+        #endregion CBZ List Overlay (TASK09.31)
 
         #endregion INavigationActions implementation
     }

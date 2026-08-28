@@ -21,3 +21,5 @@ c:\source\repos\MangaViewer\obj\Debug\net8.0-windows\refint\MangaViewer.dll
 c:\source\repos\MangaViewer\obj\Debug\net8.0-windows\MangaViewer.pdb
 c:\source\repos\MangaViewer\obj\Debug\net8.0-windows\MangaViewer.genruntimeconfig.cache
 c:\source\repos\MangaViewer\obj\Debug\net8.0-windows\ref\MangaViewer.dll
+c:\source\repos\MangaViewer\obj\Debug\net8.0-windows\MangaViewer.AssemblyInfoInputs.cache
+c:\source\repos\MangaViewer\obj\Debug\net8.0-windows\MangaViewer.AssemblyInfo.cs

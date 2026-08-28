@@ -37,13 +37,14 @@ namespace MangaViewer
          void StartSlideshow();
           void StopSlideshow();
 
-          // CBZファイル間を切り替え（Alt+左右用）
-          void NavigateCbzNext();
-          void NavigateCbzPrev();
+           // CBZファイル間を切り替え（Alt+左右用）
+           void NavigateCbzNext();
+           void NavigateCbzPrev();
 
+           // CBZ/ZIP ファイル選択ダイアログのトグル（キー L 用）
+           void ToggleCbzListDialog();
 
-
-           // 親フォルダー指定でCJを作成（キー3用、DBリストモード時）
+             // 親フォルダー指定でCJを作成（キー3用、DBリストモード時）
            void CreateCjForParent(string parentFolder);
 
            // 既存 CJ を読み込んでオンメモリ保持（キー3用、DBリストモード時）

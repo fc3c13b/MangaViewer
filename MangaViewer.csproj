@@ -12,8 +12,8 @@
     <Version>0.9.32</Version>
     <AssemblyVersion>$(Version)</AssemblyVersion>
     <FileVersion>$(Version)</FileVersion>
-    <!-- 自動生成される AssemblyInfo との重複を防ぐ -->
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <!-- SDK が AssemblyInformationalVersion を自動付与し、Constants.GetAppVersion() で正しく取得可能にする -->
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
   </PropertyGroup>
 
   <ItemGroup>
