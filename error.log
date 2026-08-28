@@ -2469,3 +2469,36 @@
 [DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\3785aa2067e17691625dd0940617277e\00001.jpg)
 [DisplayManager] i=1, imgIdx=0, imagePath=large_140801.jpg
 [DisplayManager] LoadImageIntoPictureBox(imagePath=O:\NEW\[江口連×双葉もも] とんでもスキルで異世界放浪メシ 再再スキャン\large_140801.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=2, ImagePaths.Count=1919)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=1, imagePath=00001.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\3785aa2067e17691625dd0940617277e\00001.jpg)
+[DisplayManager] i=1, imgIdx=0, imagePath=large_140801.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=O:\NEW\[江口連×双葉もも] とんでもスキルで異世界放浪メシ 再再スキャン\large_140801.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=8, ImagePaths.Count=1919)
+[DisplayManager] pictureBoxes.Length=8, count=8
+[DisplayManager] cols=4, count=8
+[DisplayManager] i=0, imgIdx=3, imagePath=00003.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\3785aa2067e17691625dd0940617277e\00003.jpg)
+[DisplayManager] i=1, imgIdx=2, imagePath=00002.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\3785aa2067e17691625dd0940617277e\00002.jpg)
+[DisplayManager] i=2, imgIdx=1, imagePath=00001.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\3785aa2067e17691625dd0940617277e\00001.jpg)
+[DisplayManager] i=3, imgIdx=0, imagePath=large_140801.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=O:\NEW\[江口連×双葉もも] とんでもスキルで異世界放浪メシ 再再スキャン\large_140801.jpg)
+[DisplayManager] i=4, imgIdx=7, imagePath=00007.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\3785aa2067e17691625dd0940617277e\00007.jpg)
+[DisplayManager] i=5, imgIdx=6, imagePath=00006.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\3785aa2067e17691625dd0940617277e\00006.jpg)
+[DisplayManager] i=6, imgIdx=5, imagePath=00005.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\3785aa2067e17691625dd0940617277e\00005.jpg)
+[DisplayManager] i=7, imgIdx=4, imagePath=00004.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\3785aa2067e17691625dd0940617277e\00004.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=2, ImagePaths.Count=1919)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=1, imagePath=00001.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\3785aa2067e17691625dd0940617277e\00001.jpg)
+[DisplayManager] i=1, imgIdx=0, imagePath=large_140801.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=O:\NEW\[江口連×双葉もも] とんでもスキルで異世界放浪メシ 再再スキャン\large_140801.jpg)

@@ -311,10 +311,12 @@ namespace MangaViewer
             // TASK09.24: Always DBList mode (no more FolderList mode).
             string baseTitle = Constants.AppTitle;
 
+            // Build base title with DB name if available.
+            string titleBase;
             if (!string.IsNullOrEmpty(_activeDbFile))
             {
                 string dbName = Path.GetFileName(_activeDbFile);
-                this.Text = $"{baseTitle} - DBList [{dbName}]";
+                titleBase = $"{baseTitle} - DBList [{dbName}]";
             }
             else
             {
@@ -322,7 +324,75 @@ namespace MangaViewer
                 string label = string.IsNullOrWhiteSpace(_rootFolder)
                     ? "[<none>]"
                     : $"[{_rootFolder}]";
-                this.Text = $"{baseTitle} - DBList {label}";
+                titleBase = $"{baseTitle} - DBList {label}";
+            }
+
+            // TASK09.33: Append CBZ cache list sorted by extraction time (folder creation time).
+            string cbzList = BuildCbzCacheList();
+            this.Text = string.IsNullOrEmpty(cbzList) ? titleBase : $"{titleBase} {cbzList}";
+        }
+
+        /// <summary>
+        /// TASK09.33: Build "/vol1.cbz /vol2.cbz" list sorted by cache folder creation time (oldest first).
+        /// </summary>
+        private string BuildCbzCacheList()
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(_currentFolder))
+                    return "";
+
+                string[] cbzFiles = Directory.GetFiles(_currentFolder, "*.cbz", SearchOption.TopDirectoryOnly);
+                if (cbzFiles.Length == 0)
+                    return "";
+
+                var cacheRoot = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "MangaViewer",
+                    "CBZCache"
+                );
+
+                // Collect (fileName, creationTime) for CBZs that have a cache directory.
+                var list = new List<(string name, DateTime time)>();
+
+                foreach (var cbz in cbzFiles)
+                {
+                    try
+                    {
+                        using var md5 = System.Security.Cryptography.MD5.Create();
+                        var hash = md5.ComputeHash(System.Text.Encoding.UTF8.GetBytes(cbz));
+                        var hashStr = BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
+                        string cacheDir = Path.Combine(cacheRoot, hashStr);
+
+                        if (Directory.Exists(cacheDir))
+                        {
+                            DateTime dt = Directory.GetCreationTime(cacheDir);
+                            list.Add((Path.GetFileName(cbz), dt));
+                        }
+                    }
+                    catch
+                    {
+                        // Skip on any error for this file.
+                    }
+                }
+
+                if (list.Count == 0)
+                    return "";
+
+                // Sort by cache folder creation time ascending (oldest first).
+                list.Sort((a, b) => a.time.CompareTo(b.time));
+
+                // Build "/vol1.cbz /vol2.cbz" style string.
+                var sb = new System.Text.StringBuilder();
+                foreach (var item in list)
+                    sb.Append(" /").Append(item.name);
+
+                return sb.ToString().TrimStart(' ');
+            }
+            catch
+            {
+                // Fallback: no CBZ list on any unexpected error.
+                return "";
             }
         }
 
