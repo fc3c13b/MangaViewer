@@ -7,6 +7,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace MangaViewer
 {
@@ -15,7 +16,7 @@ namespace MangaViewer
         private readonly string _cacheRoot;
 
         /// <summary>キャッシュに保持する最大CBZ数</summary>
-        private const int MaxCachedCbzCount = 2;
+        private const int MaxCachedCbzCount = 5;
 
         internal List<string> CbxFiles = new();
         internal int ActiveCbxIndex = 0;
@@ -344,6 +345,38 @@ namespace MangaViewer
             {
                 // その他エラー→空扱い
                 CurrentImagePaths.Clear();
+            }
+
+            // 次のCBZがあれば自動的に展開（連続プリロード）
+            PreloadNextCbzIfAvailable();
+        }
+
+        private void PreloadNextCbzIfAvailable()
+        {
+            if (ActiveCbxIndex + 1 >= CbxFiles.Count) return;
+
+            string nextCbz = CbxFiles[ActiveCbxIndex + 1];
+            string nextCacheDir;
+
+            try
+            {
+                nextCacheDir = GetCacheDirectory(nextCbz);
+            }
+            catch
+            {
+                return;
+            }
+
+            if (!Directory.Exists(nextCacheDir))
+            {
+                try
+                {
+                    ExtractCbzTo(nextCacheDir, nextCbz);
+                }
+                catch
+                {
+                    // プリロード失敗は許容
+                }
             }
         }
 

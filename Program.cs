@@ -55,17 +55,7 @@ namespace MangaViewer
             // アプリケーション終了時にratings_cache.jsonを保存
             Application.ApplicationExit += (s, e) => RatingService.FlushReadOnlyCache();
 
-            // 起動時: CBZ展開キャッシュ全削除
-            try
-            {
-                Log("Clearing CBZ cache...");
-                CbzManager.ClearAllCache();
-                Log("CBZ cache cleared OK");
-            }
-            catch (Exception ex)
-            {
-                Log($"CBZ cache clear failed: {ex}");
-            }
+            // キャッシュは再起動後も維持するため、起動時削除を廃止（TASK09.32）
 
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
