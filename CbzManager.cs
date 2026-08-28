@@ -232,6 +232,16 @@ namespace MangaViewer
             return nextCbz;
         }
 
+        /// <summary>
+        /// 指定されたインデックスのCBZに切り替え、画像リストを更新します（TASK09.30用）。
+        /// </summary>
+        public void SwitchToCbx(int index)
+        {
+            if (index < 0 || index >= CbxFiles.Count) return;
+            ActiveCbxIndex = index;
+            RefreshCurrentImagePaths(extractEvenIfEmpty: true);
+        }
+
         private void Reset()
         {
             CbxFiles.Clear();

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace MangaViewer
@@ -43,10 +44,9 @@ namespace MangaViewer
                 form.EnsureBasicLayout();
                 form.labelInfo.Text = "起動中... DBを読み込みます";
                 form.UpdateLayout();
-                Application.DoEvents();
 
-                // 4. バックグラウンド初期処理（CJ/DBList）
-                RunBackgroundInit(form, settings);
+                // 4. バックグラウンド初期処理（CJ/DBList）→ TaskをForm1に保持させる
+                form._initTask = RunBackgroundInit(form, settings);
             }
             catch (Exception ex)
             {
@@ -62,16 +62,15 @@ namespace MangaViewer
             }
         }
 
-        private static void RunBackgroundInit(Form1 form, Settings settings)
+        // Public for Form1 to track completion during shutdown.
+        public static Task RunBackgroundInit(Form1 form, Settings settings)
         {
             string lastRoot = settings.LastRootFolder;
 
-            System.Threading.Tasks.Task.Run(async () =>
+            return Task.Run(() =>
             {
                 try
                 {
-                    await System.Threading.Tasks.Task.Yield(); // UI描画を優先
-
                     Log($"[Startup] LastRootFolder={lastRoot}, Exists={Directory.Exists(lastRoot)}");
 
                     bool loadedCj = false;
@@ -81,14 +80,14 @@ namespace MangaViewer
                     if (!string.IsNullOrEmpty(lastRoot) && Directory.Exists(lastRoot))
                     {
                         Log("[Startup] LoadCjForParent start");
-                        form.Invoke((Action)(() => form.LoadCjForParent(lastRoot)));
+                        InvokeIfSafe(form, () => form.LoadCjForParent(lastRoot));
 
                         var (ok, reason) = EvaluateLoadResult(form);
                         if (ok)
                         {
                             loadedCj = true;
                             // TASK09.29: DB読み込み完了フラグ（起動時1回のみ）
-                            form.Invoke((Action)(() => { form._dbLoadedOnce = true; }));
+                            InvokeIfSafe(form, () => { form._dbLoadedOnce = true; });
                         }
                         else
                             failReason = $"[LastRootFolder] {reason ?? "原因不明"}";
@@ -109,7 +108,8 @@ namespace MangaViewer
                         failReason ??= cacheReason;
                     }
 
-                    form._displayManager.UpdateSettings(settings);
+                    // Safe update settings if still alive.
+                    InvokeIfSafe(form, () => form._displayManager.UpdateSettings(settings));
 
                     // ===== 3. 結果処理 =====
                     if (loadedCj && form._folderList.Count > 0)
@@ -119,7 +119,7 @@ namespace MangaViewer
                         if (form._currentFolderIndex < 0)
                             form._currentFolderIndex = 0;
 
-                        form.Invoke((Action)(() =>
+                        InvokeIfSafe(form, () =>
                         {
                             string selectedFolder = EnsureValidFolderIndex(form);
                             form.LoadAndSortImages(selectedFolder);
@@ -135,13 +135,13 @@ namespace MangaViewer
                                 lb.SelectedIndex = form._currentFolderIndex;
                             form.labelInfo.Text = "初期化完了";
                             form.UpdateWindowTitle();
-                        }));
+                        });
                     }
                     else
                     {
                         Log($"[Startup] Final EMPTY: loadedCj={loadedCj}, DBListCount={(int)(form._folderList?.Count ?? 0)}");
 
-                        form.Invoke((Action)(() =>
+                        InvokeIfSafe(form, () =>
                         {
                             form._displayManager.InitializePictureBoxes();
                             form.UpdateLayout();
@@ -149,18 +149,37 @@ namespace MangaViewer
                             form.labelInfo.Text = "DBList が空です。キー3でフォルダを選択してください。";
                             if (!string.IsNullOrEmpty(failReason))
                                 LogError($"[Startup] DB load failed: {failReason}");
-                        }));
+                        });
                     }
 
                     Log("Form1_Load complete");
                 }
                 catch (Exception ex)
                 {
-                    form.Invoke((Action)(() => form.EnsureBasicLayout()));
+                    InvokeIfSafe(form, () => form.EnsureBasicLayout());
                     LogError($"Background init error: {ex}");
-                    form.Invoke((Action)(() => { form.labelInfo.Text = "初期化エラーが発生しました。"; }));
+                    InvokeIfSafe(form, () => { form.labelInfo.Text = "初期化エラーが発生しました。"; });
                 }
             });
+        }
+
+        /// <summary>
+        /// Form が破棄されていない場合のみ安全にInvokeを実行する。
+        /// </summary>
+        private static void InvokeIfSafe(Form1 form, Action action)
+        {
+            if (form.IsDisposed || form.IsHandleCreated == false)
+                return;
+
+            try
+            {
+                // 例外がスプラッシュ/閉じるフローで発生しないようキャッチ
+                form.Invoke(action);
+            }
+            catch
+            {
+                // Form が閉じている可能性を考慮して無視
+            }
         }
 
         private static bool listBoxFoldersSafe(Form1 form, out ListBox lb)
@@ -296,7 +315,7 @@ namespace MangaViewer
                     return (false, "[キャッシュ] DB内のフォルダパスが見つかりません。");
 
                 // Apply in-memory only; no extra file I/O.
-                form.Invoke((Action)(() =>
+                InvokeIfSafe(form, () =>
                 {
                     // TASK09.29: キャッシュ復元も「起動時1回のみ」に含める
                     if (form._dbLoadedOnce) return;
@@ -307,14 +326,14 @@ namespace MangaViewer
                     Log($"[TryRestoreFromLatestCache] Before BuildRankFiltered: DBListCount={form._folderList.Count}");
                     form.BuildRankFilteredListFromActiveCj();
                     Log($"[TryRestoreFromLatestCache] After BuildRankFiltered: DBListCount={form._folderList.Count}");
-                }));
+                });
 
                 var (ok, evalReason) = EvaluateLoadResult(form);
                 if (!ok)
                     return (false, "[キャッシュ] " + (evalReason ?? "原因不明"));
 
                 // TASK09.29: キャッシュ復元成功 → DB読み込み完了として固定
-                form.Invoke((Action)(() => { form._dbLoadedOnce = true; }));
+                InvokeIfSafe(form, () => { form._dbLoadedOnce = true; });
 
                 Log($"Restored from latest cache: {cacheFile} -> root={restoredRoot}, DBListCount={form._folderList.Count}");
                 return (true, null);

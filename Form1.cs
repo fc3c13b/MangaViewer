@@ -35,6 +35,9 @@ namespace MangaViewer
         internal string? _activeCjParentFolder;
         internal bool _dbLoadedOnce = false;  // 起動時のDB読み込みが完了したか（TASK09.29）
 
+        // Startup background task (for graceful shutdown)
+        internal Task? _initTask;
+
         // INavigationActions implementation (exact signature required)
         public void LoadCjForParent(string parentFolder)
         {
@@ -202,7 +205,7 @@ namespace MangaViewer
             // デバウンスタイマーをリセット（1秒間キー操作がない場合に画像を表示）
             _folderDebounceTimer?.Stop();
             _folderDebounceTimer ??= new System.Windows.Forms.Timer { Interval = 1000 };
-            _folderDebounceTimer.Tick += (s, e) =>
+            _folderDebounceTimer.Tick += (s, ev) =>
             {
                 _folderDebounceTimer!.Stop();
                 LoadAndSortImages(_folderList[_currentFolderIndex]);
@@ -391,10 +394,21 @@ namespace MangaViewer
 
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
+            // Stop timers to prevent further UI operations.
+            _folderDebounceTimer?.Stop();
             _slideshowTimer?.Stop();
-            _slideshowTimer?.Dispose();
-            _imageService.Dispose();
-            _displayManager?.Dispose();
+
+            // Wait for startup background task with a simple timeout so Windows doesn't hang.
+            var initTask = _initTask;
+            if (initTask != null && !initTask.IsCompleted)
+            {
+                try { initTask.Wait(5000); } catch { /* ignore */ }
+            }
+
+            // Clean up resources.
+            try { _imageService?.Dispose(); } catch { }
+            try { _displayManager?.Dispose(); } catch { }
+
             base.OnFormClosing(e);
         }
 
