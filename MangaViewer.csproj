@@ -9,7 +9,7 @@
     <DefineConstants>USE_SKIA</DefineConstants>
 
     <!-- バージョンの唯一の定義（csproj） -->
-    <Version>0.9.33</Version>
+    <Version>0.9.35</Version>
     <AssemblyVersion>$(Version)</AssemblyVersion>
     <FileVersion>$(Version)</FileVersion>
     <!-- SDK が AssemblyInformationalVersion を自動付与し、Constants.GetAppVersion() で正しく取得可能にする -->
