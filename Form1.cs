@@ -775,5 +775,20 @@ namespace MangaViewer
             // Implement the logic to copy the current name to clipboard
             MessageBox.Show("Copy current name to clipboard is not implemented yet.");
         }
+
+        private void CbzListOnOk()
+        {
+            if (listBoxCbzFiles != null && listBoxCbzFiles.SelectedItem != null)
+            {
+                string selectedFile = listBoxCbzFiles.SelectedItem.ToString();
+                _cbzManager?.LoadCbx(selectedFile);
+                HideCbzSelectDialog();
+            }
+        }
+
+        private void ResetScrollAnimation()
+        {
+            _listBoxScrollHelper?.ResetScrollAnimation();
+        }
     }
 }

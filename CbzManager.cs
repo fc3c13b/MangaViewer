@@ -758,5 +758,17 @@ namespace MangaViewer
                 // タイトル更新の失敗でCBZ処理を中断しない。
             }
         }
+
+        public void LoadCbx(string cbzFile)
+        {
+            if (string.IsNullOrEmpty(cbzFile)) return;
+
+            int index = CbxFiles.IndexOf(cbzFile, StringComparison.OrdinalIgnoreCase);
+            if (index >= 0)
+            {
+                ActiveCbxIndex = index;
+                RefreshCurrentImagePaths(extractEvenIfEmpty: true);
+            }
+        }
     }
 }
