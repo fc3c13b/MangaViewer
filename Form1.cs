@@ -183,7 +183,13 @@ namespace MangaViewer
                     return;
                 }
 
-                // CBZ List 表示中の Enter は ProcessCmdKey で一元処理するため、ここでは扱わない。
+                // CBZ List 表示中の Enter: 選択確定（TASK09.31 バグ修正）
+                if (IsCbzListVisible && e.KeyCode == Keys.Enter)
+                {
+                    e.Handled = true;
+                    CbzListOnOk();
+                    return;
+                }
 
                 // 上下キー：CBZ List 非表示時のみフォルダリスト操作（TASK09.31）
                 if ((e.KeyCode == Keys.Up || e.KeyCode == Keys.Down) && !IsCbzListVisible)
@@ -242,13 +248,6 @@ namespace MangaViewer
 
         protected override bool ProcessCmdKey(ref Message m, Keys keyData)
         {
-            // CBZ List 表示中の Enter で確定（TASK09.31 バグ修正：確実に補足）
-            if (IsCbzListVisible && keyData == Keys.Enter)
-            {
-                CbzListOnOk();
-                return true;
-            }
-
             if (keyData == (Keys.Control | Keys.Up) || keyData == (Keys.Control | Keys.Down) ||
                 keyData == (Keys.Control | Keys.Left) || keyData == (Keys.Control | Keys.Right) ||
                 keyData == (Keys.Alt | Keys.Left) || keyData == (Keys.Alt | Keys.Right))
@@ -311,7 +310,6 @@ namespace MangaViewer
             // TASK09.24: Always DBList mode (no more FolderList mode).
             string baseTitle = Constants.AppTitle;
 
-            // Build base title with DB name if available.
             string titleBase;
             if (!string.IsNullOrEmpty(_activeDbFile))
             {
@@ -327,14 +325,11 @@ namespace MangaViewer
                 titleBase = $"{baseTitle} - DBList {label}";
             }
 
-            // TASK09.33: Append CBZ cache list sorted by extraction time (folder creation time).
+            // TASK09.33: Append CBZ cache list sorted by extraction time.
             string cbzList = BuildCbzCacheList();
             this.Text = string.IsNullOrEmpty(cbzList) ? titleBase : $"{titleBase} {cbzList}";
         }
 
-        /// <summary>
-        /// TASK09.33: Build "/vol1.cbz /vol2.cbz" list sorted by cache folder creation time (oldest first).
-        /// </summary>
         private string BuildCbzCacheList()
         {
             try
@@ -342,7 +337,10 @@ namespace MangaViewer
                 if (string.IsNullOrEmpty(_currentFolder))
                     return "";
 
-                string[] cbzFiles = Directory.GetFiles(_currentFolder, "*.cbz", SearchOption.TopDirectoryOnly);
+                string[] cbzFiles = Directory.GetFiles(_currentFolder, "*.*", SearchOption.TopDirectoryOnly)
+                    .Where(f => f.EndsWith(".cbz", StringComparison.OrdinalIgnoreCase) ||
+                                f.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                    .ToArray();
                 if (cbzFiles.Length == 0)
                     return "";
 
@@ -352,7 +350,6 @@ namespace MangaViewer
                     "CBZCache"
                 );
 
-                // Collect (fileName, creationTime) for CBZs that have a cache directory.
                 var list = new List<(string name, DateTime time)>();
 
                 foreach (var cbz in cbzFiles)
@@ -364,36 +361,42 @@ namespace MangaViewer
                         var hashStr = BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
                         string cacheDir = Path.Combine(cacheRoot, hashStr);
 
-                        if (Directory.Exists(cacheDir))
+                        if (Directory.Exists(cacheDir) &&
+                            File.Exists(Path.Combine(cacheDir, CbzManager.CacheCompleteMarkerFileName)))
                         {
                             DateTime dt = Directory.GetCreationTime(cacheDir);
                             list.Add((Path.GetFileName(cbz), dt));
                         }
                     }
-                    catch
-                    {
-                        // Skip on any error for this file.
-                    }
+                    catch { }
                 }
 
                 if (list.Count == 0)
                     return "";
 
-                // Sort by cache folder creation time ascending (oldest first).
                 list.Sort((a, b) => a.time.CompareTo(b.time));
 
-                // Build "/vol1.cbz /vol2.cbz" style string.
                 var sb = new System.Text.StringBuilder();
                 foreach (var item in list)
-                    sb.Append(" /").Append(item.name);
+                    sb.Append(" /").Append(ShortenCbzName(item.name));
 
                 return sb.ToString().TrimStart(' ');
             }
             catch
             {
-                // Fallback: no CBZ list on any unexpected error.
                 return "";
             }
+        }
+
+        private static string ShortenCbzName(string fileName)
+        {
+            string nameWithoutExt = Path.GetFileNameWithoutExtension(fileName);
+            // 先頭の[...]を除去
+            string stripped = System.Text.RegularExpressions.Regex.Replace(nameWithoutExt, @"^\[.*?\]\s*", "");
+            if (stripped.Length <= 14)
+                return stripped;
+
+            return stripped.Substring(0, 10) + "..." + stripped.Substring(stripped.Length - 4);
         }
 
         private void InitializeComponent()
@@ -781,6 +784,9 @@ namespace MangaViewer
             btnCbzOk.Click += (s, e) => CbzListOnOk();
             btnCbzCancel.Click += (s, e) => HideCbzSelectDialog();
 
+            // Double click on ListBox triggers OK
+            listBoxCbzFiles.DoubleClick += (s, ev) => CbzListOnOk();
+
             // Mark Enter as input key so ListBox raises it in KeyDown.
             listBoxCbzFiles.PreviewKeyDown += (s, ev) =>
             {
@@ -813,6 +819,22 @@ namespace MangaViewer
             }
         }
 
+        public void CopyCurrentNameToClipboard()
+        {
+            string name;
+            if (_cbzManager != null && _cbzManager.CbxFiles.Count > 0)
+            {
+                int idx = Math.Clamp(_cbzManager.ActiveCbxIndex, 0, _cbzManager.CbxFiles.Count - 1);
+                name = Path.GetFileNameWithoutExtension(_cbzManager.CbxFiles[idx]);
+            }
+            else
+            {
+                name = Path.GetFileName(_currentFolder) ?? "";
+            }
+            if (!string.IsNullOrEmpty(name))
+                Clipboard.SetText(name);
+        }
+
         private void ShowCbzSelectDialog()
         {
             EnsureCbzListControls();
@@ -839,8 +861,12 @@ namespace MangaViewer
                 return;
             }
 
-            // Select first item
-            listBoxCbzFiles.SelectedIndex = 0;
+            // Select active item if possible
+            int activeIdx = _cbzManager?.ActiveCbxIndex ?? 0;
+            if (activeIdx >= 0 && activeIdx < listBoxCbzFiles.Items.Count)
+                listBoxCbzFiles.SelectedIndex = activeIdx;
+            else
+                listBoxCbzFiles.SelectedIndex = 0;
 
             panelCbzListOverlay.Visible = true;
             panelCbzListOverlay.BringToFront();
@@ -880,10 +906,13 @@ namespace MangaViewer
             try
             {
                 if (_cbzManager == null)
+                {
                     _cbzManager = new CbzManager();
+                    _cbzManager.CacheChanged += () => BeginInvoke((Action)UpdateWindowTitle);
+                }
 
                 // Initialize for folder to set up multi-CBZ list, then switch to selected.
-                bool ok = _cbzManager.InitializeForFolder(_currentFolder);
+                bool ok = _cbzManager.InitializeForFolder(_currentFolder, forceReset: false);
                 if (!ok || !_cbzManager.CbxFiles.Any())
                 {
                     HideCbzSelectDialog();
@@ -892,7 +921,7 @@ namespace MangaViewer
 
                 // Find index of the chosen file in CbxFiles list
                 int idx = _cbzManager.CbxFiles.FindIndex(p => string.Equals(
-                    Path.GetFullPath(p), Path.GetFullPath(cbzPath)));
+                    Path.GetFullPath(p), Path.GetFullPath(cbzPath), StringComparison.OrdinalIgnoreCase));
 
                 if (idx >= 0)
                 {
@@ -916,28 +945,24 @@ namespace MangaViewer
         {
             if (string.IsNullOrEmpty(_currentFolder)) return new List<string>();
 
-            var result = new List<string>();
+            if (_cbzManager != null && _cbzManager.CbxFiles.Any() &&
+                string.Equals(_cbzManager.CurrentFolder, _currentFolder, StringComparison.OrdinalIgnoreCase))
+            {
+                return _cbzManager.CbxFiles.Select(Path.GetFileName).ToList()!;
+            }
 
             try
             {
-                string[] cbzs = Directory.GetFiles(_currentFolder, "*.cbz", SearchOption.TopDirectoryOnly);
-                string[] zips = Directory.GetFiles(_currentFolder, "*.zip", SearchOption.TopDirectoryOnly);
-
-                foreach (var p in cbzs) result.Add(Path.GetFileName(p));
-                foreach (var p in zips) result.Add(Path.GetFileName(p));
+                return Directory.GetFiles(_currentFolder, "*.*", SearchOption.TopDirectoryOnly)
+                    .Where(f => f.EndsWith(".cbz", StringComparison.OrdinalIgnoreCase) ||
+                                f.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                    .Select(Path.GetFileName)
+                    .ToList()!;
             }
             catch
             {
                 return new List<string>();
             }
-
-            // Sort by filename ignoring extension
-            result = result.OrderBy(
-                    f => f,
-                    StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            return result;
         }
 
         #endregion CBZ List Overlay (TASK09.31)
