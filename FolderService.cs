@@ -946,5 +946,14 @@ namespace MangaViewer
         private void StartTimeout() => _cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
 
         #endregion
+
+        /// <summary>
+        /// フォルダ名の前に「[CBZファイル数]」を追加する。
+        /// </summary>
+        public string GetFolderNameWithCbzCount(string folderPath)
+        {
+            int cbzCount = CountCbzFiles(folderPath);
+            return $"[{cbzCount}] {Path.GetFileName(folderPath)}";
+        }
     }
 }
