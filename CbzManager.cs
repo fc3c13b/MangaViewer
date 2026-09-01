@@ -723,8 +723,11 @@ namespace MangaViewer
 
         private class CbzVolumeComparer : IComparer<string>
         {
-            public int Compare(string xFile, string yFile)
+            public int Compare(string? xFile, string? yFile)
             {
+                if (xFile == null || yFile == null)
+                    return 0;
+
                 int vx = ExtractVolumeNumber(xFile);
                 int vy = ExtractVolumeNumber(yFile);
 

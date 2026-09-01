@@ -728,5 +728,52 @@ namespace MangaViewer
         public bool IsCbzListVisible => panelCbzListOverlay?.Visible ?? false;
 
         #endregion
+
+        // Implementing missing methods from INavigationActions
+        public void ShowSettingsDialog()
+        {
+            // Implement the logic to show settings dialog
+            MessageBox.Show("Settings dialog is not implemented yet.");
+        }
+
+        public void NavigateForward(int pageCount)
+        {
+            FormNavigator.NavigateForward(this, pageCount);
+        }
+
+        public void NavigateBackward(int pageCount)
+        {
+            FormNavigator.NavigateBackward(this, pageCount);
+        }
+
+        public void StartSlideshow()
+        {
+            // Implement the logic to start slideshow
+            MessageBox.Show("Slideshow start is not implemented yet.");
+        }
+
+        public void StopSlideshow()
+        {
+            // Implement the logic to stop slideshow
+            MessageBox.Show("Slideshow stop is not implemented yet.");
+        }
+
+        public void NavigateCbzNext()
+        {
+            // Implement the logic to navigate to the next CBZ
+            MessageBox.Show("Navigate to next CBZ is not implemented yet.");
+        }
+
+        public void NavigateCbzPrev()
+        {
+            // Implement the logic to navigate to the previous CBZ
+            MessageBox.Show("Navigate to previous CBZ is not implemented yet.");
+        }
+
+        public void CopyCurrentNameToClipboard()
+        {
+            // Implement the logic to copy the current name to clipboard
+            MessageBox.Show("Copy current name to clipboard is not implemented yet.");
+        }
     }
 }
