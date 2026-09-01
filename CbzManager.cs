@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -7,6 +8,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace MangaViewer
@@ -17,13 +19,31 @@ namespace MangaViewer
 
         /// <summary>キャッシュに保持する最大CBZ数</summary>
         private const int MaxCachedCbzCount = 5;
+        internal const string CacheCompleteMarkerFileName = ".complete";
+        private static readonly ConcurrentDictionary<string, SemaphoreSlim> CacheExtractionLocks = new();
 
         internal List<string> CbxFiles = new();
         internal int ActiveCbxIndex = 0;
         internal List<string> CurrentImagePaths = new();
 
-        /// <summary>LRU管理用：最近アクセスしたCBZのキャッシュディレクトリリスト（先頭=最新）</summary>
-        private readonly List<string> _activeCacheDirs = new();
+        // A cache directory is immutable while the application is running.  Keep the
+        // sorted file list in memory so repeated navigation never re-enumerates it.
+        private readonly Dictionary<string, List<string>> _imagePathsByCbz =
+            new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, string> _cbzByCacheDirectory =
+            new(StringComparer.OrdinalIgnoreCase);
+        private string? _loadedCbzFile;
+        private long _imagePathCacheHits;
+        private long _imagePathCacheMisses;
+        private readonly object _retentionLock = new();
+        private readonly List<string> _priorityCacheDirs = new();
+        private const int PriorityCacheDirCount = 5;
+        private enum PreloadPriority { Current = 0, NextVolume = 1, NextFolder = 2 }
+        private readonly ConcurrentDictionary<string, PreloadPriority> _pendingPreloads = new(StringComparer.OrdinalIgnoreCase);
+        private string? _pendingNextFolderPath; // NextVolume完了後に処理するフォルダ（NAS/低帯域対応）
+
+        /// <summary>展開キャッシュの追加・削除後に、UIへ表示更新を通知する。</summary>
+        public event Action? CacheChanged;
 
         private static readonly HashSet<string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -90,11 +110,20 @@ namespace MangaViewer
             }
         }
 
+        internal string? CurrentFolder { get; private set; }
+
         /// <summary>
-        /// Initialize for a folder with .cbz files. Returns true if CBZ mode is active.
+        /// Initialize for a folder with .cbz/.zip files. Returns true if CBZ mode is active.
         /// </summary>
-        public bool InitializeForFolder(string folderPath)
+        public bool InitializeForFolder(string folderPath, bool forceReset = true)
         {
+            if (!forceReset && string.Equals(CurrentFolder, folderPath, StringComparison.OrdinalIgnoreCase) && CbxFiles.Any())
+            {
+                RefreshCurrentImagePaths(extractEvenIfEmpty: false);
+                return CurrentImagePaths.Any();
+            }
+
+            var sw = System.Diagnostics.Stopwatch.StartNew();
             Reset();
 
             try
@@ -102,16 +131,26 @@ namespace MangaViewer
                 if (!Directory.Exists(folderPath))
                     return false;
 
-                var cbzs = Directory.GetFiles(folderPath, "*.cbz", SearchOption.TopDirectoryOnly)
+                CurrentFolder = folderPath;
+                long t0 = sw.ElapsedMilliseconds;
+                var cbzs = Directory.GetFiles(folderPath, "*.*", SearchOption.TopDirectoryOnly)
+                                    .Where(f => f.EndsWith(".cbz", StringComparison.OrdinalIgnoreCase) ||
+                                                f.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
                                     .OrderBy(f => f, new CbzVolumeComparer())
                                     .ToList();
+                long tScanEnd = sw.ElapsedMilliseconds;
 
                 if (cbzs.Count == 0)
                     return false;
 
                 CbxFiles = cbzs;
                 ActiveCbxIndex = 0;
+                // 起動時は先頭（現在）巻だけを準備する。次巻の展開は非同期で
+                // 先読みし、全巻を起動時に展開しない。
                 RefreshCurrentImagePaths(extractEvenIfEmpty: true);
+
+                long tRefreshEnd = sw.ElapsedMilliseconds;
+                StartupHandler.Log($"[PROF] CbzManager.InitializeForFolder total={tRefreshEnd}ms scan={tScanEnd - t0}ms refresh={tRefreshEnd - tScanEnd}ms cbzCount={cbzs.Count} folder={folderPath}");
 
                 return CurrentImagePaths.Any();
             }
@@ -216,21 +255,47 @@ namespace MangaViewer
                 return null;
 
             string nextCbz = CbxFiles[ActiveCbxIndex + 1];
-            string cacheDir = GetCacheDirectory(nextCbz);
+            if (ActiveCbxIndex >= 0 && ActiveCbxIndex < CbxFiles.Count)
+                ProtectCacheDirectory(GetCacheDirectory(CbxFiles[ActiveCbxIndex]));
+            RequestPreload(nextCbz, PreloadPriority.NextVolume);
+            return nextCbz;
+        }
 
-            if (!Directory.Exists(cacheDir))
+        /// <summary>
+        /// 次のリスト項目用に、指定フォルダの先頭CBZだけを低優先度で展開する。
+        /// 現在選択中のCBZ状態は変更しない。
+        /// </summary>
+        public void PreloadFirstCbxForFolder(string folderPath)
+        {
+            if (string.IsNullOrWhiteSpace(folderPath) || !Directory.Exists(folderPath))
+                return;
+
+            // NextVolume先読み中は待機し、完了後に連鎖する（並行読み出し禁止）
+            _pendingNextFolderPath = folderPath;
+            if (!_pendingPreloads.Values.Any(p => p == PreloadPriority.NextVolume))
+                StartFolderPreloadIfPending();
+        }
+
+        private void StartFolderPreloadIfPending()
+        {
+            string? folderPath = Interlocked.Exchange(ref _pendingNextFolderPath, null);
+            if (string.IsNullOrEmpty(folderPath)) return;
+
+            Task.Run(() =>
             {
                 try
                 {
-                    ExtractCbzTo(cacheDir, nextCbz);
+                    var firstCbz = Directory.EnumerateFiles(folderPath, "*.cbz", SearchOption.TopDirectoryOnly)
+                        .OrderBy(path => path, new CbzVolumeComparer())
+                        .FirstOrDefault();
+                    if (!string.IsNullOrEmpty(firstCbz))
+                        RequestPreload(firstCbz, PreloadPriority.NextFolder);
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // プリロード失敗は許容
+                    StartupHandler.Log($"[PROF] CbzManager.StartFolderPreloadIfPending failed folder={folderPath} error={ex.GetType().Name}");
                 }
-            }
-
-            return nextCbz;
+            });
         }
 
         /// <summary>
@@ -245,17 +310,23 @@ namespace MangaViewer
 
         private void Reset()
         {
+            CurrentFolder = null;
             CbxFiles.Clear();
             ActiveCbxIndex = 0;
-            CurrentImagePaths.Clear();
+            // CurrentImagePaths can reference an entry in _imagePathsByCbz.
+            // Do not clear that shared list when changing folders; only detach
+            // the current-view reference so the cached image paths remain valid.
+            CurrentImagePaths = new List<string>();
+            _loadedCbzFile = null;
         }
 
-        private void RefreshCurrentImagePaths(bool extractEvenIfEmpty)
+        private void RefreshCurrentImagePaths(bool extractEvenIfEmpty, bool preloadNext = true)
         {
-            CurrentImagePaths.Clear();
-
+            var sw = System.Diagnostics.Stopwatch.StartNew();
             if (!CbxFiles.Any())
             {
+                CurrentImagePaths.Clear();
+                _loadedCbzFile = null;
                 return;
             }
 
@@ -266,118 +337,272 @@ namespace MangaViewer
             }
 
             var cbzFile = CbxFiles[ActiveCbxIndex];
+
+            // The common path: callers frequently ask for the already-selected
+            // volume. Avoid both disk enumeration and list allocation.
+            if (string.Equals(_loadedCbzFile, cbzFile, StringComparison.OrdinalIgnoreCase))
+            {
+                _imagePathCacheHits++;
+                return;
+            }
+
             string cacheDir;
 
             try
             {
                 cacheDir = GetCacheDirectory(cbzFile);
+                ProtectCacheDirectory(cacheDir);
             }
             catch (UnauthorizedAccessException)
             {
-                CurrentImagePaths.Clear();
+                SetCurrentImagePaths(cbzFile, new List<string>());
                 return;
             }
             catch
             {
-                CurrentImagePaths.Clear();
+                SetCurrentImagePaths(cbzFile, new List<string>());
                 return;
             }
 
-            if (!Directory.Exists(cacheDir))
+            if (_imagePathsByCbz.TryGetValue(cbzFile, out var cachedPaths) && IsCacheReady(cacheDir))
             {
+                _imagePathCacheHits++;
+                SetCurrentImagePaths(cbzFile, cachedPaths);
+                _cbzByCacheDirectory[cacheDir] = cbzFile;
+                StartupHandler.Log($"[PROF] CbzManager.ImagePaths cbz={Path.GetFileName(cbzFile)} source=memory images={cachedPaths.Count} total={sw.ElapsedMilliseconds}ms");
+                if (preloadNext) PreloadNextCbzIfAvailable();
+                return;
+            }
+
+            // The disk cache may have been evicted while this manager was kept
+            // alive. Do not return file paths for a directory that no longer exists.
+            _imagePathsByCbz.Remove(cbzFile);
+            _cbzByCacheDirectory.Remove(cacheDir);
+
+            _imagePathCacheMisses++;
+            bool cacheDirectoryExisted = IsCacheReady(cacheDir);
+            long extractMs = 0;
+
+            if (!cacheDirectoryExisted)
+            {
+                // キャッシュミス→展開
+                System.Diagnostics.Debug.WriteLine($"[CBZ] Cache MISS: {Path.GetFileName(cbzFile)}");
                 try
                 {
-                    ExtractCbzTo(cacheDir, cbzFile);
+                    var extractSw = System.Diagnostics.Stopwatch.StartNew();
+                    bool extractedNow = EnsureCacheExtracted(cacheDir, cbzFile);
+                    extractMs = extractSw.ElapsedMilliseconds;
+                    if (extractedNow)
+                    {
+                        TrimCacheDirectories(cacheDir);
+                        NotifyCacheChanged();
+                    }
+                    else
+                    {
+                        cacheDirectoryExisted = true;
+                    }
                 }
                 catch (UnauthorizedAccessException)
                 {
                     // 展開不可→空扱い
-                    CurrentImagePaths.Clear();
+                    SetCurrentImagePaths(cbzFile, new List<string>());
                     return;
                 }
                 catch
                 {
                     // その他エラー→空扱い
-                    CurrentImagePaths.Clear();
+                    SetCurrentImagePaths(cbzFile, new List<string>());
                     return;
                 }
             }
-
-            if (!Directory.Exists(cacheDir))
+            else
             {
-                CurrentImagePaths.Clear();
-                return;
+                // キャッシュヒット
+                System.Diagnostics.Debug.WriteLine($"[CBZ] Cache HIT: {Path.GetFileName(cbzFile)}");
             }
 
-            // LRU管理：このCBZのキャッシュディレクトリを「最新アクセス」として登録
-            _activeCacheDirs.Remove(cacheDir);
-            _activeCacheDirs.Insert(0, cacheDir);
-
-            // 最大保持数を超える場合、古いキャッシュを削除
-            while (_activeCacheDirs.Count > MaxCachedCbzCount)
+            if (!IsCacheReady(cacheDir))
             {
-                var oldest = _activeCacheDirs[_activeCacheDirs.Count - 1];
-                _activeCacheDirs.RemoveAt(_activeCacheDirs.Count - 1);
-                try
-                {
-                    if (Directory.Exists(oldest))
-                        Directory.Delete(oldest, recursive: true);
-                }
-                catch
-                {
-                    // 削除失敗は許容（使用中など）
-                }
+                SetCurrentImagePaths(cbzFile, new List<string>());
+                return;
             }
 
             try
             {
-                CurrentImagePaths = Directory.GetFiles(cacheDir, "*", SearchOption.AllDirectories)
-                                              .Where(p => ImageExtensions.Contains(Path.GetExtension(p).ToLower()))
-                                              .OrderBy(p => Path.GetFileName(p))
-                                              .ToList();
+                var enumerateSw = System.Diagnostics.Stopwatch.StartNew();
+                var imagePaths = ImageExtensions
+                    .SelectMany(extension => Directory.EnumerateFiles(cacheDir, "*" + extension, SearchOption.AllDirectories))
+                    .OrderBy(Path.GetFileName)
+                    .ToList();
+                long enumerateMs = enumerateSw.ElapsedMilliseconds;
+                _imagePathsByCbz[cbzFile] = imagePaths;
+                _cbzByCacheDirectory[cacheDir] = cbzFile;
+                SetCurrentImagePaths(cbzFile, imagePaths);
+                string source = cacheDirectoryExisted ? "disk-cache" : "extracted";
+                StartupHandler.Log($"[PROF] CbzManager.ImagePaths cbz={Path.GetFileName(cbzFile)} source={source} images={imagePaths.Count} extract={extractMs}ms enumerate={enumerateMs}ms total={sw.ElapsedMilliseconds}ms");
             }
             catch (UnauthorizedAccessException)
             {
                 // 権限不足→このCBZは表示不可として扱う
-                CurrentImagePaths.Clear();
+                SetCurrentImagePaths(cbzFile, new List<string>());
             }
             catch
             {
                 // その他エラー→空扱い
-                CurrentImagePaths.Clear();
+                SetCurrentImagePaths(cbzFile, new List<string>());
             }
 
             // 次のCBZがあれば自動的に展開（連続プリロード）
-            PreloadNextCbzIfAvailable();
+            if (preloadNext) PreloadNextCbzIfAvailable();
+        }
+
+        private void SetCurrentImagePaths(string cbzFile, List<string> imagePaths)
+        {
+            CurrentImagePaths = imagePaths;
+            _loadedCbzFile = cbzFile;
+        }
+
+        /// <summary>
+        /// キャッシュはアクセス順ではなく、展開された順（作成時刻）で最大5件を保持する。
+        /// 現在表示中のCBZだけは削除対象から除外する。
+        /// 新規作成キャッシュ（30秒以内）も削除対象から除外する（先読み直後の削除を防ぐ）。
+        /// </summary>
+        private void TrimCacheDirectories(params string?[] protectedCacheDirs)
+        {
+            try
+            {
+                HashSet<string> retainedCacheDirs;
+                lock (_retentionLock)
+                {
+                    retainedCacheDirs = new HashSet<string>(_priorityCacheDirs, StringComparer.OrdinalIgnoreCase);
+                }
+                foreach (var protectedDir in protectedCacheDirs)
+                {
+                    if (!string.IsNullOrEmpty(protectedDir))
+                        retainedCacheDirs.Add(protectedDir);
+                }
+
+                var cacheDirs = Directory.GetDirectories(_cacheRoot)
+                    .Where(IsCacheReady)
+                    .OrderBy(Directory.GetCreationTimeUtc)
+                    .ToList();
+                int remainingCount = cacheDirs.Count;
+                var now = DateTime.UtcNow;
+
+                foreach (var oldest in cacheDirs)
+                {
+                    if (remainingCount <= MaxCachedCbzCount)
+                        break;
+                    if (retainedCacheDirs.Contains(oldest))
+                        continue;
+
+                    // 新規作成キャッシュ（30秒以内）は削除しない（先読み直後の削除を防ぐ）
+                    try
+                    {
+                        var creationTime = Directory.GetCreationTimeUtc(oldest);
+                        if ((now - creationTime).TotalSeconds < 30)
+                            continue;
+                    }
+                    catch
+                    {
+                        // 時刻取得失敗時は削除対象とする
+                    }
+
+                    try
+                    {
+                        Directory.Delete(oldest, recursive: true);
+                        remainingCount--;
+                    }
+                    catch
+                    {
+                        // 削除失敗は許容（使用中など）
+                    }
+                }
+            }
+            catch
+            {
+                // キャッシュ整理に失敗しても現在巻の表示は継続する。
+            }
+        }
+
+        /// <summary>
+        /// 現在巻・次巻・次リスト項目の先頭巻を、FIFO整理から保護する。
+        /// 新しい候補を優先し、保持対象は最大5件に限定する。
+        /// </summary>
+        private void ProtectCacheDirectory(string cacheDir)
+        {
+            lock (_retentionLock)
+            {
+                _priorityCacheDirs.RemoveAll(dir =>
+                    string.Equals(dir, cacheDir, StringComparison.OrdinalIgnoreCase));
+                _priorityCacheDirs.Add(cacheDir);
+                while (_priorityCacheDirs.Count > PriorityCacheDirCount)
+                    _priorityCacheDirs.RemoveAt(0);
+            }
+        }
+
+        /// <summary>先読みを一元管理する。完了済み・展開中の重複要求はスキップ。</summary>
+        private void RequestPreload(string cbzPath, PreloadPriority priority)
+        {
+            if (string.IsNullOrEmpty(cbzPath)) return;
+
+            string cacheDir;
+            try { cacheDir = GetCacheDirectory(cbzPath); }
+            catch { return; }
+
+            if (IsCacheReady(cacheDir))
+            {
+                System.Diagnostics.Debug.WriteLine($"[CBZ] Preload skip(cached) pri={priority}: {Path.GetFileName(cbzPath)}");
+                return;
+            }
+
+            if (!_pendingPreloads.TryAdd(cacheDir, priority))
+            {
+                System.Diagnostics.Debug.WriteLine($"[CBZ] Preload skip(in-progress) pri={priority}: {Path.GetFileName(cbzPath)}");
+                return;
+            }
+
+            // 現在巻と対象をどちらも保護してからTask起動
+            string? currentCacheDir = ActiveCbxIndex >= 0 && ActiveCbxIndex < CbxFiles.Count
+                ? GetCacheDirectory(CbxFiles[ActiveCbxIndex])
+                : null;
+            if (currentCacheDir != null) ProtectCacheDirectory(currentCacheDir);
+            ProtectCacheDirectory(cacheDir);
+
+            Task.Run(() =>
+            {
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                try
+                {
+                    if (EnsureCacheExtracted(cacheDir, cbzPath))
+                    {
+                        TrimCacheDirectories(cacheDir, currentCacheDir);
+                        NotifyCacheChanged();
+                        StartupHandler.Log($"[PROF] CbzManager.Preload cbz={Path.GetFileName(cbzPath)} pri={priority} source=extracted total={sw.ElapsedMilliseconds}ms");
+                    }
+                    else
+                    {
+                        StartupHandler.Log($"[PROF] CbzManager.Preload cbz={Path.GetFileName(cbzPath)} pri={priority} source=disk-cache total={sw.ElapsedMilliseconds}ms");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StartupHandler.Log($"[PROF] CbzManager.Preload cbz={Path.GetFileName(cbzPath)} pri={priority} failed error={ex.GetType().Name}");
+                }
+                finally
+                {
+                    _pendingPreloads.TryRemove(cacheDir, out _);
+                    // NextVolume完了後にフォルダ先読みを連鎖（順次実行）
+                    if (priority == PreloadPriority.NextVolume)
+                        StartFolderPreloadIfPending();
+                }
+            });
         }
 
         private void PreloadNextCbzIfAvailable()
         {
             if (ActiveCbxIndex + 1 >= CbxFiles.Count) return;
-
-            string nextCbz = CbxFiles[ActiveCbxIndex + 1];
-            string nextCacheDir;
-
-            try
-            {
-                nextCacheDir = GetCacheDirectory(nextCbz);
-            }
-            catch
-            {
-                return;
-            }
-
-            if (!Directory.Exists(nextCacheDir))
-            {
-                try
-                {
-                    ExtractCbzTo(nextCacheDir, nextCbz);
-                }
-                catch
-                {
-                    // プリロード失敗は許容
-                }
-            }
+            RequestPreload(CbxFiles[ActiveCbxIndex + 1], PreloadPriority.NextVolume);
         }
 
         private string GetCacheDirectory(string cbzFile)
@@ -386,6 +611,40 @@ namespace MangaViewer
             var hash = md5.ComputeHash(Encoding.UTF8.GetBytes(cbzFile));
             var hashStr = BitConverter.ToString(hash).Replace("-", "").ToLower();
             return Path.Combine(_cacheRoot, hashStr);
+        }
+
+        private static bool IsCacheReady(string cacheDir) =>
+            Directory.Exists(cacheDir) && File.Exists(Path.Combine(cacheDir, CacheCompleteMarkerFileName));
+
+        /// <summary>
+        /// 展開先とは別の一時ディレクトリに展開し、完了後に原子的に確定する。
+        /// 同じCBZへの同時アクセスは待機させ、不完全なキャッシュを公開しない。
+        /// </summary>
+        private static bool EnsureCacheExtracted(string cacheDir, string cbzFile)
+        {
+            var extractionLock = CacheExtractionLocks.GetOrAdd(cacheDir, _ => new SemaphoreSlim(1, 1));
+            extractionLock.Wait();
+            try
+            {
+                if (IsCacheReady(cacheDir))
+                    return false;
+
+                if (Directory.Exists(cacheDir))
+                    Directory.Delete(cacheDir, recursive: true);
+
+                string temporaryDirectory = cacheDir + ".extracting";
+                if (Directory.Exists(temporaryDirectory))
+                    Directory.Delete(temporaryDirectory, recursive: true);
+
+                ExtractCbzTo(temporaryDirectory, cbzFile);
+                File.WriteAllText(Path.Combine(temporaryDirectory, CacheCompleteMarkerFileName), string.Empty);
+                Directory.Move(temporaryDirectory, cacheDir);
+                return true;
+            }
+            finally
+            {
+                extractionLock.Release();
+            }
         }
 
         private static void ExtractCbzTo(string cacheDir, string cbzFile)
@@ -481,6 +740,20 @@ namespace MangaViewer
         {
             CbxFiles.Clear();
             CurrentImagePaths.Clear();
+            _imagePathsByCbz.Clear();
+            _cbzByCacheDirectory.Clear();
+        }
+
+        private void NotifyCacheChanged()
+        {
+            try
+            {
+                CacheChanged?.Invoke();
+            }
+            catch
+            {
+                // タイトル更新の失敗でCBZ処理を中断しない。
+            }
         }
     }
 }
