@@ -53,7 +53,7 @@ namespace MangaViewer
             ResetScrollAnimation();
         }
 
-        private void ResetScrollAnimation()
+        public void ResetScrollAnimation()
         {
             if (_listBox.SelectedIndex < 0) return;
 

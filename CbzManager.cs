@@ -763,7 +763,7 @@ namespace MangaViewer
         {
             if (string.IsNullOrEmpty(cbzFile)) return;
 
-            int index = CbxFiles.IndexOf(cbzFile, StringComparison.OrdinalIgnoreCase);
+            int index = CbxFiles.FindIndex(x => string.Equals(x, cbzFile, StringComparison.OrdinalIgnoreCase));
             if (index >= 0)
             {
                 ActiveCbxIndex = index;
