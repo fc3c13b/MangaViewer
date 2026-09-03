@@ -730,8 +730,7 @@ namespace MangaViewer
         // Implementing missing methods from INavigationActions
         public void ShowSettingsDialog()
         {
-            // Implement the logic to show settings dialog
-            MessageBox.Show("Settings dialog is not implemented yet.");
+            FormNavigator.ApplySettingsChanges(this);
         }
 
         public void NavigateForward(int pageCount)
