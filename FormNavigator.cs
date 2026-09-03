@@ -35,7 +35,8 @@ namespace MangaViewer
                 {
                     string folderName = Path.GetFileName(folderPath);
                     int displayCount = entry.CbzZipCount ?? 0;
-                    form.listBoxFolders.Items.Add($"[{displayCount}] {folderName}");
+                    string ratingStr = entry.Rating >= 0 ? $"({entry.Rating})" : "[-]";
+                    form.listBoxFolders.Items.Add($"[{displayCount}] {ratingStr} {folderName}");
                 }
             }
 
@@ -59,7 +60,7 @@ namespace MangaViewer
 
             form._settings.LastRootFolder = rootPath;
             SettingsManager.Save(form._settings);
-            form.BuildSubfolderList(rootPath);
+            form.LoadCjForParent(rootPath);
             form._displayManager.UpdateSettings(form._settings);
             form.UpdateWindowTitle();
 

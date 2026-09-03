@@ -291,11 +291,6 @@ namespace MangaViewer
                 labelInfo.Location = new Point(10, ch - 25);
         }
 
-        internal void BuildSubfolderList(string rootPath)
-        {
-            _rootFolder = rootPath;
-            FolderListBuilder.Build(this, rootPath);
-        }
 
         internal void LoadAndSortImages(string folderPath)
         {
