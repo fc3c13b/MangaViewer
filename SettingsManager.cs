@@ -142,47 +142,13 @@ namespace MangaViewer
             if (root.TryGetProperty("LastRootFolder", out var lrp) && lrp.ValueKind == JsonValueKind.String)
                 settings.LastRootFolder = lrp.ToString();
 
-            // DbMinDisplayCount: 2〜99999
-            const int dbMinDef = 20;
-            if (root.TryGetProperty("DbMinDisplayCount", out var dmp) && dmp.ValueKind == JsonValueKind.Number)
-            {
-                int val = dmp.GetInt32();
-                if (val >= 2 && val <= 99999)
-                    settings.DbMinDisplayCount = val;
-                else
-                {
-                    errors.Add($"DbMinDisplayCount の値 '{val}' は無効です（有効範囲: 2〜99999）。デフォルト値 ({dbMinDef}) を使用します。");
-                    settings.DbMinDisplayCount = dbMinDef;
-                }
-            }
+            // MinEvaluationFilterEnabled: true/false
+            if (root.TryGetProperty("MinEvaluationFilterEnabled", out var mefp) && (mefp.ValueKind == JsonValueKind.True || mefp.ValueKind == JsonValueKind.False))
+                settings.MinEvaluationFilterEnabled = mefp.GetBoolean();
 
-            // DbMaxDisplayCount: DbMinDisplayCount+1 以上
-            const int dbMaxDef = 1000;
-            if (root.TryGetProperty("DbMaxDisplayCount", out var dmxp) && dmxp.ValueKind == JsonValueKind.Number)
-            {
-                int val = dmxp.GetInt32();
-                if (val > settings.DbMinDisplayCount)
-                    settings.DbMaxDisplayCount = val;
-                else
-                {
-                    errors.Add($"DbMaxDisplayCount の値 '{val}' は無効です（DbMinDisplayCount より大きい値が必要）。デフォルト値 ({dbMaxDef}) を使用します。");
-                    settings.DbMaxDisplayCount = dbMaxDef;
-                }
-            }
-
-            // DbMinEvaluation: 0〜10
-            const int dbEvalDef = 8;
-            if (root.TryGetProperty("DbMinEvaluation", out var dep) && dep.ValueKind == JsonValueKind.Number)
-            {
-                int val = dep.GetInt32();
-                if (val >= 0 && val <= 10)
-                    settings.DbMinEvaluation = val;
-                else
-                {
-                    errors.Add($"DbMinEvaluation の値 '{val}' は無効です（有効範囲: 0〜10）。デフォルト値 ({dbEvalDef}) を使用します。");
-                    settings.DbMinEvaluation = dbEvalDef;
-                }
-            }
+            // MinEvaluationEqualFilter: true/false
+            if (root.TryGetProperty("MinEvaluationEqualFilter", out var meqf) && (meqf.ValueKind == JsonValueKind.True || meqf.ValueKind == JsonValueKind.False))
+                settings.MinEvaluationEqualFilter = meqf.GetBoolean();
 
             return (settings, errors);
         }
@@ -204,9 +170,8 @@ namespace MangaViewer
                     { "DisplayCount", settings.DisplayCount },
                     { "NormalModeImageAreaPercent", settings.NormalModeImageAreaPercent },
                     { "FullScreenModeImageAreaPercent", settings.FullScreenModeImageAreaPercent },
-                    { "DbMinDisplayCount", settings.DbMinDisplayCount },
-                    { "DbMaxDisplayCount", settings.DbMaxDisplayCount },
-                    { "DbMinEvaluation", settings.DbMinEvaluation }
+                    { "MinEvaluationFilterEnabled", settings.MinEvaluationFilterEnabled },
+                    { "MinEvaluationEqualFilter", settings.MinEvaluationEqualFilter }
                 };
 
                 File.WriteAllText(AppPaths.SettingsFilePath, JsonSerializer.Serialize(obj, JsonOptions));

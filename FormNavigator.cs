@@ -98,9 +98,9 @@ namespace MangaViewer
         public static void ApplySettingsChanges(Form1 form)
         {
             int prevDisplayCount = form._settings.DisplayCount;
-            int prevDbMinDisplayCount = form._settings.DbMinDisplayCount;
-            int prevDbMaxDisplayCount = form._settings.DbMaxDisplayCount;
-            int prevDbMinEvaluation = form._settings.DbMinEvaluation;
+            int prevMinEvaluation = form._settings.MinEvaluation;
+            int prevMinDisplayCount = form._settings.MinDisplayCount;
+            int prevMaxDisplayCount = form._settings.MaxDisplayCount;
 
             using (var dialog = new SettingsDialog())
             {
@@ -113,9 +113,9 @@ namespace MangaViewer
 
                     // DBList mode filters changed?
                     bool dbFilterChanged =
-                        form._settings.DbMinEvaluation != prevDbMinEvaluation ||
-                        form._settings.DbMinDisplayCount != prevDbMinDisplayCount ||
-                        form._settings.DbMaxDisplayCount != prevDbMaxDisplayCount;
+                        form._settings.MinEvaluation != prevMinEvaluation ||
+                        form._settings.MinDisplayCount != prevMinDisplayCount ||
+                        form._settings.MaxDisplayCount != prevMaxDisplayCount;
 
                     if (form.IsRankDisplayMode && dbFilterChanged)
                     {

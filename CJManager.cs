@@ -285,18 +285,29 @@ namespace MangaViewer
                 bool inRange = true;
                 Settings settings = SettingsManager.Load();
 
-                if (settings.DbMinDisplayCount > 0 && imageCount < settings.DbMinDisplayCount)
+                if (settings.MinDisplayCount > 0 && imageCount < settings.MinDisplayCount)
                     inRange = false;
-                if (settings.DbMaxDisplayCount > 0 && imageCount > settings.DbMaxDisplayCount)
+                if (settings.MaxDisplayCount > 0 && imageCount > settings.MaxDisplayCount)
                     inRange = false;
 
                 bool imageConditionOk = inRange || (cbzFileCount >= 1);
 
-                // Rating filter using DBList-specific MinEvaluation
+                // Rating filter using MinEvaluation
                 if (!imageConditionOk) continue;
 
-                if (settings.DbMinEvaluation > 0 && rating >= 0 && rating < settings.DbMinEvaluation)
-                    continue;
+                if (settings.MinEvaluationFilterEnabled && settings.MinEvaluation > 0 && rating >= 0)
+                {
+                    if (settings.MinEvaluationEqualFilter)
+                    {
+                        // 等しい: rating == MinEvaluation のみ表示
+                        if (rating != settings.MinEvaluation) continue;
+                    }
+                    else
+                    {
+                        // 以上: rating >= MinEvaluation のみ表示
+                        if (rating < settings.MinEvaluation) continue;
+                    }
+                }
 
                 entries.Add(new FolderEntry { Path = kvp.Key, ImageCount = imageCount, CbzFileCount = cbzFileCount, Rating = rating });
             }

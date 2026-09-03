@@ -31,10 +31,11 @@ namespace MangaViewer
             if (folders == null || folders.Count == 0)
                 return new List<string>();
 
-            int minEvaluation = settings.DbMinEvaluation;
-            bool greaterOrEqual = settings.DbFilterGreaterOrEqual;
-            int dbMinImageCount = settings.DbMinDisplayCount;
-            int dbMaxImageCount = settings.DbMaxDisplayCount;
+            int minEvaluation = settings.MinEvaluation;
+            bool filterEnabled = settings.MinEvaluationFilterEnabled;
+            bool equalFilter = settings.MinEvaluationEqualFilter;
+            int minImageCount = settings.MinDisplayCount;
+            int maxImageCount = settings.MaxDisplayCount;
 
             var filtered = folders
                 .Where(f => ShouldIncludeFolder(
@@ -42,9 +43,10 @@ namespace MangaViewer
                     f.Value.ImageCount ?? 0,
                     f.Value.CbzZipCount ?? 0,
                     minEvaluation,
-                    greaterOrEqual,
-                    dbMinImageCount,
-                    dbMaxImageCount))
+                    filterEnabled,
+                    equalFilter,
+                    minImageCount,
+                    maxImageCount))
                 .ToList();
 
             var sorted = filtered
@@ -54,14 +56,14 @@ namespace MangaViewer
                 .ToList();
 
             // フィルタログ：全判定後、一度に書き込み（逐次禁止）
-            bool dbFilterActive = (minEvaluation > 0) || (dbMinImageCount > 0) || (dbMaxImageCount > 0);
+            bool dbFilterActive = (filterEnabled && minEvaluation > 0) || (minImageCount > 0) || (maxImageCount > 0);
             if (dbFilterActive && folders.Count > 0)
             {
                 try
                 {
                     var lines = new List<string>();
                     lines.Add("=== BuildFromCj filter log ===");
-                    lines.Add($"minEvaluation={minEvaluation}, greaterOrEqual={greaterOrEqual}, dbMinImageCount={dbMinImageCount}, dbMaxImageCount={dbMaxImageCount}");
+                    lines.Add($"minEvaluation={minEvaluation}, filterEnabled={filterEnabled}, equalFilter={equalFilter}, minImageCount={minImageCount}, maxImageCount={maxImageCount}");
                     lines.Add($"FoldersBeforeFilter={folders.Count}, FoldersAfterFilter={sorted.Count}");
 
                     foreach (var f in folders)
@@ -70,7 +72,7 @@ namespace MangaViewer
                         int rating = f.Value.Rating;
                         int imgCount = f.Value.ImageCount ?? 0;
                         int cbzZipCount = f.Value.CbzZipCount ?? 0;
-                        var reason = GetExclusionReason(rating, imgCount, cbzZipCount, minEvaluation, greaterOrEqual, dbMinImageCount, dbMaxImageCount);
+                        var reason = GetExclusionReason(rating, imgCount, cbzZipCount, minEvaluation, filterEnabled, equalFilter, minImageCount, maxImageCount);
                         lines.Add($"Folder={folderName}, Rating={rating}, ImageCount={imgCount}, CbzZipCount={cbzZipCount}, Reason={reason}");
                     }
 
@@ -96,23 +98,24 @@ namespace MangaViewer
             int imageCount,
             int cbzZipCount,
             int minEvaluation,
-            bool greaterOrEqual,
+            bool filterEnabled,
+            bool equalFilter,
             int dbMinImageCount,
             int dbMaxImageCount)
         {
             var reasons = new List<string>();
 
-            if (minEvaluation > 0 && rating >= 0)
+            if (filterEnabled && minEvaluation > 0 && rating >= 0)
             {
-                if (greaterOrEqual)
-                {
-                    if (rating < minEvaluation)
-                        reasons.Add($"RatingTooLow({rating}<{minEvaluation})");
-                }
-                else
+                if (equalFilter)
                 {
                     if (rating != minEvaluation)
                         reasons.Add($"RatingNotEqual({rating}!={minEvaluation})");
+                }
+                else
+                {
+                    if (rating < minEvaluation)
+                        reasons.Add($"RatingTooLow({rating}<{minEvaluation})");
                 }
             }
 
@@ -131,19 +134,20 @@ namespace MangaViewer
             int imageCount,
             int cbzZipCount,
             int minEvaluation,
-            bool greaterOrEqual,
+            bool filterEnabled,
+            bool equalFilter,
             int dbMinImageCount,
             int dbMaxImageCount)
         {
-            if (minEvaluation > 0 && rating != -1)
+            if (filterEnabled && minEvaluation > 0 && rating != -1)
             {
-                if (greaterOrEqual)
+                if (equalFilter)
                 {
-                    if (rating < minEvaluation) return false;
+                    if (rating != minEvaluation) return false;
                 }
                 else
                 {
-                    if (rating != minEvaluation) return false;
+                    if (rating < minEvaluation) return false;
                 }
             }
 
