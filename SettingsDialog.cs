@@ -28,10 +28,6 @@ namespace MangaViewer
         // 最大表示画像数設定用コントロール
         private NumericUpDown numMaxDisplayCount = null!;
 
-        // 画面表示数設定用コントロール（チェックボックス2つで排他選択）
-        private CheckBox cbDisplay2 = null!;
-        private CheckBox cbDisplay8 = null!;
-
         // 最小評価値設定用コントロール
         private NumericUpDown numMinEvaluation = null!;
         private Label labelMinEvaluation = null!;
@@ -45,17 +41,6 @@ namespace MangaViewer
 
         // レイアウト比率設定用コントロール（全画面）：数値入力
         private NumericUpDown numFullScreenLayoutRatio = null!;
-
-        // 評価1キーワード設定用コントロール
-        private TextBox txtRatingOneKeywords = null!;
-
-        // DBフィルタ「以上/一致」切替
-        private CheckBox cbDbFilterGreaterOrEqual = null!;
-
-        // DBList 専用設定コントロール
-        private NumericUpDown numDbMinDisplayCount = null!;
-        private NumericUpDown numDbMaxDisplayCount = null!;
-        private NumericUpDown numDbMinEvaluation = null!;
 
         // ルートフォルダパス（統計計算用）
         private string RootFolder => GetRootFolder();
@@ -76,11 +61,6 @@ namespace MangaViewer
         public int MaxDisplayCountValue => (int)numMaxDisplayCount.Value;
 
         /// <summary>
-        /// 画面表示数の値（2 または 8）
-        /// </summary>
-        public int DisplayCountValue => cbDisplay2.Checked ? 2 : 8;
-
-        /// <summary>
         /// 最小評価値の値（0-10, デフォルト8）
         /// </summary>
         public int MinEvaluationValue => (int)numMinEvaluation.Value;
@@ -96,18 +76,14 @@ namespace MangaViewer
         public int FullScreenModeImageAreaPercent => (int)numFullScreenLayoutRatio.Value;
 
         /// <summary>
-        /// 評価1キーワード（カンマ区切り）
+        /// 評価値フィルタ有効/無効（デフォルト true）
         /// </summary>
-        public string RatingOneKeywordsValue => txtRatingOneKeywords.Text?.Trim() ?? "";
+        public bool MinEvaluationFilterEnabledValue => cbMinEvalFilterEnabled.Checked;
 
-        /// <summary>DBList モード：最小表示枚数</summary>
-        public int DbMinDisplayCountValue => (int)numDbMinDisplayCount.Value;
-
-        /// <summary>DBList モード：最大表示枚数</summary>
-        public int DbMaxDisplayCountValue => (int)numDbMaxDisplayCount.Value;
-
-        /// <summary>DBList モード：最小評価値</summary>
-        public int DbMinEvaluationValue => (int)numDbMinEvaluation.Value;
+        /// <summary>
+        /// 評価値フィルタの比較モード（true=等しい, false=以上）
+        /// </summary>
+        public bool MinEvaluationEqualFilterValue => cbMinEvalEqualFilter.Checked;
 
         // デフォルト値
         private const int DefaultMinDisplayCount = 20;
@@ -116,6 +92,10 @@ namespace MangaViewer
         private const int DefaultDisplayCountVal = 2;
         private const int DefaultNormalModeImageAreaPercent = 72;
         private const int DefaultFullScreenModeImageAreaPercent = 85;
+
+        // 新フィルタ用コントロール
+        private CheckBox cbMinEvalFilterEnabled = null!;
+        private CheckBox cbMinEvalEqualFilter = null!;
 
         public SettingsDialog()
         {
@@ -128,7 +108,7 @@ namespace MangaViewer
             // ダイアログ基本設定
             this.Text = "設定";
             this.StartPosition = FormStartPosition.CenterScreen;
-            this.Size = new System.Drawing.Size(420, 700);
+            this.Size = new System.Drawing.Size(420, 500);
             this.MinimizeBox = false;
             this.MaximizeBox = false;
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
@@ -260,41 +240,6 @@ namespace MangaViewer
             };
             this.Controls.Add(lblRatingFilterStats);
 
-            // 画面表示数 ラベル
-            Label labelDisplayCount = new Label
-            {
-                Text = "画面表示数：",
-                AutoSize = true,
-                ForeColor = Color.White,
-                Font = new System.Drawing.Font("Meiryo UI", 10F),
-                Location = new System.Drawing.Point(20, 175),
-            };
-            this.Controls.Add(labelDisplayCount);
-
-            // 画面表示数チェックボックス（2 / 8 排他選択）
-            cbDisplay2 = new CheckBox
-            {
-                Text = "2",
-                Location = new System.Drawing.Point(140, 172),
-                AutoSize = true,
-                ForeColor = Color.White,
-                BackColor = Color.FromArgb(40, 40, 40),
-                Checked = true, // デフォルトは2
-            };
-            cbDisplay2.Click += (s, e) => { if (cbDisplay2.Checked) cbDisplay8.Checked = false; UpdateFilterStats(); };
-            this.Controls.Add(cbDisplay2);
-
-            cbDisplay8 = new CheckBox
-            {
-                Text = "8",
-                Location = new System.Drawing.Point(190, 172),
-                AutoSize = true,
-                ForeColor = Color.White,
-                BackColor = Color.FromArgb(40, 40, 40),
-            };
-            cbDisplay8.Click += (s, e) => { if (cbDisplay8.Checked) cbDisplay2.Checked = false; UpdateFilterStats(); };
-            this.Controls.Add(cbDisplay8);
-
             // セクション区切り（レイアウト比率）
             Label labelLayoutSection = new Label
             {
@@ -383,149 +328,40 @@ namespace MangaViewer
             };
             this.Controls.Add(labelFullPercentUnit);
 
-            // 評価1キーワード ラベル
-            Label labelRatingOneKeywords = new Label
+            // 評価値フィルタ設定セクション
+            Label labelFilterSection = new Label
             {
-                Text = "評価1キーワード：",
-                AutoSize = true,
-                ForeColor = Color.White,
-                Font = new System.Drawing.Font("Meiryo UI", 9F),
-                Location = new System.Drawing.Point(20, 345),
-            };
-            this.Controls.Add(labelRatingOneKeywords);
-
-            // 評価1キーワード TextBox（カンマ区切り）
-            txtRatingOneKeywords = new TextBox
-            {
-                Location = new System.Drawing.Point(170, 342),
-                Size = new System.Drawing.Size(190, 25),
-                BackColor = Color.FromArgb(60, 60, 60),
-                ForeColor = Color.White,
-            };
-            this.Controls.Add(txtRatingOneKeywords);
-
-            // 説明ラベル
-            Label labelRatingOneHint = new Label
-            {
-                Text = "(カンマ区切りで複数指定)",
-                AutoSize = true,
-                ForeColor = Color.LightGray,
-                Font = new System.Drawing.Font("Meiryo UI", 8F),
-                Location = new System.Drawing.Point(170, 365),
-            };
-            this.Controls.Add(labelRatingOneHint);
-
-            // DBフィルタ「以上/一致」チェックボックス
-            cbDbFilterGreaterOrEqual = new CheckBox
-            {
-                Text = "DB表示：評価値を『以上』でフィルタする（OFF=一致）",
-                Location = new System.Drawing.Point(20, 395),
-                AutoSize = true,
-                ForeColor = Color.White,
-                BackColor = Color.FromArgb(40, 40, 40),
-                Checked = true, // デフォルトは「以上」
-            };
-            this.Controls.Add(cbDbFilterGreaterOrEqual);
-
-            // DBList セクション見出し
-            Label labelDbListSection = new Label
-            {
-                Text = "DBList モード用フィルタ",
+                Text = "評価値フィルタ設定",
                 AutoSize = true,
                 ForeColor = Color.LimeGreen,
                 Font = new System.Drawing.Font("Meiryo UI", 10F, FontStyle.Bold),
-                Location = new System.Drawing.Point(20, 435),
+                Location = new System.Drawing.Point(20, 345),
             };
-            this.Controls.Add(labelDbListSection);
+            this.Controls.Add(labelFilterSection);
 
-            // DB最小表示数
-            Label labelDbMinDisplayCount = new Label
+            // 評価値フィルタ有効/無効
+            cbMinEvalFilterEnabled = new CheckBox
             {
-                Text = "DB最小表示数：",
+                Text = "評価値フィルタを有効にする",
+                Location = new System.Drawing.Point(20, 375),
                 AutoSize = true,
                 ForeColor = Color.White,
-                Font = new System.Drawing.Font("Meiryo UI", 9F),
-                Location = new System.Drawing.Point(20, 465),
+                BackColor = Color.FromArgb(40, 40, 40),
+                Checked = true, // デフォルト有効
             };
-            this.Controls.Add(labelDbMinDisplayCount);
+            this.Controls.Add(cbMinEvalFilterEnabled);
 
-            numDbMinDisplayCount = new NumericUpDown
+            // 評価値フィルタの比較モード（「以上」vs「等しい」）
+            cbMinEvalEqualFilter = new CheckBox
             {
-                Minimum = 2,
-                Maximum = 99999,
-                Value = 20,
-                Location = new System.Drawing.Point(140, 463),
-                Size = new System.Drawing.Size(80, 25),
-                BackColor = Color.FromArgb(60, 60, 60),
-                ForeColor = Color.White,
-            };
-            this.Controls.Add(numDbMinDisplayCount);
-
-            Label labelDbMinUnit = new Label
-            {
-                Text = "枚",
-                AutoSize = true,
-                ForeColor = Color.LightGray,
-                Font = new System.Drawing.Font("Meiryo UI", 9F),
-                Location = new System.Drawing.Point(225, 467),
-            };
-            this.Controls.Add(labelDbMinUnit);
-
-            // DB最大表示数
-            Label labelDbMaxDisplayCount = new Label
-            {
-                Text = "DB最大表示数：",
+                Text = "評価値を『等しい』でフィルタする（OFF=「以上」）",
+                Location = new System.Drawing.Point(20, 405),
                 AutoSize = true,
                 ForeColor = Color.White,
-                Font = new System.Drawing.Font("Meiryo UI", 9F),
-                Location = new System.Drawing.Point(20, 495),
+                BackColor = Color.FromArgb(40, 40, 40),
+                Checked = false, // デフォルト「以上」
             };
-            this.Controls.Add(labelDbMaxDisplayCount);
-
-            numDbMaxDisplayCount = new NumericUpDown
-            {
-                Minimum = 3,
-                Maximum = 100000,
-                Value = 1000,
-                Location = new System.Drawing.Point(140, 493),
-                Size = new System.Drawing.Size(80, 25),
-                BackColor = Color.FromArgb(60, 60, 60),
-                ForeColor = Color.White,
-            };
-            this.Controls.Add(numDbMaxDisplayCount);
-
-            Label labelDbMaxUnit = new Label
-            {
-                Text = "枚",
-                AutoSize = true,
-                ForeColor = Color.LightGray,
-                Font = new System.Drawing.Font("Meiryo UI", 9F),
-                Location = new System.Drawing.Point(225, 497),
-            };
-            this.Controls.Add(labelDbMaxUnit);
-
-            // DB最小評価値
-            Label labelDbMinEvaluation = new Label
-            {
-                Text = "DB最小評価値：",
-                AutoSize = true,
-                ForeColor = Color.White,
-                Font = new System.Drawing.Font("Meiryo UI", 9F),
-                Location = new System.Drawing.Point(20, 525),
-            };
-            this.Controls.Add(labelDbMinEvaluation);
-
-            numDbMinEvaluation = new NumericUpDown
-            {
-                Minimum = 0,
-                Maximum = 10,
-                Value = 8,
-                Location = new System.Drawing.Point(140, 523),
-                Size = new System.Drawing.Size(80, 25),
-                BackColor = Color.FromArgb(60, 60, 60),
-                ForeColor = Color.White,
-            };
-            this.Controls.Add(numDbMinEvaluation);
+            this.Controls.Add(cbMinEvalEqualFilter);
 
             // バージョン表示ラベル（下部：Constants から一元取得）
             labelVersion = new Label
@@ -636,7 +472,9 @@ namespace MangaViewer
             int displayCnt = DefaultDisplayCountVal;
             int normalPercent = DefaultNormalModeImageAreaPercent;
             int fullScreenPercent = DefaultFullScreenModeImageAreaPercent;
-            string ratingOneKeywords = "";
+
+            bool minEvalFilterEnabled = true;
+            bool minEvalEqualFilter = false;
 
             if (File.Exists(SettingsFilePath))
             {
@@ -694,30 +532,21 @@ namespace MangaViewer
                             fullScreenPercent = val;
                     }
 
-                    // 評価1キーワード
-                    if (doc.RootElement.TryGetProperty("RatingOneKeywords", out var rkProp)
-                        && rkProp.ValueKind == JsonValueKind.String)
+                    // 評価値フィルタ設定読み込み（旧 DbFilterGreaterOrEqual から移行）
+                    if (doc.RootElement.TryGetProperty("MinEvaluationFilterEnabled", out var mefProp) && (mefProp.ValueKind == JsonValueKind.True || mefProp.ValueKind == JsonValueKind.False))
                     {
-                        ratingOneKeywords = rkProp.ToString();
+                        minEvalFilterEnabled = mefProp.GetBoolean();
+                    }
+                    else if (doc.RootElement.TryGetProperty("DbFilterGreaterOrEqual", out var oldProp) && (oldProp.ValueKind == JsonValueKind.True || oldProp.ValueKind == JsonValueKind.False))
+                    {
+                        // 旧キーからの移行：DbFilterGreaterOrEqual=false → MinEvaluationEqualFilter=true
+                        minEvalFilterEnabled = true;
+                        minEvalEqualFilter = !oldProp.GetBoolean();
                     }
 
-                    // DBList 設定読み込み（存在しない場合はデフォルト）
-                    if (doc.RootElement.TryGetProperty("DbMinDisplayCount", out var dbMinProp) && dbMinProp.ValueKind == JsonValueKind.Number)
+                    if (doc.RootElement.TryGetProperty("MinEvaluationEqualFilter", out var meqProp) && (meqProp.ValueKind == JsonValueKind.True || meqProp.ValueKind == JsonValueKind.False))
                     {
-                        int v = dbMinProp.GetInt32();
-                        if (v >= 2 && v <= 99999) numDbMinDisplayCount.Value = v;
-                    }
-
-                    if (doc.RootElement.TryGetProperty("DbMaxDisplayCount", out var dbMaxProp) && dbMaxProp.ValueKind == JsonValueKind.Number)
-                    {
-                        int v = dbMaxProp.GetInt32();
-                        if (v >= 3 && v <= 100000) numDbMaxDisplayCount.Value = v;
-                    }
-
-                    if (doc.RootElement.TryGetProperty("DbMinEvaluation", out var dbEvalProp) && dbEvalProp.ValueKind == JsonValueKind.Number)
-                    {
-                        int v = dbEvalProp.GetInt32();
-                        if (v >= 0 && v <= 10) numDbMinEvaluation.Value = v;
+                        minEvalEqualFilter = meqProp.GetBoolean();
                     }
 
                     // 設定値が存在しなかった場合はデフォルト値を保存（新旧互換対応）
@@ -734,8 +563,7 @@ namespace MangaViewer
                             minEval,
                             displayCnt,
                             normalPercent,
-                            fullScreenPercent,
-                            ratingOneKeywords);
+                            fullScreenPercent);
                     }
                 }
                 catch
@@ -747,8 +575,7 @@ namespace MangaViewer
                         DefaultMinEvaluation,
                         DefaultDisplayCountVal,
                         DefaultNormalModeImageAreaPercent,
-                        DefaultFullScreenModeImageAreaPercent,
-                        "");
+                        DefaultFullScreenModeImageAreaPercent);
                 }
             }
 
@@ -756,12 +583,6 @@ namespace MangaViewer
             numMinDisplayCount.Value = count;
             numMaxDisplayCount.Minimum = count + 1;
             numMaxDisplayCount.Value = Math.Max(maxCount, count + 1);
-            cbDisplay2.Checked = displayCnt == 2;
-            cbDisplay8.Checked = displayCnt == 8;
-            if (!cbDisplay2.Checked && !cbDisplay8.Checked)
-            {
-                cbDisplay2.Checked = true;
-            }
             numMinEvaluation.Value = minEval;
 
             // レイアウト比率を反映（範囲制限付き）
@@ -771,23 +592,9 @@ namespace MangaViewer
             if (fullScreenPercent >= (int)numFullScreenLayoutRatio.Minimum && fullScreenPercent <= (int)numFullScreenLayoutRatio.Maximum)
                 numFullScreenLayoutRatio.Value = fullScreenPercent;
 
-            // 評価1キーワードを反映
-            txtRatingOneKeywords.Text = ratingOneKeywords;
-
-            // DBフィルタ「以上/一致」切替（デフォルトON）
-            if (File.Exists(SettingsFilePath))
-            {
-                try
-                {
-                    var json2 = File.ReadAllText(SettingsFilePath);
-                    using var doc2 = JsonDocument.Parse(json2);
-                    bool greaterOrEqual = true; // デフォルト「以上」
-                    if (doc2.RootElement.TryGetProperty("DbFilterGreaterOrEqual", out var gProp) && (gProp.ValueKind == JsonValueKind.True || gProp.ValueKind == JsonValueKind.False))
-                        greaterOrEqual = gProp.GetBoolean();
-                    cbDbFilterGreaterOrEqual.Checked = greaterOrEqual;
-                }
-                catch { /* デフォルト ON */ }
-            }
+            // 評価値フィルタ設定を反映
+            cbMinEvalFilterEnabled.Checked = minEvalFilterEnabled;
+            cbMinEvalEqualFilter.Checked = minEvalEqualFilter;
 
             // 初期値でフィルター統計を表示
             UpdateFilterStats();
@@ -801,22 +608,16 @@ namespace MangaViewer
             int minDisplayCount = (int)numMinDisplayCount.Value;
             int maxDisplayCount = MaxDisplayCountValue;
             int minEvaluation = (int)numMinEvaluation.Value;
-            int displayCount = DisplayCountValue; // 2 または 8
+
+            // DisplayCount は UI に表示しないが JSON には保存
+            int displayCount = DefaultDisplayCountVal;
+
             int normalPercent = NormalModeImageAreaPercent;
             int fullScreenPercent = FullScreenModeImageAreaPercent;
-            string ratingOneKeywords = RatingOneKeywordsValue;
-            bool dbFilterGreaterOrEqual = cbDbFilterGreaterOrEqual.Checked;
-
-            // DBList 設定値を取得
-            int dbMinDisplayCount = DbMinDisplayCountValue;
-            int dbMaxDisplayCount = DbMaxDisplayCountValue;
-            int dbMinEvaluation = DbMinEvaluationValue;
 
             SaveSettingsToFile(
                 minDisplayCount, maxDisplayCount, minEvaluation, displayCount,
-                normalPercent, fullScreenPercent, ratingOneKeywords,
-                dbFilterGreaterOrEqual,
-                dbMinDisplayCount, dbMaxDisplayCount, dbMinEvaluation);
+                normalPercent, fullScreenPercent);
 
             this.DialogResult = DialogResult.OK;
         }
@@ -830,58 +631,7 @@ namespace MangaViewer
             int minEvaluation,
             int displayCount,
             int normalPercent,
-            int fullScreenPercent,
-            string ratingOneKeywords)
-        {
-            // 互換用オーバーロード：DbFilterGreaterOrEqual はデフォルト true
-            SaveSettingsToFile(
-                minDisplayCount,
-                maxDisplayCount,
-                minEvaluation,
-                displayCount,
-                normalPercent,
-                fullScreenPercent,
-                ratingOneKeywords,
-                dbFilterGreaterOrEqual: true);
-        }
-
-        private void SaveSettingsToFile(
-            int minDisplayCount,
-            int maxDisplayCount,
-            int minEvaluation,
-            int displayCount,
-            int normalPercent,
-            int fullScreenPercent,
-            string ratingOneKeywords,
-            bool dbFilterGreaterOrEqual)
-        {
-            // 互換用：DBList はデフォルト値で保存
-            SaveSettingsToFile(
-                minDisplayCount,
-                maxDisplayCount,
-                minEvaluation,
-                displayCount,
-                normalPercent,
-                fullScreenPercent,
-                ratingOneKeywords,
-                dbFilterGreaterOrEqual,
-                20,   // DbMinDisplayCount default
-                1000, // DbMaxDisplayCount default
-                8);   // DbMinEvaluation default
-        }
-
-        private void SaveSettingsToFile(
-            int minDisplayCount,
-            int maxDisplayCount,
-            int minEvaluation,
-            int displayCount,
-            int normalPercent,
-            int fullScreenPercent,
-            string ratingOneKeywords,
-            bool dbFilterGreaterOrEqual,
-            int dbMinDisplayCount,
-            int dbMaxDisplayCount,
-            int dbMinEvaluation)
+            int fullScreenPercent)
         {
             try
             {
@@ -899,20 +649,24 @@ namespace MangaViewer
                     }
                 }
 
-                // フォルダーリスト用設定
+                // 設定値を保存（DisplayCount は UI に表示しないが JSON キーは維持）
                 existing["MinDisplayCount"] = JsonSerializer.SerializeToElement(minDisplayCount);
                 existing["MaxDisplayCount"] = JsonSerializer.SerializeToElement(maxDisplayCount);
                 existing["MinEvaluation"] = JsonSerializer.SerializeToElement(minEvaluation);
                 existing["DisplayCount"] = JsonSerializer.SerializeToElement(displayCount);
                 existing["NormalModeImageAreaPercent"] = JsonSerializer.SerializeToElement(normalPercent);
                 existing["FullScreenModeImageAreaPercent"] = JsonSerializer.SerializeToElement(fullScreenPercent);
-                existing["RatingOneKeywords"] = JsonSerializer.SerializeToElement(ratingOneKeywords ?? "");
-                existing["DbFilterGreaterOrEqual"] = JsonSerializer.SerializeToElement(dbFilterGreaterOrEqual);
 
-                // DBList 用設定
-                existing["DbMinDisplayCount"] = JsonSerializer.SerializeToElement(dbMinDisplayCount);
-                existing["DbMaxDisplayCount"] = JsonSerializer.SerializeToElement(dbMaxDisplayCount);
-                existing["DbMinEvaluation"] = JsonSerializer.SerializeToElement(dbMinEvaluation);
+                // 評価値フィルタ設定
+                existing["MinEvaluationFilterEnabled"] = JsonSerializer.SerializeToElement(cbMinEvalFilterEnabled.Checked);
+                existing["MinEvaluationEqualFilter"] = JsonSerializer.SerializeToElement(cbMinEvalEqualFilter.Checked);
+
+                // 旧キーの削除（RatingOneKeywords, DbFilterGreaterOrEqual, DbMinDisplayCount, etc.）
+                existing.Remove("RatingOneKeywords");
+                existing.Remove("DbFilterGreaterOrEqual");
+                existing.Remove("DbMinDisplayCount");
+                existing.Remove("DbMaxDisplayCount");
+                existing.Remove("DbMinEvaluation");
 
                 var options = new JsonSerializerOptions { WriteIndented = true };
                 string resultJson = JsonSerializer.Serialize(existing, options);
