@@ -134,14 +134,15 @@ namespace MangaViewer
         /// <summary>
         /// Get info text for the label based on current display.
         /// </summary>
-        public string GetInfoText(string currentFolder, int folderIndex, List<FolderEntry> folderList)
+        public string GetInfoText(string currentFolder, int folderIndex, List<FolderEntry>? folderList)
         {
             if (ImagePaths.Count == 0) return "";
 
             int count = DisplayCount;
             string folderName = Path.GetFileName(currentFolder);
             string folderInfo = !string.IsNullOrEmpty(folderName) ? $"[{folderName}] " : "";
-            string folderIndexInfo = folderList.Count > 1 ? $"{folderIndex + 1}/{folderList.Count}話 " : "";
+            int folderCount = folderList?.Count ?? 0;
+            string folderIndexInfo = folderCount > 1 ? $"{folderIndex + 1}/{folderCount}話 " : "";
 
             var pageNumbers = new List<int>();
             for (int i = 0; i < count; i++)

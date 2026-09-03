@@ -167,7 +167,9 @@ namespace MangaViewer
             if (cjRoot == null || !cjRoot.Folders.TryGetValue(folderPath, out var cjEntry))
                 return false;
 
-            string jsonPath = Path.Combine(Path.GetDirectoryName(folderPath), $"{Path.GetFileName(folderPath)}.json");
+            string? dir = Path.GetDirectoryName(folderPath);
+            if (dir == null) return false;
+            string jsonPath = Path.Combine(dir, $"{Path.GetFileName(folderPath)}.json");
             if (!File.Exists(jsonPath))
                 return false; // DJ does not exist - skip per spec rule 2.2
 
@@ -213,8 +215,10 @@ namespace MangaViewer
         {
             try
             {
-                string jsonPath = Path.Combine(Path.GetDirectoryName(folderPath), $"{Path.GetFileName(folderPath)}.json");
-                
+                string? dir = Path.GetDirectoryName(folderPath);
+                if (dir == null) return;
+                string jsonPath = Path.Combine(dir, $"{Path.GetFileName(folderPath)}.json");
+
                 if (!File.Exists(jsonPath))
                     return; // No DJ exists - skip per spec rule 1.2 requires actual scan
 

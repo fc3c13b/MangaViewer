@@ -154,8 +154,6 @@ namespace MangaViewer
         // CBZ List overlay dialog (TASK09.31)
         private Panel? panelCbzListOverlay;
         private ListBox? listBoxCbzFiles;
-        private Button? btnCbzOk;
-        private Button? btnCbzCancel;
 
         public bool IsSlideshowRunning => _slideshowTimer?.Enabled ?? false;
 
