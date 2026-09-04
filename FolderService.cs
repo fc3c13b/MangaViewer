@@ -149,8 +149,7 @@ namespace MangaViewer
                         {
                             // 規則4: DJにRなし + DJにGCなし → フォルダをスキャン
                             cbzFileCount = CountCbzFiles(dir);
-                            if (cbzFileCount > 0)
-                                imageCount = CountImagesWithoutCbzFallback(dir);
+                            // CBZ内の画像カウントは行わない（単体画像ファイルのみで十分）
 
                             try
                             {
@@ -917,7 +916,8 @@ namespace MangaViewer
                 else if (!hasDjRating && !hasDjGc)
                 {
                     cc = CountCbzFiles(dir);
-                    ic = (cc > 0) ? CountImagesWithoutCbzFallback(dir) : 0;
+                    // imageCount は0（CBZ内の画像カウントを行わないため）
+                    ic = 0;
 
                     try { SaveFolderMetaJson(jsonPath, ic, cc, r); } catch { }
                 }
@@ -927,14 +927,11 @@ namespace MangaViewer
             else
             {
                 // DJ が存在しない場合：画像数・CBZ/ZIP数を直接カウント
-                int scanCbzCount = CountCbzFiles(dir);
-                int scanImageCount = 0;
-                if (scanCbzCount > 0)
-                    scanImageCount = CountImagesWithoutCbzFallback(dir);
+                int scanCbzCount = CountCbzFiles(dir); // CBZ内の画像カウントは行わない（単体画像ファイルのみで十分）
 
-                try { SaveFolderMetaJson(jsonPath, scanImageCount, scanCbzCount, -1); } catch { }
+                try { SaveFolderMetaJson(jsonPath, 0, scanCbzCount, -1); } catch { }
 
-                return (scanImageCount, scanCbzCount, -1);
+                return (0, scanCbzCount, -1);
             }
         }
 
