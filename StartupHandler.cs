@@ -174,7 +174,7 @@ namespace MangaViewer
             try
             {
                 // 例外がスプラッシュ/閉じるフローで発生しないようキャッチ
-                form.Invoke(action);
+                form.BeginInvoke(action);
             }
             catch
             {
