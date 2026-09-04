@@ -112,6 +112,16 @@ namespace MangaViewer
 
                 if (IsRankDisplayMode)
                     BuildRankFilteredListFromActiveCj();
+
+                // Load and display images for the first folder if CJ was created successfully.
+                if (IsRankDisplayMode && _folderList.Count > 0 && _currentFolderIndex >= 0)
+                {
+                    LoadAndSortImages(_folderList[_currentFolderIndex]);
+                    _currentIndex = 0;
+                    _displayManager.ImagePaths = _imagePaths;
+                    _displayManager.DisplayImages(0);
+                }
+
                 UpdateWindowTitle();
                 labelInfo.Text = $"CJ作成完了: {parentFolder}";
             }
