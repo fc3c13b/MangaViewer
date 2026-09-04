@@ -10,6 +10,8 @@ namespace MangaViewer
     /// </summary>
     public static class ImageLoader
     {
+        private const string DebugLogFile = "/tmp/MangaViewer_debug.log";
+
         private static readonly HashSet<string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase)
         {
             ".jpg", ".jpeg", ".png", ".webp"
@@ -40,11 +42,19 @@ namespace MangaViewer
 
             // Ensure DisplayManager is in sync.
             form._displayManager.ImagePaths = form._imagePaths;
+
+            Log($"[ImageLoader] {folderPath}: baseImages={baseImages.Count} cbzImages={cbzImages.Count} total={form._imagePaths.Count}");
         }
 
         private static List<string> GetCbzImagesForFolder(Form1 form, string folderPath)
         {
-            if (!Directory.Exists(folderPath)) return new List<string>();
+            Log($"[CBZ] Start: {folderPath}");
+
+            if (!Directory.Exists(folderPath))
+            {
+                Log($"[CBZ] Folder does not exist: {folderPath}");
+                return new List<string>();
+            }
 
             // Scan for .cbz files in the folder.
             string[] cbzFiles;
@@ -54,28 +64,46 @@ namespace MangaViewer
             }
             catch (UnauthorizedAccessException)
             {
+                Log($"[CBZ] Access denied: {folderPath}");
                 return new List<string>();
             }
-            catch
+            catch (Exception ex)
             {
+                Log($"[CBZ] Scan error: {folderPath} -> {ex.GetType().Name}: {ex.Message}");
                 return new List<string>();
             }
 
-            if (cbzFiles.Length == 0) return new List<string>();
+            Log($"[CBZ] Found {cbzFiles.Length} CBZ files on disk");
+
+            if (cbzFiles.Length == 0)
+            {
+                Log($"[CBZ] No CBZ files found");
+                return new List<string>();
+            }
 
             // Initialize or reuse CbzManager for this folder.
             if (form._cbzManager == null)
                 form._cbzManager = new CbzManager();
 
+            Log($"[CBZ] Calling InitializeForFolder...");
             bool ok = form._cbzManager.InitializeForFolder(folderPath);
-            if (!ok || !form._cbzManager.CbxFiles.Any()) return new List<string>();
+            Log($"[CBZ] InitializeForFolder: ok={ok} CbxFiles.Count={form._cbzManager.CbxFiles.Count}");
+
+            if (!ok || !form._cbzManager.CbxFiles.Any())
+            {
+                Log($"[CBZ] Skip: ok={ok} cbxAny={form._cbzManager.CbxFiles.Any()}");
+                return new List<string>();
+            }
 
             // Collect all images from all CBZ volumes in order.
             var result = new List<string>();
 
             for (int i = 0; i < form._cbzManager.CbxFiles.Count; i++)
             {
+                var cbx = form._cbzManager.CbxFiles[i];
                 form._cbzManager.SwitchToCbx(i);
+                int imgCount = form._cbzManager.CurrentImagePaths?.Count ?? 0;
+                Log($"[CBZ] Vol {i} ({cbx}): images={imgCount}");
                 if (form._cbzManager.CurrentImagePaths != null)
                 {
                     result.AddRange(form._cbzManager.CurrentImagePaths);
@@ -85,7 +113,20 @@ namespace MangaViewer
             // Reset to first CBZ for normal navigation.
             form._cbzManager.SwitchToCbx(0);
 
+            Log($"[CBZ] Done: total={result.Count}");
             return result;
+        }
+
+        private static void Log(string message)
+        {
+            try
+            {
+                File.AppendAllText(DebugLogFile, $"[{DateTime.Now:HH:mm:ss.fff}] {message}\n");
+            }
+            catch
+            {
+                // Ignore logging failures.
+            }
         }
     }
 }
