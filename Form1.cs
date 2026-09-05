@@ -501,6 +501,9 @@ namespace MangaViewer
 
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
+            // Flush all pending logs and copy to app-live.log (AI reading).
+            LogWriter.Shutdown();
+
             // Stop timers to prevent further UI operations.
             _folderDebounceTimer?.Stop();
             _slideshowTimer?.Stop();

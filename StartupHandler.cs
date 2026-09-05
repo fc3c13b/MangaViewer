@@ -15,9 +15,10 @@ namespace MangaViewer
     /// </summary>
     public static class StartupHandler
     {
-        private static readonly string LoadLogFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "error.log");
 
         public static void Initialize(Form1 form)
+        {
+            LogWriter.Init();
         {
             try
             {
@@ -372,14 +373,8 @@ namespace MangaViewer
             return null;
         }
 
-        public static void Log(string msg)
-        {
-            try { File.AppendAllText(LoadLogFile, $"{DateTime.Now}: {msg}{Environment.NewLine}"); } catch { }
-        }
+        public static void Log(string msg) => LogWriter.Log(msg);
 
-        public static void LogError(string message)
-        {
-            try { File.AppendAllText(LoadLogFile, $"{DateTime.Now}: ERROR: {message}{Environment.NewLine}"); } catch { }
-        }
+        public static void LogError(string message) => LogWriter.LogError(message);
     }
 }

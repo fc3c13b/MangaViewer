@@ -17,6 +17,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="RingBuffer" Version="1.5.1" />
     <PackageReference Include="SkiaSharp" Version="4.150.0" />
   </ItemGroup>
 
