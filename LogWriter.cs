@@ -88,6 +88,7 @@ internal static class LogWriter
         if (_ring == null) return;
 
         StringBuilder sb = new();
+        string logText;
         int totalBytes;
 
         lock (_lock)
@@ -97,7 +98,8 @@ internal static class LogWriter
                 sb.Append(Encoding.UTF8.GetString(chunk));
 
             if (sb.Length == 0) return;
-            totalBytes = Encoding.UTF8.GetByteCount(sb.ToString());
+            logText = sb.ToString();
+            totalBytes = Encoding.UTF8.GetByteCount(logText);
 
             // バッファのクリア（RingBuffer のエントリを空に）
             _ring.Clear();
@@ -105,13 +107,13 @@ internal static class LogWriter
             // 4KB を超える場合は直近の改行位置で切り出し
             if (totalBytes > FlushThresholdBytes)
             {
-                int cutAt = sb.LastIndexOf('\n') + 1;
-                if (cutAt == 0) cutAt = sb.Length - 1; // フラグメント → とりあえず truncation
-                sb.Remove(cutAt, sb.Length - cutAt);
+                int cutAt = logText.LastIndexOf('\n') + 1;
+                if (cutAt == 0) cutAt = logText.Length - 1; // フラグメント → とりあえず truncation
+                logText = logText.Substring(0, cutAt);
             }
         }
 
-        if (sb.Length == 0) return;
+        if (logText.Length == 0) return;
 
         // ファイル名: app-live.{YYYY-MM-DD-HH-mm-ss}.log
         string filename = $"app-live.{DateTime.Now.ToString("yyyy-MM-dd-HH-mm-ss")}.log";
@@ -119,7 +121,7 @@ internal static class LogWriter
 
         try
         {
-            File.AppendAllText(filepath, sb.ToString(), Encoding.UTF8);
+            File.AppendAllText(filepath, logText, Encoding.UTF8);
 
             // 最新ログを app-live.log にコピー（AI 読込用）
             string latestPath = Path.Combine(LogDirectory, "app-live.log");
