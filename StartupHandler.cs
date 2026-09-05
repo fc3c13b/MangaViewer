@@ -19,7 +19,7 @@ namespace MangaViewer
         public static void Initialize(Form1 form)
         {
             LogWriter.Init();
-        {
+
             try
             {
                 // 1. Settings ロード

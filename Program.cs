@@ -1,16 +1,13 @@
 using System;
-using System.IO;
 using System.Windows.Forms;
 
 namespace MangaViewer
 {
     class Program
     {
-        private static readonly string LogFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "error.log");
-
         private static void Log(string msg)
         {
-            try { File.AppendAllText(LogFile, $"{DateTime.Now}: {msg}{Environment.NewLine}"); } catch { }
+            try { LogWriter.Log($"[{DateTime.Now}] {msg}"); } catch { }
         }
 
         [STAThread]
@@ -24,7 +21,7 @@ namespace MangaViewer
                 try
                 {
                     string msg = $"UnhandledException: {e.ExceptionObject}";
-                    File.AppendAllText(LogFile, $"{DateTime.Now}: {msg}{Environment.NewLine}");
+                    Log(msg);
                 }
                 catch { /* ログ書き込み失敗時は何もしない */ }
             };
@@ -35,7 +32,7 @@ namespace MangaViewer
                 try
                 {
                     string msg = $"ThreadException: {e.Exception}";
-                    File.AppendAllText(LogFile, $"{DateTime.Now}: {msg}{Environment.NewLine}");
+                    Log(msg);
                 }
                 catch { /* ログ書き込み失敗時は何もしない */ }
             };

@@ -117,7 +117,6 @@ namespace MangaViewer
                  switch (key)
                  {
                      case Keys.D1:
-                         try { System.IO.File.AppendAllText("error.log", $"[Keyboard] D1 pressed, calling SetDisplayCount(1){Environment.NewLine}"); } catch { }
                          e.Handled = true;
                          nav.SetDisplayCount(1);
                          return;

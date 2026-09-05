@@ -87,14 +87,14 @@ namespace MangaViewer
         /// </summary>
         public void DisplayImages(int startIndex)
         {
-            try { System.IO.File.AppendAllText("error.log", $"[DisplayManager] DisplayImages(startIndex={startIndex}, DisplayCount={DisplayCount}, ImagePaths.Count={ImagePaths.Count}){Environment.NewLine}"); } catch { }
+            LogWriter.Log($"[DisplayManager] DisplayImages(startIndex={startIndex}, DisplayCount={DisplayCount}, ImagePaths.Count={ImagePaths.Count})");
             CurrentIndex = startIndex;
             int count = DisplayCount;
 
             if (pictureBoxes.Length == 0 || pictureBoxes.Length != count)
                 InitializePictureBoxes();
 
-            try { System.IO.File.AppendAllText("error.log", $"[DisplayManager] pictureBoxes.Length={pictureBoxes.Length}, count={count}{Environment.NewLine}"); } catch { }
+            LogWriter.Log($"[DisplayManager] pictureBoxes.Length={pictureBoxes.Length}, count={count}");
 
             if (ImagePaths.Count == 0)
             {
@@ -105,7 +105,7 @@ namespace MangaViewer
             // Manga reading order: right-to-left, top-to-bottom
             // Panel position (col,row) maps to page index: row * cols + (cols - 1 - col)
             int cols = count == 8 ? 4 : (count == 1 ? 1 : 2);
-            try { System.IO.File.AppendAllText("error.log", $"[DisplayManager] cols={cols}, count={count}{Environment.NewLine}"); } catch { }
+            LogWriter.Log($"[DisplayManager] cols={cols}, count={count}");
             for (int i = 0; i < count; i++)
             {
                 int col = i % cols;
@@ -113,7 +113,7 @@ namespace MangaViewer
                 int pageOffset = row * cols + (cols - 1 - col);
                 int imgIdx = startIndex + pageOffset;
                 string? imagePath = imgIdx < ImagePaths.Count ? ImagePaths[imgIdx] : null;
-                try { System.IO.File.AppendAllText("error.log", $"[DisplayManager] i={i}, imgIdx={imgIdx}, imagePath={(string.IsNullOrEmpty(imagePath) ? "(null)" : Path.GetFileName(imagePath))}{Environment.NewLine}"); } catch { }
+                LogWriter.Log($"[DisplayManager] i={i}, imgIdx={imgIdx}, imagePath={(string.IsNullOrEmpty(imagePath) ? "(null)" : Path.GetFileName(imagePath))}");
                 LoadImageIntoPictureBox(pictureBoxes[i], ref currentImages![i], imagePath);
             }
 
@@ -168,7 +168,7 @@ namespace MangaViewer
 
         private void LoadImageIntoPictureBox(PictureBox pb, ref Image? currentImage, string? imagePath)
         {
-            try { System.IO.File.AppendAllText("error.log", $"[DisplayManager] LoadImageIntoPictureBox(imagePath={imagePath}){Environment.NewLine}"); } catch { }
+            LogWriter.Log($"[DisplayManager] LoadImageIntoPictureBox(imagePath={imagePath})");
             if (currentImage != null)
             {
                 ImageService.DisposeImage(currentImage);
