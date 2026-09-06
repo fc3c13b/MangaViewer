@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
@@ -16,7 +17,7 @@ internal static class LogWriter
     private const int FlushThresholdBytes = 4096;       // フラッシュ判定（byte）
     private const int MaxBufferSizeBytes = 8192;         // バッファ上限（byte）
     private static readonly object _lock = new();
-    private static RingBuffer<byte[]>? _ring;
+    private static Queue<byte[]>? _ring;
     private static string _lastLogDate = DateTime.Now.ToString("yyyy-MM-dd");
     private static readonly string LogDirectory;
 
@@ -31,7 +32,7 @@ internal static class LogWriter
     public static void Init()
     {
         lock (_lock)
-            _ring = new RingBuffer<byte[]>(MaxBufferSizeBytes / 16); // エントリ数
+            _ring = new Queue<byte[]>(MaxBufferSizeBytes / 16); // エントリ数
     }
 
     /// <summary>ログ追加（各モジュールから呼出）</summary>
@@ -68,7 +69,7 @@ internal static class LogWriter
         if (_ring == null) return;
 
         lock (_lock)
-            _ring.Push(Encoding.UTF8.GetBytes(line));
+            _ring.Enqueue(Encoding.UTF8.GetBytes(line));
     }
 
     private static int GetTotalBytes()
@@ -105,7 +106,7 @@ internal static class LogWriter
             // 4KB を超える場合は直近の改行位置で切り出し
             if (totalBytes > FlushThresholdBytes)
             {
-                int cutAt = sb.LastIndexOf('\n') + 1;
+                int cutAt = sb.ToString().LastIndexOf('\n') + 1;
                 if (cutAt == 0) cutAt = sb.Length - 1; // フラグメント → とりあえず truncation
                 sb.Remove(cutAt, sb.Length - cutAt);
             }
