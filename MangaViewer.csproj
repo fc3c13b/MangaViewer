@@ -5,6 +5,7 @@
     <TargetFramework>net8.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <HighDpiMode>PerMonitorV2</HighDpiMode>
     <DefineConstants>USE_SKIA</DefineConstants>
 
@@ -17,7 +18,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-        <PackageReference Include="SkiaSharp" Version="4.150.0" />
+    <PackageReference Include="SkiaSharp" Version="4.150.0" />
   </ItemGroup>
 
   <!-- Exclude test projects from main project -->
