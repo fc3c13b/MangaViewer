@@ -117,6 +117,7 @@ namespace MangaViewer
                  switch (key)
                  {
                      case Keys.D1:
+                         try { StartupHandler.LogError("[Keyboard] D1 pressed, calling SetDisplayCount(1)"); } catch { }
                          e.Handled = true;
                          nav.SetDisplayCount(1);
                          return;

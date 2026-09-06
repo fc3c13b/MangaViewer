@@ -1,13 +1,16 @@
 {
   "version": 2,
-  "dgSpecHash": "lqloZ+l2uQc=",
+  "dgSpecHash": "Z0F8uBLwZXE=",
   "success": true,
-  "projectFilePath": "/Users/fc3c13b/src/repos/MangaViewer/MangaViewer.csproj",
+  "projectFilePath": "C:\\Users\\fc3c1\\source\\repos\\MangaViewer\\MangaViewer.csproj",
   "expectedPackageFiles": [
-    "/Users/fc3c13b/.nuget/packages/skiasharp/4.150.0/skiasharp.4.150.0.nupkg.sha512",
-    "/Users/fc3c13b/.nuget/packages/skiasharp.nativeassets.macos/4.150.0/skiasharp.nativeassets.macos.4.150.0.nupkg.sha512",
-    "/Users/fc3c13b/.nuget/packages/skiasharp.nativeassets.win32/4.150.0/skiasharp.nativeassets.win32.4.150.0.nupkg.sha512",
-    "/Users/fc3c13b/.nuget/packages/microsoft.windowsdesktop.app.ref/8.0.30/microsoft.windowsdesktop.app.ref.8.0.30.nupkg.sha512"
+    "C:\\Users\\fc3c1\\.nuget\\packages\\skiasharp\\4.150.0\\skiasharp.4.150.0.nupkg.sha512",
+    "C:\\Users\\fc3c1\\.nuget\\packages\\skiasharp.nativeassets.macos\\4.150.0\\skiasharp.nativeassets.macos.4.150.0.nupkg.sha512",
+    "C:\\Users\\fc3c1\\.nuget\\packages\\skiasharp.nativeassets.win32\\4.150.0\\skiasharp.nativeassets.win32.4.150.0.nupkg.sha512",
+    "C:\\Users\\fc3c1\\.nuget\\packages\\microsoft.netcore.app.ref\\8.0.30\\microsoft.netcore.app.ref.8.0.30.nupkg.sha512",
+    "C:\\Users\\fc3c1\\.nuget\\packages\\microsoft.windowsdesktop.app.ref\\8.0.30\\microsoft.windowsdesktop.app.ref.8.0.30.nupkg.sha512",
+    "C:\\Users\\fc3c1\\.nuget\\packages\\microsoft.aspnetcore.app.ref\\8.0.30\\microsoft.aspnetcore.app.ref.8.0.30.nupkg.sha512",
+    "C:\\Users\\fc3c1\\.nuget\\packages\\microsoft.netcore.app.host.win-x64\\8.0.30\\microsoft.netcore.app.host.win-x64.8.0.30.nupkg.sha512"
   ],
   "logs": []
 }

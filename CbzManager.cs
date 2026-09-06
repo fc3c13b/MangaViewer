@@ -117,6 +117,8 @@ namespace MangaViewer
         /// </summary>
         public bool InitializeForFolder(string folderPath, bool forceReset = true)
         {
+            StartupHandler.Log($"[CBZ] InitializeForFolder START folder={folderPath} forceReset={forceReset}");
+
             if (!forceReset && string.Equals(CurrentFolder, folderPath, StringComparison.OrdinalIgnoreCase) && CbxFiles.Any())
             {
                 RefreshCurrentImagePaths(extractEvenIfEmpty: false);
@@ -143,6 +145,7 @@ namespace MangaViewer
                 if (cbzs.Count == 0)
                     return false;
 
+                StartupHandler.Log($"[CBZ] Scan complete: {cbzs.Count} CBZ files found in {folderPath}");
                 CbxFiles = cbzs;
                 ActiveCbxIndex = 0;
                 // 起動時は先頭（現在）巻だけを準備する。次巻の展開は非同期で
@@ -340,11 +343,13 @@ namespace MangaViewer
 
             // The common path: callers frequently ask for the already-selected
             // volume. Avoid both disk enumeration and list allocation.
-            if (string.Equals(_loadedCbzFile, cbzFile, StringComparison.OrdinalIgnoreCase))
+            if (_loadedCbzFile == cbzFile && _imagePathsByCbz.TryGetValue(cbzFile, out var cached))
             {
-                _imagePathCacheHits++;
+                CurrentImagePaths = cached;
+                StartupHandler.Log($"[CBZ-STARTUP] Cache HIT: {cbzFile}");
                 return;
             }
+
 
             string cacheDir;
 
@@ -370,7 +375,7 @@ namespace MangaViewer
                 SetCurrentImagePaths(cbzFile, cachedPaths);
                 _cbzByCacheDirectory[cacheDir] = cbzFile;
                 StartupHandler.Log($"[PROF] CbzManager.ImagePaths cbz={Path.GetFileName(cbzFile)} source=memory images={cachedPaths.Count} total={sw.ElapsedMilliseconds}ms");
-                if (preloadNext) PreloadNextCbzIfAvailable();
+                if (preloadNext) _ = PreloadNextCbzIfAvailableAsync();
                 return;
             }
 
@@ -386,12 +391,14 @@ namespace MangaViewer
             if (!cacheDirectoryExisted)
             {
                 // キャッシュミス→展開
-                System.Diagnostics.Debug.WriteLine($"[CBZ] Cache MISS: {Path.GetFileName(cbzFile)}");
+                StartupHandler.Log($"[CBZ-STARTUP] Cache MISS: {cbzFile}");
                 try
                 {
                     var extractSw = System.Diagnostics.Stopwatch.StartNew();
+                    StartupHandler.Log($"[CBZ-STARTUP] Extracting: {cbzFile} → {cacheDir}");
                     bool extractedNow = EnsureCacheExtracted(cacheDir, cbzFile);
                     extractMs = extractSw.ElapsedMilliseconds;
+                    StartupHandler.Log($"[CBZ] Extract {Path.GetFileName(cbzFile)}: {extractMs}ms, result={(extractedNow ? "success" : "already-existed")}");
                     if (extractedNow)
                     {
                         TrimCacheDirectories(cacheDir);
@@ -439,6 +446,7 @@ namespace MangaViewer
                 _cbzByCacheDirectory[cacheDir] = cbzFile;
                 SetCurrentImagePaths(cbzFile, imagePaths);
                 string source = cacheDirectoryExisted ? "disk-cache" : "extracted";
+                StartupHandler.Log($"[CBZ-STARTUP] Refresh result: count={imagePaths.Count}, cacheDir={cacheDir}");
                 StartupHandler.Log($"[PROF] CbzManager.ImagePaths cbz={Path.GetFileName(cbzFile)} source={source} images={imagePaths.Count} extract={extractMs}ms enumerate={enumerateMs}ms total={sw.ElapsedMilliseconds}ms");
             }
             catch (UnauthorizedAccessException)
@@ -453,7 +461,7 @@ namespace MangaViewer
             }
 
             // 次のCBZがあれば自動的に展開（連続プリロード）
-            if (preloadNext) PreloadNextCbzIfAvailable();
+            if (preloadNext) _ = PreloadNextCbzIfAvailableAsync();
         }
 
         private void SetCurrentImagePaths(string cbzFile, List<string> imagePaths)
@@ -599,10 +607,10 @@ namespace MangaViewer
             });
         }
 
-        private void PreloadNextCbzIfAvailable()
+        private async Task PreloadNextCbzIfAvailableAsync()
         {
             if (ActiveCbxIndex + 1 >= CbxFiles.Count) return;
-            RequestPreload(CbxFiles[ActiveCbxIndex + 1], PreloadPriority.NextVolume);
+            await Task.Run(() => RequestPreload(CbxFiles[ActiveCbxIndex + 1], PreloadPriority.NextVolume));
         }
 
         private string GetCacheDirectory(string cbzFile)

@@ -1,19 +1,29 @@
 using System;
+using System.IO;
 using System.Windows.Forms;
 
 namespace MangaViewer
 {
     class Program
     {
+        private static readonly string LogFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"error-{DateTime.Now:yyyyMMdd_HHmmss}.log");
+        private static readonly string StartupLogFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"startup-{DateTime.Now:yyyyMMdd_HHmmss}.log");
+
         private static void Log(string msg)
         {
-            try { LogWriter.Log($"[{DateTime.Now}] {msg}"); } catch { }
+            try { File.AppendAllText(LogFile, $"{DateTime.Now}: {msg}{Environment.NewLine}"); } catch { }
+        }
+
+        private static void StartupLog(string msg)
+        {
+            try { File.AppendAllText(StartupLogFile, $"{DateTime.Now}: {msg}{Environment.NewLine}"); } catch { }
         }
 
         [STAThread]
         static void Main()
         {
             Log("=== MangaViewer Starting ===");
+            StartupLog("=== MangaViewer Starting ===");
 
             // グローバル例外ハンドラ（UIスレッド以外）
             AppDomain.CurrentDomain.UnhandledException += (s, e) =>
@@ -21,7 +31,7 @@ namespace MangaViewer
                 try
                 {
                     string msg = $"UnhandledException: {e.ExceptionObject}";
-                    Log(msg);
+                    File.AppendAllText(LogFile, $"{DateTime.Now}: {msg}{Environment.NewLine}");
                 }
                 catch { /* ログ書き込み失敗時は何もしない */ }
             };
@@ -32,7 +42,7 @@ namespace MangaViewer
                 try
                 {
                     string msg = $"ThreadException: {e.Exception}";
-                    Log(msg);
+                    File.AppendAllText(LogFile, $"{DateTime.Now}: {msg}{Environment.NewLine}");
                 }
                 catch { /* ログ書き込み失敗時は何もしない */ }
             };
@@ -41,12 +51,15 @@ namespace MangaViewer
             try
             {
                 Log("Loading rating cache...");
+                StartupLog("Loading rating cache...");
                 RatingService.LoadReadOnlyCache();
                 Log("Rating cache loaded OK");
+                StartupLog("Rating cache loaded OK");
             }
             catch (Exception ex)
             {
                 Log($"Rating cache load failed: {ex}");
+                StartupLog($"Rating cache load failed: {ex}");
             }
 
             // アプリケーション終了時にratings_cache.jsonを保存
@@ -61,8 +74,10 @@ namespace MangaViewer
             try
             {
                 Log("Creating Form1...");
+                StartupLog("Creating Form1...");
                 form = new Form1();
                 Log("Form1 created OK");
+                StartupLog("Form1 created OK");
             }
             catch (Exception ex)
             {
@@ -74,8 +89,10 @@ namespace MangaViewer
             try
             {
                 Log("Running Application...");
+                StartupLog("Running Application...");
                 Application.Run(form);
                 Log("Application exited normally");
+                StartupLog("Application exited normally");
             }
             catch (Exception ex)
             {

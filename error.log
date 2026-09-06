@@ -2502,3 +2502,41 @@
 [DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\3785aa2067e17691625dd0940617277e\00001.jpg)
 [DisplayManager] i=1, imgIdx=0, imagePath=large_140801.jpg
 [DisplayManager] LoadImageIntoPictureBox(imagePath=O:\NEW\[江口連×双葉もも] とんでもスキルで異世界放浪メシ 再再スキャン\large_140801.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=2, ImagePaths.Count=0)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=2, ImagePaths.Count=0)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=2, ImagePaths.Count=0)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=2, ImagePaths.Count=0)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=2, ImagePaths.Count=0)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=2, ImagePaths.Count=769)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=1, imagePath=02_000.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\ee3a527f30449f3e7694811d268477c1\02_000.jpg)
+[DisplayManager] i=1, imgIdx=0, imagePath=パタリロ源氏物語01_202.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=O:\NEW2-2024\[魔夜峰央] パタリロ源氏物語！\パタリロ源氏物語01_202.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=2, ImagePaths.Count=640)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=1, imagePath=00002.jpeg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\ec48635ac98923fb1059975c3bd236c5\00002.jpeg)
+[DisplayManager] i=1, imgIdx=0, imagePath=0.jpeg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\ec48635ac98923fb1059975c3bd236c5\0.jpeg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=2, ImagePaths.Count=769)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=1, imagePath=02_000.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\ee3a527f30449f3e7694811d268477c1\02_000.jpg)
+[DisplayManager] i=1, imgIdx=0, imagePath=パタリロ源氏物語01_202.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=O:\NEW2-2024\[魔夜峰央] パタリロ源氏物語！\パタリロ源氏物語01_202.jpg)
+[DisplayManager] DisplayImages(startIndex=0, DisplayCount=2, ImagePaths.Count=769)
+[DisplayManager] pictureBoxes.Length=2, count=2
+[DisplayManager] cols=2, count=2
+[DisplayManager] i=0, imgIdx=1, imagePath=02_000.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=C:\Users\fc3c1\AppData\Local\MangaViewer\CBZCache\ee3a527f30449f3e7694811d268477c1\02_000.jpg)
+[DisplayManager] i=1, imgIdx=0, imagePath=パタリロ源氏物語01_202.jpg
+[DisplayManager] LoadImageIntoPictureBox(imagePath=O:\NEW2-2024\[魔夜峰央] パタリロ源氏物語！\パタリロ源氏物語01_202.jpg)

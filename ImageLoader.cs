@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -16,6 +17,10 @@ namespace MangaViewer
         {
             ".jpg", ".jpeg", ".png", ".webp"
         };
+
+        // Memoization cache: folder path -> list of all CBZ image paths for that folder
+        private static readonly ConcurrentDictionary<string, List<string>> _folderCbzCache =
+            new(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
         /// Load and sort images for the given folder.
@@ -55,6 +60,12 @@ namespace MangaViewer
                 Log($"[CBZ] Folder does not exist: {folderPath}");
                 return new List<string>();
             }
+
+            StartupHandler.Log($"[CBZ] Loading CBZ images for: {folderPath}");
+
+            // Check memoization cache first (TASK09.36-A: avoid repeated CBZ scanning)
+            if (_folderCbzCache.TryGetValue(folderPath, out var cachedPaths))
+                return cachedPaths;
 
             // Scan for .cbz files in the folder.
             string[] cbzFiles;
@@ -109,6 +120,11 @@ namespace MangaViewer
                     result.AddRange(form._cbzManager.CurrentImagePaths);
                 }
             }
+
+            // Store in memoization cache for future calls on the same folder.
+            _folderCbzCache[folderPath] = result;
+
+            StartupHandler.Log($"[CBZ] Collection complete: {result.Count} images from {cbzFiles.Length} CBZ files");
 
             // Reset to first CBZ for normal navigation.
             form._cbzManager.SwitchToCbx(0);

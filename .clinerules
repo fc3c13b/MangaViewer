@@ -1,27 +1,20 @@
 # General Instructions
-- あなたはローカルLLM環境（VRAM制限あり）で動いています。トークン消費を最小限に抑えるよう動作してください。
+- ローカルLLM環境（VRAM制限あり）で動作。トークン消費を最小限に抑える。
 
 # Code Execution & File Reading Rules
-- 巨大なファイルを読み込む際は、ファイル全体ではなく関連する関数や該当行周辺のみを確認してください。
-- 検索時は `grep_search` や `file_search` を活用し、不必要なファイルを一度に大量に読み込まないでください。
-- ターミナルコマンドを実行する際、長いログが出力されるコマンド（`npm install` や大規模テスト等）を実行した場合は、出力の末尾のみを確認してください。
+- 巨大ファイルは関連箇所のみ読み込む。不要な大量読み込みを避ける。
+- ターミナルコマンドの長いログは末尾のみ確認する。
 
 # Output Style
-- 回答は簡潔かつ要点を絞って出力してください。冗長な挨拶や前置きは不要です。
-- コードを変更する場合は、修正箇所の差分（Diff）を中心に提示してください。変更のない巨大なファイルを全文再出力しないでください。
+- 簡潔かつ要点を絞る。冗長な挨拶・前置きは不要。
+- コード変更時は差分（Diff）を中心に提示。全文再出力しない。
 
 # Tool Usage Rules
-- When using the `execute_command` tool, you MUST ALWAYS include both parameters: `command` and `requires_approval`.
-- Example:
-  <execute_command>
-  <command>npm test</command>
-  <requires_approval>true</requires_approval>
-  </execute_command>
+- `execute_command` は必ず `command` と `requires_approval` を含める。
 
 # Workflow Rules (MUST follow)
-- まず原因調査 → 対策案の説明 → ユーザーの確認 → 修正、この順序で動け
-- 説明なしにコードを修正しない
-- 同じコマンドを2回以上繰り返さない。結果を確認してから次のアクションを決めろ
+- 原因調査 → 対策案の説明 → ユーザー確認 → 修正、この順序で動く。
+- 説明なしにコードを修正しない。同じコマンドを2回以上繰り返さない。
 
 # Loop Prevention Rules (MUST follow)
 - 1つのファイルを読み直さない。既に内容が分かっている場合は読み直さず、直接編集する。
@@ -32,3 +25,15 @@
 - 関連のないタスク間では /clear でコンテキストを分離する（kitchen sink session を避ける）。
 - 検証基準を明示する。テスト、ビルド、スクリプトなどで確認できるか常に考える。
 - CLAUDE.md は200行以内にする。長すぎると重要なルールが埋もれる。
+
+# Logging Rules (MUST follow)
+- error.log はエラー専用ファイルである。通常ログや起動ログは絶対に書いてはいけない。
+- ログ出力関数は用途によって明確に分離する：
+  - エラー用（error.log）: `LogError()` または類似名、アクセス修飾子は private にする
+  - 起動/通常ログ用（startup-{yyyyMMdd}.log）: `WriteStartupLog()` または適切な名前、public で呼べるようにする
+- 関数名が「Log」だけのものは使用禁止。用途が明確でないため誤用を招く。
+- ログファイルの混入は重大事故の原因となる。車や飛行機のソフトウェアと同レベルで厳格に扱う。
+
+# Single Task per ACT Mode Rule (MUST follow)
+- 1回のACTモードでは1つの案件（タスク）のみを処理する。複数の別案件をまとめて修正してはならない。
+- ユーザーが明示的に許可しない限り、関連のない変更を組み合わせてはならない。

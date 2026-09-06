@@ -69,8 +69,10 @@ namespace MangaViewer
             }
             catch (IOException)
             {
+                try { Console.WriteLine($"[ImageService] *** LOAD FAILED (IO): {imagePath} ***"); } catch { }
                 return null;
             }
+
 
             // 2) マジックナンバーから実際の形式を判定
             string actualFormat = DetectImageFormatFromBytes(fileBytes);
@@ -128,8 +130,10 @@ namespace MangaViewer
 
             if (bitmap == null)
             {
+                try { Console.WriteLine($"[ImageService] *** DECODE FAILED: {imagePath} (format={actualFormat}) ***"); } catch { }
                 return null;
             }
+
 
             // 5) 画像読み込み成功後、キャッシュ登録
             AddToCache(imagePath, bitmap);
