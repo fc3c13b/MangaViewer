@@ -7,7 +7,7 @@ namespace MangaViewer;
 
 /// <summary>
 /// アプリケーションログの一元書き出しモジュール。
-/// - RingBuffer で byte バッファリング（8KB）
+/// - Queue<byte[]> で byte バッファリング（8KB）
 /// - 4KB を超えたら直近の改行位置で切り出し、ファイルにフラッシュ
 /// - ログディレクトリの下には app-live.{YYYY-MM-DD-HH-mm-ss}.log を作成
 /// - 最新ログのみ app-live.log にコピーして AI が読めるようにする
@@ -76,7 +76,7 @@ internal static class LogWriter
     {
         if (_ring == null) return 0;
 
-        // RingBuffer の Length は byte 数を返す（byte[] エントリを合計）
+        // バッファの全エントリの byte 数を合計（byte[] エントリを合計）
         int total = 0;
         foreach (var chunk in _ring)
             total += chunk.Length;
@@ -94,7 +94,7 @@ internal static class LogWriter
 
         lock (_lock)
         {
-            // RingBuffer から全エントリを文字列に変換して結合
+            // バッファから全エントリを文字列に変換して結合
             foreach (var chunk in _ring)
                 sb.Append(Encoding.UTF8.GetString(chunk));
 
@@ -102,7 +102,7 @@ internal static class LogWriter
             logText = sb.ToString();
             totalBytes = Encoding.UTF8.GetByteCount(logText);
 
-            // バッファのクリア（RingBuffer のエントリを空に）
+            // バッファのクリア（バッファのクリア完了）
             _ring.Clear();
 
             // 4KB を超える場合は直近の改行位置で切り出し
