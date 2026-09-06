@@ -228,13 +228,13 @@
     "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
-    "version": "0.9.42",
+    "version": "0.9.43",
     "restore": {
-      "projectUniqueName": "C:\\Users\\fc3c1\\source\\repos\\MangaViewer\\MangaViewer.csproj",
+      "projectUniqueName": "C:\\source\\repos\\MangaViewer\\MangaViewer.csproj",
       "projectName": "MangaViewer",
-      "projectPath": "C:\\Users\\fc3c1\\source\\repos\\MangaViewer\\MangaViewer.csproj",
+      "projectPath": "C:\\source\\repos\\MangaViewer\\MangaViewer.csproj",
       "packagesPath": "C:\\Users\\fc3c1\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\fc3c1\\source\\repos\\MangaViewer\\obj\\",
+      "outputPath": "C:\\source\\repos\\MangaViewer\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
