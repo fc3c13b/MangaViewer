@@ -10,7 +10,7 @@
     <DefineConstants>USE_SKIA</DefineConstants>
 
     <!-- バ�Eジョンの唯一の定義�E�Esproj�E�E-->
-    <Version>0.9.44</Version>
+    <Version>0.9.45</Version>
     <AssemblyVersion>$(Version)</AssemblyVersion>
     <FileVersion>$(Version)</FileVersion>
     <!-- SDK ぁEAssemblyInformationalVersion を�E動付与し、Constants.GetAppVersion() で正しく取得可能にする -->
