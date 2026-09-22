@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -48,17 +48,17 @@ namespace MangaViewer
         {
             try
             {
-                StartupHandler.Log($"[Form1] LoadCjForParent called: {parentFolder}, autoCreate={autoCreate}");
+                StartupHandler.WriteStartupLog($"[Form1] LoadCjForParent called: {parentFolder}, autoCreate={autoCreate}");
 
                 if (string.IsNullOrEmpty(parentFolder))
                 {
-                    StartupHandler.Log("[Form1] LoadCjForParent: empty parentFolder, returning.");
+                    StartupHandler.WriteStartupLog("[Form1] LoadCjForParent: empty parentFolder, returning.");
                     return;
                 }
 
                 if (_activeCjParentFolder == parentFolder && _activeCjData != null)
                 {
-                    StartupHandler.Log($"[Form1] LoadCjForParent: already loaded for {parentFolder}, skipping.");
+                    StartupHandler.WriteStartupLog($"[Form1] LoadCjForParent: already loaded for {parentFolder}, skipping.");
                     return;
                 }
 
@@ -70,27 +70,40 @@ namespace MangaViewer
                     _activeCjData = result.Value.data;
                     _activeDbFile = result.Value.cjFile;
 
-                    StartupHandler.Log(
+                    StartupHandler.WriteStartupLog(
                         $"[Form1] LoadCjForParent OK: cjFile={_activeDbFile}, " +
                         $"FoldersMapCount={_activeCjData.Folders.Count}");
 
                     if (IsRankDisplayMode)
                         BuildRankFilteredListFromActiveCj();
+
+                    // Load and display images if folders exist and not during startup background init
+                    if (IsRankDisplayMode && _folderList.Count > 0 && _currentFolderIndex >= 0 && _initTask?.IsCompleted != false)
+                    {
+                        LoadAndSortImages(_folderList[_currentFolderIndex]);
+                        _currentIndex = 0;
+                        _displayManager.ImagePaths = _imagePaths;
+                        _displayManager.DisplayImages(0);
+                    }
+
+                    _settings.LastRootFolder = parentFolder;
+                    SettingsManager.Save(_settings);
+                    UpdateWindowTitle();
                 }
                 else if (autoCreate)
                 {
-                    StartupHandler.Log($"[Form1] LoadCjForParent: no CJ found for {parentFolder}, creating new.");
+                    StartupHandler.WriteStartupLog($"[Form1] LoadCjForParent: no CJ found for {parentFolder}, creating new.");
                     CreateCjForParent(parentFolder);
                 }
                 else
                 {
                     // autoCreate=false → DB not found, do nothing so caller can handle.
-                    StartupHandler.Log($"[Form1] LoadCjForParent: no CJ found for {parentFolder}, autoCreate=false.");
+                    StartupHandler.WriteStartupLog($"[Form1] LoadCjForParent: no CJ found for {parentFolder}, autoCreate=false.");
                 }
             }
             catch (Exception ex)
             {
-                StartupHandler.LogError($"[Form1] LoadCjForParent error: {ex}");
+                StartupHandler.WriteErrorLog($"[Form1] LoadCjForParent error: {ex}");
             }
         }
 
@@ -121,6 +134,9 @@ namespace MangaViewer
                     _displayManager.ImagePaths = _imagePaths;
                     _displayManager.DisplayImages(0);
                 }
+
+                _settings.LastRootFolder = parentFolder;
+                SettingsManager.Save(_settings);
 
                 UpdateWindowTitle();
                 labelInfo.Text = $"CJ作成完了: {parentFolder}";
@@ -166,6 +182,7 @@ namespace MangaViewer
         private ListBox? listBoxCbzFiles;
 
         public bool IsSlideshowRunning => _slideshowTimer?.Enabled ?? false;
+        public bool IsLeadingBlankPageEnabled { get; private set; }
 
         public Form1()
         {
@@ -242,16 +259,28 @@ namespace MangaViewer
 
             // デバウンスタイマーをリセット（1秒間キー操作がない場合に画像を表示）
             _folderDebounceTimer?.Stop();
-            _folderDebounceTimer ??= new System.Windows.Forms.Timer { Interval = 1000 };
-            _folderDebounceTimer.Tick += (s, ev) =>
+            if (_folderDebounceTimer == null)
             {
-                _folderDebounceTimer!.Stop();
-                LoadAndSortImages(_folderList[_currentFolderIndex]);
-                _currentIndex = 0;
-                DisplayImages(0);
-            };
+                _folderDebounceTimer = new System.Windows.Forms.Timer { Interval = 1000 };
+                _folderDebounceTimer.Tick += OnFolderDebounceTimerTick;
+            }
             _folderDebounceTimer.Start();
             e.Handled = true;
+        }
+
+        private void OnFolderDebounceTimerTick(object? sender, EventArgs e)
+        {
+            if (_folderDebounceTimer == null) return;
+            _folderDebounceTimer.Stop();
+
+            if (_currentFolderIndex < 0 || _currentFolderIndex >= _folderList.Count)
+                return;
+
+            LoadAndSortImages(_folderList[_currentFolderIndex]);
+            _currentIndex = 0;
+            DisplayImages(0);
+            ScheduleNavigationCbzPreload();
+            UpdateWindowTitle();
         }
 
         protected override bool ProcessCmdKey(ref Message m, Keys keyData)
@@ -308,6 +337,26 @@ namespace MangaViewer
             ImageLoader.Load(this);
         }
 
+        internal void ScheduleNavigationCbzPreload()
+        {
+            if (_cbzManager == null) return;
+            if (_folderList == null || _folderList.Count == 0) return;
+            if (_currentFolderIndex < 0 || _currentFolderIndex >= _folderList.Count) return;
+
+            string currentFolder = _folderList[_currentFolderIndex];
+            string? nextFolder = (_currentFolderIndex + 1 < _folderList.Count)
+                ? _folderList[_currentFolderIndex + 1]
+                : null;
+            string? nextNextFolder = (_currentFolderIndex + 2 < _folderList.Count)
+                ? _folderList[_currentFolderIndex + 2]
+                : null;
+
+            _cbzManager.PreloadForNavigationContext(currentFolder, 3, nextFolder);
+
+            if (!string.IsNullOrWhiteSpace(nextNextFolder))
+                _cbzManager.PreloadFirstCbxForFolder(nextNextFolder);
+        }
+
         internal void UpdateWindowTitle()
         {
             // TASK09.24: Always DBList mode (no more FolderList mode).
@@ -328,7 +377,7 @@ namespace MangaViewer
                 titleBase = $"{baseTitle} - DBList {label}";
             }
 
-            // TASK09.33: Append CBZ cache list sorted by extraction time.
+            // TASK09.33: Append CBZ cache list (order is not guaranteed).
             string cbzList = BuildCbzCacheList();
             this.Text = string.IsNullOrEmpty(cbzList) ? titleBase : $"{titleBase} {cbzList}";
         }
@@ -337,23 +386,40 @@ namespace MangaViewer
         {
             try
             {
-                if (string.IsNullOrEmpty(_currentFolder))
+                if (_folderList == null || _folderList.Count == 0 || _currentFolderIndex < 0 || _currentFolderIndex >= _folderList.Count)
                     return "";
 
-                string[] cbzFiles = Directory.GetFiles(_currentFolder, "*.*", SearchOption.TopDirectoryOnly)
-                    .Where(f => f.EndsWith(".cbz", StringComparison.OrdinalIgnoreCase) ||
-                                f.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
-                    .ToArray();
-                if (cbzFiles.Length == 0)
+                string currentFolder = _folderList[_currentFolderIndex];
+                string? nextFolder = (_currentFolderIndex + 1 < _folderList.Count) ? _folderList[_currentFolderIndex + 1] : null;
+
+                var candidateFolders = new List<string> { currentFolder };
+                if (!string.IsNullOrWhiteSpace(nextFolder))
+                    candidateFolders.Add(nextFolder);
+
+                var cbzFiles = new List<string>();
+                var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var folder in candidateFolders)
+                {
+                    if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))
+                        continue;
+
+                    foreach (var file in Directory.GetFiles(folder, "*.*", SearchOption.TopDirectoryOnly)
+                                 .Where(f => f.EndsWith(".cbz", StringComparison.OrdinalIgnoreCase) ||
+                                             f.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        if (seen.Add(file))
+                            cbzFiles.Add(file);
+                    }
+                }
+
+                if (cbzFiles.Count == 0)
                     return "";
 
-                var cacheRoot = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "MangaViewer",
-                    "CBZCache"
-                );
+                string? area1Root = CbzManager.GetCacheSearchRoots().FirstOrDefault();
+                if (string.IsNullOrEmpty(area1Root))
+                    return "";
 
-                var list = new List<(string name, DateTime time)>();
+                var cachedList = new List<string>();
 
                 foreach (var cbz in cbzFiles)
                 {
@@ -362,26 +428,18 @@ namespace MangaViewer
                         using var md5 = System.Security.Cryptography.MD5.Create();
                         var hash = md5.ComputeHash(System.Text.Encoding.UTF8.GetBytes(cbz));
                         var hashStr = BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
-                        string cacheDir = Path.Combine(cacheRoot, hashStr);
+                        bool existsInArea1 = Directory.Exists(Path.Combine(area1Root, hashStr)) &&
+                                             File.Exists(Path.Combine(area1Root, hashStr, CbzManager.CacheCompleteMarkerFileName));
 
-                        if (Directory.Exists(cacheDir) &&
-                            File.Exists(Path.Combine(cacheDir, CbzManager.CacheCompleteMarkerFileName)))
-                        {
-                            DateTime dt = Directory.GetCreationTime(cacheDir);
-                            list.Add((Path.GetFileName(cbz), dt));
-                        }
+                        if (existsInArea1)
+                            cachedList.Add(cbz);
                     }
                     catch { }
                 }
 
-                if (list.Count == 0)
-                    return "";
-
-                list.Sort((a, b) => a.time.CompareTo(b.time));
-
                 var sb = new System.Text.StringBuilder();
-                foreach (var item in list)
-                    sb.Append(" /").Append(ShortenCbzName(item.name));
+                foreach (var item in cachedList)
+                    sb.Append(" /").Append(ShortenCbzName(Path.GetFileName(item)));
 
                 return sb.ToString().TrimStart(' ');
             }
@@ -436,6 +494,8 @@ namespace MangaViewer
                     _currentFolderIndex = listBoxFolders.SelectedIndex;
                     // Start scroll animation for newly selected row
                     ResetScrollAnimation();
+                    ScheduleNavigationCbzPreload();
+                    UpdateWindowTitle();
                 }
             };
 
@@ -476,6 +536,10 @@ namespace MangaViewer
                     _ = Task.Run(() => _cbzManager.PreloadNextCbx());
                 }
             }
+
+            // Alternate trigger path: if normal navigation hook was missed,
+            // enforce focused/next title warmup from display path as well.
+            ScheduleNavigationCbzPreload();
         }
 
         internal void UpdateLayout()
@@ -501,6 +565,29 @@ namespace MangaViewer
 
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
+            // Save playback position for next launch.
+            try
+            {
+                _settings.LastViewedFolderPath = _currentFolder ?? "";
+                _settings.LastViewedImageIndex = Math.Max(0, _currentIndex);
+
+                if (_cbzManager != null && _cbzManager.CbxFiles.Count > 0)
+                {
+                    int idx = Math.Clamp(_cbzManager.ActiveCbxIndex, 0, _cbzManager.CbxFiles.Count - 1);
+                    _settings.LastViewedCbzFile = _cbzManager.CbxFiles[idx] ?? "";
+                }
+                else
+                {
+                    _settings.LastViewedCbzFile = "";
+                }
+
+                SettingsManager.Save(_settings);
+            }
+            catch
+            {
+                // 保存失敗時も終了は継続
+            }
+
             // Flush all pending logs and copy to app-live.log (AI reading).
             LogWriter.Shutdown();
 
@@ -543,6 +630,18 @@ namespace MangaViewer
 
             UpdateInfoLabelAfterToggle();
             UpdateLayout();
+        }
+
+        public void ToggleLeadingBlankPage()
+        {
+            IsLeadingBlankPageEnabled = !IsLeadingBlankPageEnabled;
+            int startIndex = IsLeadingBlankPageEnabled ? -1 : 0;
+            _currentIndex = startIndex;
+
+            if (_imagePaths.Count > 0)
+                DisplayImages(startIndex);
+            else
+                UpdateInfoLabelAfterToggle();
         }
 
         // Shared label update for DisplayImages/ToggleFullScreen.
@@ -765,14 +864,12 @@ namespace MangaViewer
 
         public void NavigateCbzNext()
         {
-            // Implement the logic to navigate to the next CBZ
-            MessageBox.Show("Navigate to next CBZ is not implemented yet.");
+            FormNavigator.NavigateCbzNext(this);
         }
 
         public void NavigateCbzPrev()
         {
-            // Implement the logic to navigate to the previous CBZ
-            MessageBox.Show("Navigate to previous CBZ is not implemented yet.");
+            FormNavigator.NavigateCbzPrev(this);
         }
 
         public void CopyCurrentNameToClipboard()
