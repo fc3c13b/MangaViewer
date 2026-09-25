@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
@@ -142,6 +142,54 @@ namespace MangaViewer
             if (root.TryGetProperty("LastRootFolder", out var lrp) && lrp.ValueKind == JsonValueKind.String)
                 settings.LastRootFolder = lrp.ToString();
 
+            // LastViewedFolderPath
+            if (root.TryGetProperty("LastViewedFolderPath", out var lvfp) && lvfp.ValueKind == JsonValueKind.String)
+                settings.LastViewedFolderPath = lvfp.ToString();
+
+            // LastViewedCbzFile
+            if (root.TryGetProperty("LastViewedCbzFile", out var lvcf) && lvcf.ValueKind == JsonValueKind.String)
+                settings.LastViewedCbzFile = lvcf.ToString();
+
+            // LastViewedImageIndex
+            if (root.TryGetProperty("LastViewedImageIndex", out var lvii) && lvii.ValueKind == JsonValueKind.Number)
+            {
+                int val = lvii.GetInt32();
+                settings.LastViewedImageIndex = val >= 0 ? val : 0;
+            }
+
+            // LastViewedImageIndexByTitle
+            if (root.TryGetProperty("LastViewedImageIndexByTitle", out var lvbt) && lvbt.ValueKind == JsonValueKind.Object)
+            {
+                settings.LastViewedImageIndexByTitle.Clear();
+                foreach (var prop in lvbt.EnumerateObject())
+                {
+                    if (prop.Value.ValueKind != JsonValueKind.Number)
+                        continue;
+
+                    int idx = prop.Value.GetInt32();
+                    settings.LastViewedImageIndexByTitle[prop.Name] = idx >= 0 ? idx : 0;
+                }
+            }
+
+            // LastViewedCbzFileByTitle
+            if (root.TryGetProperty("LastViewedCbzFileByTitle", out var lvcbt) && lvcbt.ValueKind == JsonValueKind.Object)
+            {
+                settings.LastViewedCbzFileByTitle.Clear();
+                foreach (var prop in lvcbt.EnumerateObject())
+                {
+                    if (prop.Value.ValueKind != JsonValueKind.String)
+                        continue;
+
+                    string file = prop.Value.ToString();
+                    if (!string.IsNullOrWhiteSpace(file))
+                        settings.LastViewedCbzFileByTitle[prop.Name] = file;
+                }
+            }
+
+            // StartFromLastViewedPosition: true/false
+            if (root.TryGetProperty("StartFromLastViewedPosition", out var sfvp) && (sfvp.ValueKind == JsonValueKind.True || sfvp.ValueKind == JsonValueKind.False))
+                settings.StartFromLastViewedPosition = sfvp.GetBoolean();
+
             // MinEvaluationFilterEnabled: true/false
             if (root.TryGetProperty("MinEvaluationFilterEnabled", out var mefp) && (mefp.ValueKind == JsonValueKind.True || mefp.ValueKind == JsonValueKind.False))
                 settings.MinEvaluationFilterEnabled = mefp.GetBoolean();
@@ -167,6 +215,12 @@ namespace MangaViewer
                     { "MaxDisplayCount", settings.MaxDisplayCount },
                     { "MinEvaluation", settings.MinEvaluation },
                     { "LastRootFolder", settings.LastRootFolder },
+                    { "LastViewedFolderPath", settings.LastViewedFolderPath },
+                    { "LastViewedCbzFile", settings.LastViewedCbzFile },
+                    { "LastViewedImageIndex", settings.LastViewedImageIndex },
+                    { "LastViewedImageIndexByTitle", settings.LastViewedImageIndexByTitle },
+                    { "LastViewedCbzFileByTitle", settings.LastViewedCbzFileByTitle },
+                    { "StartFromLastViewedPosition", settings.StartFromLastViewedPosition },
                     { "DisplayCount", settings.DisplayCount },
                     { "NormalModeImageAreaPercent", settings.NormalModeImageAreaPercent },
                     { "FullScreenModeImageAreaPercent", settings.FullScreenModeImageAreaPercent },

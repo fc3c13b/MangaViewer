@@ -1,133 +1,96 @@
-using System;
-using System.Collections.Generic;
+﻿using System;
 using System.IO;
-using System.Text;
+using System.Linq;
 
 namespace MangaViewer;
 
 /// <summary>
 /// アプリケーションログの一元書き出しモジュール。
-/// - Queue<byte[]> で byte バッファリング（8KB）
-/// - 4KB を超えたら直近の改行位置で切り出し、ファイルにフラッシュ
-/// - ログディレクトリの下には app-live.{YYYY-MM-DD-HH-mm-ss}.log を作成
-/// - 最新ログのみ app-live.log にコピーして AI が読めるようにする
+/// - 通常/起動ログ: startup-{yyyyMMdd}.log
+/// - エラーログ: error.log
+/// - error.log が100行以上になったら error-{yyyyMMdd-HHmmss}.log へ退避
 /// </summary>
 internal static class LogWriter
 {
-    private const int FlushThresholdBytes = 4096;       // フラッシュ判定（byte）
-    private const int MaxBufferSizeBytes = 8192;         // バッファ上限（byte）
-    private static readonly object _lock = new();
-    private static Queue<byte[]>? _ring;
-    private static string _lastLogDate = DateTime.Now.ToString("yyyy-MM-dd");
-    private static readonly string LogDirectory;
+    private const int MaxErrorLogLines = 100;
+    private static readonly object _sync = new();
+    private static readonly string BaseDirectory;
+    private static readonly string ErrorLogFilePath;
 
     static LogWriter()
     {
-        var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-        LogDirectory = Path.Combine(baseDir, "log");
-        Directory.CreateDirectory(LogDirectory);
+        BaseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+        ErrorLogFilePath = Path.Combine(BaseDirectory, "error.log");
     }
 
-    /// <summary>初期化（Form1 の起動時に 1 回呼び出す）</summary>
+    /// <summary>初期化（互換のため残す）</summary>
     public static void Init()
     {
-        lock (_lock)
-            _ring = new Queue<byte[]>(MaxBufferSizeBytes / 16); // エントリ数
+        // no-op
     }
 
-    /// <summary>ログ追加（各モジュールから呼出）</summary>
-    public static void Log(string msg)
+    /// <summary>通常/起動ログを startup-{yyyyMMdd}.log に出力する。</summary>
+    public static void WriteStartupLog(string message)
     {
-        if (string.IsNullOrEmpty(msg)) return;
+        if (string.IsNullOrWhiteSpace(message)) return;
 
-        var line = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {msg}\n";
-        PushLine(line);
-
-        // 日付変更 → フラッシュ＋ファイル分割
-        var today = DateTime.Now.ToString("yyyy-MM-dd");
-        if (today != _lastLogDate)
+        lock (_sync)
         {
-            Flush();
-            _lastLogDate = today;
-        }
-
-        // byte 数チェック → フラッシュ
-        if (GetTotalBytes() + Encoding.UTF8.GetByteCount(line) > FlushThresholdBytes)
-        {
-            Flush();
+            string startupPath = Path.Combine(BaseDirectory, $"startup-{DateTime.Now:yyyyMMdd}.log");
+            AppendLine(startupPath, message);
         }
     }
 
-    /// <summary>エラーログ追加</summary>
-    public static void LogError(string msg) => Log("ERROR: " + msg);
-
-    /// <summary>アプリ終了時に残留バッファをフラッシュ</summary>
-    public static void Shutdown() => Flush();
-
-    private static void PushLine(string line)
+    /// <summary>エラー専用ログを error.log に出力する。</summary>
+    public static void WriteErrorLog(string message)
     {
-        if (_ring == null) return;
+        if (string.IsNullOrWhiteSpace(message)) return;
 
-        lock (_lock)
-            _ring.Enqueue(Encoding.UTF8.GetBytes(line));
-    }
-
-    private static int GetTotalBytes()
-    {
-        if (_ring == null) return 0;
-
-        // バッファの全エントリの byte 数を合計（byte[] エントリを合計）
-        int total = 0;
-        foreach (var chunk in _ring)
-            total += chunk.Length;
-
-        return total;
-    }
-
-    private static void Flush()
-    {
-        if (_ring == null) return;
-
-        StringBuilder sb = new();
-        string logText;
-        int totalBytes;
-
-        lock (_lock)
+        lock (_sync)
         {
-            // バッファから全エントリを文字列に変換して結合
-            foreach (var chunk in _ring)
-                sb.Append(Encoding.UTF8.GetString(chunk));
-
-            if (sb.Length == 0) return;
-            logText = sb.ToString();
-            totalBytes = Encoding.UTF8.GetByteCount(logText);
-
-            // バッファのクリア（バッファのクリア完了）
-            _ring.Clear();
-
-            // 4KB を超える場合は直近の改行位置で切り出し
-            if (totalBytes > FlushThresholdBytes)
-            {
-                int cutAt = logText.LastIndexOf('\n') + 1;
-                if (cutAt == 0) cutAt = logText.Length - 1;
-                logText = logText.Substring(0, cutAt);
-            }
+            RotateErrorLogIfNeeded();
+            AppendLine(ErrorLogFilePath, message);
         }
+    }
 
-        if (logText.Length == 0) return;
+    /// <summary>終了処理（互換のため残す）</summary>
+    public static void Shutdown() { }
 
-        // ファイル名: app-live.{YYYY-MM-DD-HH-mm-ss}.log
-        string filename = $"app-live.{DateTime.Now.ToString("yyyy-MM-dd-HH-mm-ss")}.log";
-        string filepath = Path.Combine(LogDirectory, filename);
-
+    private static void AppendLine(string path, string message)
+    {
+        string line = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}{Environment.NewLine}";
         try
         {
-            File.AppendAllText(filepath, logText, Encoding.UTF8);
-
-            // 最新ログを app-live.log にコピー（AI 読込用）
-            string latestPath = Path.Combine(LogDirectory, "app-live.log");
-            File.Copy(filepath, latestPath, overwrite: true);
+            File.AppendAllText(path, line);
         }
-        catch { /* ログの書き出し失敗は不可逆エラーではないので無視 */ }
+        catch
+        {
+            // ログ書き込み失敗は致命エラーとして扱わない
+        }
+    }
+
+    private static void RotateErrorLogIfNeeded()
+    {
+        try
+        {
+            if (!File.Exists(ErrorLogFilePath))
+                return;
+
+            int lineCount = File.ReadLines(ErrorLogFilePath).Take(MaxErrorLogLines + 1).Count();
+            if (lineCount < MaxErrorLogLines)
+                return;
+
+            string archivedFileName = $"error-{DateTime.Now:yyyyMMdd-HHmmss}.log";
+            string archivedPath = Path.Combine(BaseDirectory, archivedFileName);
+
+            if (File.Exists(archivedPath))
+                archivedPath = Path.Combine(BaseDirectory, $"error-{DateTime.Now:yyyyMMdd-HHmmss-fff}.log");
+
+            File.Move(ErrorLogFilePath, archivedPath);
+        }
+        catch
+        {
+            // ローテート失敗時はそのまま継続
+        }
     }
 }

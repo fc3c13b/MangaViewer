@@ -1,4 +1,5 @@
-using System;
+﻿using System;
+using System.Collections.Generic;
 
 namespace MangaViewer
 {
@@ -27,8 +28,8 @@ namespace MangaViewer
         public bool MinEvaluationEqualFilter { get; set; } = false;
 
         /// <summary>画面表示数（1, 2, または 8 のみ許可）</summary>
-        public int DisplayCount 
-        { 
+        public int DisplayCount
+        {
             get => _displayCount;
             set => _displayCount = (value == 1 || value == 2 || value == 8) ? value : 2;
         }
@@ -36,6 +37,24 @@ namespace MangaViewer
 
         /// <summary>最後に選択したルートフォルダのパス</summary>
         public string LastRootFolder { get; set; } = "";
+
+        /// <summary>最後に表示していた作品フォルダのパス</summary>
+        public string LastViewedFolderPath { get; set; } = "";
+
+        /// <summary>最後に表示していたCBZファイルのフルパス</summary>
+        public string LastViewedCbzFile { get; set; } = "";
+
+        /// <summary>最後に表示していた画像インデックス</summary>
+        public int LastViewedImageIndex { get; set; } = 0;
+
+        /// <summary>タイトルごとの最後に表示していた画像インデックス</summary>
+        public Dictionary<string, int> LastViewedImageIndexByTitle { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>タイトルごとの最後に表示していたCBZファイル</summary>
+        public Dictionary<string, string> LastViewedCbzFileByTitle { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>読了位置から読み始めるかどうか</summary>
+        public bool StartFromLastViewedPosition { get; set; } = true;
 
         /// <summary>スライドショーの間隔（ミリ秒）</summary>
         public int SlideshowIntervalMs { get; set; } = 2000;

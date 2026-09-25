@@ -1,9 +1,10 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading;
 
 namespace MangaViewer
@@ -20,21 +21,41 @@ namespace MangaViewer
         private static readonly object FlushLock = new();
         private const int FlushDelayMs = 800; // 更新後一定時間経過で保存（複数回の操作をまとめる）
 
+        private static string NormalizeFolderKey(string folderPath)
+        {
+            if (string.IsNullOrWhiteSpace(folderPath)) return string.Empty;
+            var trimmed = Path.TrimEndingDirectorySeparator(folderPath.Trim());
+            try
+            {
+                return Path.GetFullPath(trimmed);
+            }
+            catch
+            {
+                return trimmed;
+            }
+        }
+
         public static void LoadReadOnlyCache()
         {
             try
             {
-                var path = AppPaths.RatingsCacheFilePath;
-                if (!File.Exists(path))
+                string primaryPath = AppPaths.RatingsCacheFilePath;
+                string legacyPath = AppPaths.LegacyRatingsCacheFilePath;
+
+                string pathToLoad = File.Exists(primaryPath) ? primaryPath : legacyPath;
+                if (!File.Exists(pathToLoad))
                     return;
 
-                using var doc = JsonDocument.Parse(File.ReadAllText(path));
+                using var doc = JsonDocument.Parse(File.ReadAllText(pathToLoad));
                 if (!doc.RootElement.TryGetProperty("folders", out var foldersElem))
                     return;
 
+                int loaded = 0;
                 foreach (var kv in foldersElem.EnumerateObject())
                 {
-                    var folderPath = kv.Name; // フォルダパスをキーとする
+                    var folderPath = NormalizeFolderKey(kv.Name);
+                    if (string.IsNullOrEmpty(folderPath))
+                        continue;
                     var value = kv.Value;
 
                     int rating = -1;
@@ -55,11 +76,22 @@ namespace MangaViewer
                         ImageCount = imageCount,
                         FolderName = folderName
                     };
+                    loaded++;
                 }
+
+                // 旧配置の bin 配下 JSON が存在していた場合だけ、正本ファイルへ移行して次回からは正本を読む。
+                if (File.Exists(legacyPath) && !File.Exists(primaryPath))
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(primaryPath)!);
+                    File.Copy(legacyPath, primaryPath, overwrite: true);
+                    StartupHandler.WriteStartupLog($"[RATING] Migrated legacy cache from={legacyPath} to={primaryPath}");
+                }
+
+                StartupHandler.WriteStartupLog($"[RATING] LoadReadOnlyCache path={pathToLoad} count={loaded}");
             }
-            catch
+            catch (Exception ex)
             {
-                // キャッシュ読み込み失敗は許容（存在しない/破損など）
+                StartupHandler.WriteErrorLog($"[RATING] LoadReadOnlyCache failed path={AppPaths.RatingsCacheFilePath} error={ex}");
             }
         }
 
@@ -68,7 +100,8 @@ namespace MangaViewer
         /// </summary>
         public static bool IsReadOnlyCached(string folderPath)
         {
-            return ReadOnlyCache.ContainsKey(folderPath);
+            var key = NormalizeFolderKey(folderPath);
+            return !string.IsNullOrEmpty(key) && ReadOnlyCache.ContainsKey(key);
         }
 
         /// <summary>
@@ -76,7 +109,8 @@ namespace MangaViewer
         /// </summary>
         public static int GetCachedRating(string folderPath)
         {
-            if (ReadOnlyCache.TryGetValue(folderPath, out var meta))
+            var key = NormalizeFolderKey(folderPath);
+            if (!string.IsNullOrEmpty(key) && ReadOnlyCache.TryGetValue(key, out var meta))
                 return meta.Rating;
             return -1;
         }
@@ -86,8 +120,9 @@ namespace MangaViewer
         /// </summary>
         public static void SetReadOnlyCacheRating(string folderPath, int rating, int imageCount = 0, string? folderName = null)
         {
-            if (string.IsNullOrWhiteSpace(folderPath)) return;
-            var meta = ReadOnlyCache.GetOrAdd(folderPath, _ => new FolderMeta());
+            string key = NormalizeFolderKey(folderPath);
+            if (string.IsNullOrEmpty(key)) return;
+            var meta = ReadOnlyCache.GetOrAdd(key, _ => new FolderMeta());
             meta.Rating = rating;
             if (imageCount > 0) meta.ImageCount = imageCount;
             if (!string.IsNullOrEmpty(folderName)) meta.FolderName = folderName;
@@ -119,15 +154,19 @@ namespace MangaViewer
 
                 var root = new Dictionary<string, object> { ["folders"] = folders };
                 var json = JsonSerializer.Serialize(root, new JsonSerializerOptions { WriteIndented = true });
+
+                string directory = Path.GetDirectoryName(AppPaths.RatingsCacheFilePath)!;
+                Directory.CreateDirectory(directory);
                 File.WriteAllText(AppPaths.RatingsCacheFilePath, json);
+                StartupHandler.WriteStartupLog($"[RATING] FlushReadOnlyCache path={AppPaths.RatingsCacheFilePath} count={folders.Count}");
             }
             catch (System.UnauthorizedAccessException ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[書き込み禁止] アクセス拒否 (FlushReadOnlyCache): {ex.Message}");
+                StartupHandler.WriteErrorLog($"[RATING] FlushReadOnlyCache access denied path={AppPaths.RatingsCacheFilePath} error={ex}");
             }
-            catch
+            catch (Exception ex)
             {
-                // 保存失敗は許容（親ディレクトリ不可など）
+                StartupHandler.WriteErrorLog($"[RATING] FlushReadOnlyCache failed path={AppPaths.RatingsCacheFilePath} error={ex}");
             }
         }
 
@@ -137,22 +176,39 @@ namespace MangaViewer
                 return;
 
             var trimmed = Path.TrimEndingDirectorySeparator(folderPath);
+            string cacheKey = NormalizeFolderKey(trimmed);
+            if (string.IsNullOrEmpty(cacheKey))
+                return;
+
             string folderName = Path.GetFileName(trimmed);
             string localJsonPath = Path.Combine(trimmed, $"{folderName}.json");
+            bool isReadOnly = FolderService.IsReadOnlyFolder(trimmed);
 
-            // READ ONLY フォルダとして登録されている場合は直接キャッシュへ
-            if (FolderService.IsReadOnlyFolder(trimmed))
+            int knownImageCount = 0;
+            try
             {
-                var meta = ReadOnlyCache.GetOrAdd(folderPath, _ => new FolderMeta());
+                if (File.Exists(localJsonPath))
+                {
+                    using var doc = JsonDocument.Parse(File.ReadAllText(localJsonPath));
+                    if (doc.RootElement.TryGetProperty("imageCount", out var ic) && ic.ValueKind == JsonValueKind.Number)
+                        knownImageCount = ic.GetInt32();
+                }
+            }
+            catch { }
+
+            // Always mirror to internal cache json so restart can restore ratings consistently.
+            SetReadOnlyCacheRating(cacheKey, rating, knownImageCount, folderName);
+            ScheduleFlush();
+            SyncRatingToActiveCjCache(trimmed, rating);
+
+            StartupHandler.WriteStartupLog($"[RATING] SaveRating folder={trimmed} rating={rating} localJson={localJsonPath} isReadOnly={isReadOnly} cacheKey={cacheKey}");
+
+            // READ ONLY フォルダの場合はローカルJSONではなくグローバルキャッシュのみに保持する。
+            if (isReadOnly)
+            {
+                var meta = ReadOnlyCache.GetOrAdd(cacheKey, _ => new FolderMeta());
                 meta.Rating = rating;
-                if (!string.IsNullOrEmpty(meta.FolderName) && meta.FolderName == folderName)
-                {
-                    // 既存のFolderNameを維持
-                }
-                else
-                {
-                    meta.FolderName = folderName;
-                }
+                meta.FolderName = folderName;
 
                 try
                 {
@@ -165,7 +221,7 @@ namespace MangaViewer
                 }
                 catch { }
 
-                ScheduleFlush();
+                StartupHandler.WriteStartupLog($"[RATING] SaveRating stored-only-in-cache folder={trimmed} rating={rating}");
                 return;
             }
 
@@ -178,26 +234,23 @@ namespace MangaViewer
                     obj["imageCount"] = imageCount;
 
                 File.WriteAllText(localJsonPath, JsonSerializer.Serialize(obj, new JsonSerializerOptions { WriteIndented = true }));
-
-                // ローカル保存成功 → READ NOT ONLY とみなし、キャッシュは強制しない。
+                StartupHandler.WriteStartupLog($"[RATING] SaveRating wrote-local-json folder={trimmed} path={localJsonPath} rating={rating}");
                 return;
             }
             catch (IOException ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[書き込み禁止] IOエラー (SaveRating): {ex.Message}");
-                // ReadOnly/ロックなどにより失敗 → キャッシュへ
+                StartupHandler.WriteErrorLog($"[RATING] SaveRating local-json IO error folder={trimmed} path={localJsonPath} error={ex}");
             }
             catch (UnauthorizedAccessException ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[書き込み禁止] アクセス拒否 (SaveRating): {ex.Message}");
-                // アクセス不可 → キャッシュへ
+                StartupHandler.WriteErrorLog($"[RATING] SaveRating local-json access denied folder={trimmed} path={localJsonPath} error={ex}");
             }
 
             // 2. ローカル保存失敗（READ ONLY と見なす）→ メモリキャッシュを更新
-            var cachedMeta = ReadOnlyCache.GetOrAdd(folderPath, _ => new FolderMeta());
+            var cachedMeta = ReadOnlyCache.GetOrAdd(cacheKey, _ => new FolderMeta());
             cachedMeta.Rating = rating;
+            cachedMeta.FolderName = folderName;
 
-            // imageCount は既存ローカルJSONから読み取れるならそれを反映
             try
             {
                 if (File.Exists(localJsonPath))
@@ -212,17 +265,60 @@ namespace MangaViewer
                 // imageCount 読み込み失敗は無視
             }
 
-            if (!string.IsNullOrEmpty(cachedMeta.FolderName))
-            {
-                // すでに設定済みなら維持
-            }
-            else
-            {
-                cachedMeta.FolderName = folderName;
-            }
+            StartupHandler.WriteStartupLog($"[RATING] SaveRating fallback-to-cache folder={trimmed} rating={rating}");
+        }
 
-            // デバウンス付き Flush（更新があった場合に一定時間後に保存）
-            ScheduleFlush();
+        private static void SyncRatingToActiveCjCache(string folderPath, int rating)
+        {
+            try
+            {
+                string cacheDir = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    "MangaViewer",
+                    "cache");
+
+                if (!Directory.Exists(cacheDir))
+                    return;
+
+                string normalizedFolderPath = NormalizeFolderKey(folderPath);
+                foreach (var file in Directory.GetFiles(cacheDir, "ratings_cache_*.json", SearchOption.TopDirectoryOnly))
+                {
+                    try
+                    {
+                        var json = File.ReadAllText(file);
+                        using var doc = JsonDocument.Parse(json);
+                        if (!doc.RootElement.TryGetProperty("folders", out var foldersElem) || foldersElem.ValueKind != JsonValueKind.Object)
+                            continue;
+
+                        bool matched = false;
+                        foreach (var entry in foldersElem.EnumerateObject())
+                        {
+                            string key = NormalizeFolderKey(entry.Name);
+                            if (string.Equals(key, normalizedFolderPath, StringComparison.OrdinalIgnoreCase))
+                            {
+                                var root = JsonNode.Parse(json)!;
+                                var folderNode = root["folders"]![entry.Name]!;
+                                folderNode["rating"] = rating;
+                                File.WriteAllText(file, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+                                StartupHandler.WriteStartupLog($"[RATING] Synced CJ cache rating file={Path.GetFileName(file)} folder={folderPath} rating={rating}");
+                                matched = true;
+                                break;
+                            }
+                        }
+
+                        if (matched)
+                            break;
+                    }
+                    catch (Exception ex)
+                    {
+                        StartupHandler.WriteErrorLog($"[RATING] SyncRatingToActiveCjCache failed file={file} error={ex}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StartupHandler.WriteErrorLog($"[RATING] SyncRatingToActiveCjCache failed folder={folderPath} error={ex}");
+            }
         }
 
         public static int ReadRating(string folderPath)
@@ -236,9 +332,17 @@ namespace MangaViewer
 
             // READ ONLY フォルダかどうかを判定：
             // キャッシュに存在し、かつローカルJSONが書き込み不可なら「READ ONLY」と見なしてキャッシュ優先。
-            bool isInCache = ReadOnlyCache.TryGetValue(folderPath, out var cacheMeta);
+            string cacheKey = NormalizeFolderKey(trimmed);
+            FolderMeta? cacheMeta = null;
+            bool isInCache = false;
+            if (!string.IsNullOrEmpty(cacheKey))
+                isInCache = ReadOnlyCache.TryGetValue(cacheKey, out cacheMeta);
 
-            if (IsFolderReadOnly(trimmed))
+            bool readOnly = IsFolderReadOnly(trimmed);
+            int cachedRatingForLog = isInCache && cacheMeta != null ? cacheMeta.Rating : -999;
+            StartupHandler.WriteStartupLog($"[RATING] ReadRating folder={trimmed} readOnly={readOnly} inCache={isInCache} cachedRating={cachedRatingForLog} localPath={localJsonPath}");
+
+            if (readOnly)
             {
                 // READ ONLY フォルダ → ratings_cache.json の値を常に優先
                 if (isInCache && cacheMeta.Rating != -1)
@@ -275,7 +379,11 @@ namespace MangaViewer
                 return;
 
             // ReadOnlyCache に登録されているフォルダかつ READ ONLY の場合、imageCount を更新
-            if (!ReadOnlyCache.TryGetValue(folderPath, out var meta))
+            string cacheKey = NormalizeFolderKey(folderPath);
+            if (string.IsNullOrEmpty(cacheKey))
+                return;
+
+            if (!ReadOnlyCache.TryGetValue(cacheKey, out var meta))
                 return;
 
             if (!IsFolderReadOnly(Path.TrimEndingDirectorySeparator(folderPath)))

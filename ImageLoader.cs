@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
@@ -18,10 +18,6 @@ namespace MangaViewer
             ".jpg", ".jpeg", ".png", ".webp"
         };
 
-        // Memoization cache: folder path -> list of all CBZ image paths for that folder
-        private static readonly ConcurrentDictionary<string, List<string>> _folderCbzCache =
-            new(StringComparer.OrdinalIgnoreCase);
-
         /// <summary>
         /// Load and sort images for the given folder.
         /// Now supports mixing direct images + CBZ contents as one unified list (TASK09.30).
@@ -29,6 +25,10 @@ namespace MangaViewer
         public static void Load(Form1 form)
         {
             string folderPath = form._currentFolder;
+            string? preferredCbzFile = null;
+
+            if (form._settings.StartFromLastViewedPosition && !string.IsNullOrWhiteSpace(folderPath))
+                form._settings.LastViewedCbzFileByTitle.TryGetValue(folderPath, out preferredCbzFile);
 
             if (form._folderService == null)
                 form._folderService = new FolderService(form._settings);
@@ -38,7 +38,7 @@ namespace MangaViewer
             if (baseImages == null) baseImages = new List<string>();
 
             // 2) Collect CBZ-based images (all volumes, in order)
-            List<string> cbzImages = GetCbzImagesForFolder(form, folderPath);
+            List<string> cbzImages = GetCbzImagesForFolder(form, folderPath, preferredCbzFile);
 
             // 3) Build unified list: direct images first, then CBZ contents
             form._imagePaths = new List<string>(baseImages.Count + cbzImages.Count);
@@ -51,7 +51,7 @@ namespace MangaViewer
             Log($"[ImageLoader] {folderPath}: baseImages={baseImages.Count} cbzImages={cbzImages.Count} total={form._imagePaths.Count}");
         }
 
-        private static List<string> GetCbzImagesForFolder(Form1 form, string folderPath)
+        private static List<string> GetCbzImagesForFolder(Form1 form, string folderPath, string? preferredCbzFile)
         {
             Log($"[CBZ] Start: {folderPath}");
 
@@ -61,17 +61,16 @@ namespace MangaViewer
                 return new List<string>();
             }
 
-            StartupHandler.Log($"[CBZ] Loading CBZ images for: {folderPath}");
+            StartupHandler.WriteStartupLog($"[CBZ] Loading CBZ images for: {folderPath}");
 
-            // Check memoization cache first (TASK09.36-A: avoid repeated CBZ scanning)
-            if (_folderCbzCache.TryGetValue(folderPath, out var cachedPaths))
-                return cachedPaths;
-
-            // Scan for .cbz files in the folder.
+            // Scan for .cbz/.zip files in the folder.
             string[] cbzFiles;
             try
             {
-                cbzFiles = Directory.GetFiles(folderPath, "*.cbz", SearchOption.TopDirectoryOnly);
+                cbzFiles = Directory.GetFiles(folderPath, "*.*", SearchOption.TopDirectoryOnly)
+                    .Where(f => f.EndsWith(".cbz", StringComparison.OrdinalIgnoreCase) ||
+                                f.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                    .ToArray();
             }
             catch (UnauthorizedAccessException)
             {
@@ -94,10 +93,50 @@ namespace MangaViewer
 
             // Initialize or reuse CbzManager for this folder.
             if (form._cbzManager == null)
+            {
                 form._cbzManager = new CbzManager();
+                form._cbzManager.CacheChanged += () =>
+                {
+                    try
+                    {
+                        if (form.IsDisposed || !form.IsHandleCreated)
+                            return;
+
+                        if (form.InvokeRequired)
+                            form.BeginInvoke(new Action(form.ScheduleWindowTitleUpdate));
+                        else
+                            form.ScheduleWindowTitleUpdate();
+                    }
+                    catch
+                    {
+                        // UI更新失敗は無視
+                    }
+                };
+                    form._cbzManager.CacheStatusChanged += status =>
+                    {
+                        try
+                        {
+                            if (form.IsDisposed || !form.IsHandleCreated)
+                                return;
+
+                            if (form.InvokeRequired)
+                            {
+                                form.BeginInvoke(new Action(() => form.labelInfo.Text = status));
+                            }
+                            else
+                            {
+                                form.labelInfo.Text = status;
+                            }
+                        }
+                        catch
+                        {
+                            // UI更新失敗は無視
+                        }
+                    };
+            }
 
             Log($"[CBZ] Calling InitializeForFolder...");
-            bool ok = form._cbzManager.InitializeForFolder(folderPath);
+            bool ok = form._cbzManager.InitializeForFolder(folderPath, preferredCbzFile);
             Log($"[CBZ] InitializeForFolder: ok={ok} CbxFiles.Count={form._cbzManager.CbxFiles.Count}");
 
             if (!ok || !form._cbzManager.CbxFiles.Any())
@@ -106,30 +145,10 @@ namespace MangaViewer
                 return new List<string>();
             }
 
-            // Collect all images from all CBZ volumes in order.
-            var result = new List<string>();
-
-            for (int i = 0; i < form._cbzManager.CbxFiles.Count; i++)
-            {
-                var cbx = form._cbzManager.CbxFiles[i];
-                form._cbzManager.SwitchToCbx(i);
-                int imgCount = form._cbzManager.CurrentImagePaths?.Count ?? 0;
-                Log($"[CBZ] Vol {i} ({cbx}): images={imgCount}");
-                if (form._cbzManager.CurrentImagePaths != null)
-                {
-                    result.AddRange(form._cbzManager.CurrentImagePaths);
-                }
-            }
-
-            // Store in memoization cache for future calls on the same folder.
-            _folderCbzCache[folderPath] = result;
-
-            StartupHandler.Log($"[CBZ] Collection complete: {result.Count} images from {cbzFiles.Length} CBZ files");
-
-            // Reset to first CBZ for normal navigation.
-            form._cbzManager.SwitchToCbx(0);
-
-            Log($"[CBZ] Done: total={result.Count}");
+            // 先頭巻（現在の巻）の画像のみを即座に返し、次巻は非同期プリロードに委ねる
+            var result = new List<string>(form._cbzManager.CurrentImagePaths ?? Enumerable.Empty<string>());
+            StartupHandler.WriteStartupLog($"[CBZ] Current volume loaded: {result.Count} images (total {form._cbzManager.CbxFiles.Count} volumes)");
+            Log($"[CBZ] Done: volume={form._cbzManager.ActiveCbxIndex}, images={result.Count}");
             return result;
         }
 

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using System.Windows.Forms;
@@ -62,12 +62,11 @@ namespace MangaViewer
             SettingsManager.Save(form._settings);
             form.LoadCjForParent(rootPath);
             form._displayManager.UpdateSettings(form._settings);
-            form.UpdateWindowTitle();
+            form.ScheduleWindowTitleUpdate();
 
             if (form._folderList.Count > 0 && form._currentFolderIndex >= 0)
             {
                 form.LoadAndSortImages(form._folderList[form._currentFolderIndex]);
-                form._currentIndex = 0;
                 DisplayImagesCore(form, form._currentIndex);
                 form.listBoxFolders.SelectedIndex = form._currentFolderIndex;
             }
@@ -79,7 +78,6 @@ namespace MangaViewer
                 if (!string.IsNullOrEmpty(rootPath) && Directory.Exists(rootPath))
                 {
                     form.LoadAndSortImages(rootPath);
-                    form._currentIndex = 0;
                     DisplayImagesCore(form, form._currentIndex);
                 }
                 else
@@ -137,8 +135,7 @@ namespace MangaViewer
                         {
                             form._currentFolderIndex = 0;
                             form.LoadAndSortImages(form._folderList[0]);
-                            form._currentIndex = 0;
-                            DisplayImagesCore(form, 0);
+                            DisplayImagesCore(form, form._currentIndex);
                             form.listBoxFolders.SelectedIndex = 0;
                         }
                     }
@@ -176,6 +173,8 @@ namespace MangaViewer
                     System.Threading.Tasks.Task.Run(() => form._cbzManager.PreloadNextCbx());
                 }
             }
+
+            form.RememberCurrentPlaybackPosition();
         }
 
         public static string BuildInfoText(Form1 form, int startIndex)
@@ -212,45 +211,70 @@ namespace MangaViewer
 
         public static void NavigateForward(Form1 form, int pageCount)
         {
-            if (form._imagePaths.Count == 0 || pageCount <= 0) return;
+            if (pageCount <= 0) return;
 
-            form._currentIndex = NavigationHandler.ComputeForwardIndex(
-                form._currentIndex, pageCount, form._imagePaths.Count, form._displayManager.DisplayCount);
-
-            // CBZ末尾を超えた場合、次のCBZに切り替え
-            if (NavigationHandler.IsPastEnd(form._currentIndex, form._imagePaths.Count, form._displayManager.DisplayCount) &&
-                form._cbzManager != null)
+            if (form._imagePaths.Count == 0 && form._cbzManager != null)
             {
-                var nextPaths = form._cbzManager.MoveToNextCbxIfEndReached();
-                if (nextPaths.Any())
+                if (form._cbzManager.MoveToNextCbxIfEndReached().Any())
                 {
-                    form._imagePaths = nextPaths;
+                    form._imagePaths = form._cbzManager.CurrentImagePaths;
+                    form._currentIndex = 0;
+                    DisplayImages(form, 0);
+                }
+                return;
+            }
+
+            int maxIndex = NavigationHandler.ComputeMaxPageIndex(
+                form._imagePaths.Count, form._displayManager.DisplayCount);
+
+            // すでに最終ブロック表示中でさらに進む操作が来たら、次巻へ切り替える。
+            if (form._currentIndex >= maxIndex && form._cbzManager != null)
+            {
+                form.RememberCurrentPlaybackPosition();
+                var nextPathsAtEdge = form._cbzManager.MoveToNextCbxIfEndReached();
+                if (nextPathsAtEdge.Any())
+                {
+                    form._imagePaths = nextPathsAtEdge;
                     form._currentIndex = 0;
                 }
                 else
                 {
-                    form._currentIndex = NavigationHandler.ComputeMaxPageIndex(
-                        form._imagePaths.Count, form._displayManager.DisplayCount);
+                    form._currentIndex = maxIndex;
                 }
+
+                DisplayImages(form, form._currentIndex);
+                return;
             }
+
+            form._currentIndex = NavigationHandler.ComputeForwardIndex(
+                form._currentIndex, pageCount, form._imagePaths.Count, form._displayManager.DisplayCount);
 
             DisplayImages(form, form._currentIndex);
         }
 
         public static void NavigateBackward(Form1 form, int pageCount)
         {
-            if (form._imagePaths.Count == 0 || pageCount <= 0) return;
+            if (pageCount <= 0) return;
 
-            form._currentIndex = NavigationHandler.ComputeBackwardIndex(
-                form._currentIndex, pageCount, form._imagePaths.Count, form._displayManager.DisplayCount);
-
-            // CBZ先頭を超えた場合、前のCBZに切り替え
-            if (NavigationHandler.IsBeforeStart(form._currentIndex) && form._cbzManager != null)
+            if (form._imagePaths.Count == 0 && form._cbzManager != null)
             {
-                var prevPaths = form._cbzManager.MoveToPreviousCbxIfAtStart();
-                if (prevPaths.Any())
+                if (form._cbzManager.MoveToPreviousCbxIfAtStart().Any())
                 {
-                    form._imagePaths = prevPaths;
+                    form._imagePaths = form._cbzManager.CurrentImagePaths;
+                    form._currentIndex = 0;
+                    DisplayImages(form, 0);
+                }
+                return;
+            }
+
+            // すでに先頭表示中でさらに戻る操作が来たら、前巻へ切り替える。
+            if (form._currentIndex <= 0 && form._cbzManager != null)
+            {
+                form.RememberCurrentPlaybackPosition();
+                var prevPathsAtEdge = form._cbzManager.MoveToPreviousCbxIfAtStart();
+                if (prevPathsAtEdge.Any())
+                {
+                    form._imagePaths = prevPathsAtEdge;
                     form._currentIndex = NavigationHandler.ComputeMaxPageIndex(
                         form._imagePaths.Count, form._displayManager.DisplayCount);
                 }
@@ -258,12 +282,18 @@ namespace MangaViewer
                 {
                     form._currentIndex = 0;
                 }
+
+                DisplayImages(form, form._currentIndex);
+                return;
             }
+
+            form._currentIndex = NavigationHandler.ComputeBackwardIndex(
+                form._currentIndex, pageCount, form._imagePaths.Count, form._displayManager.DisplayCount);
 
             DisplayImages(form, form._currentIndex);
         }
 
-        public static void NavigateFolderBy(Form1 form, int delta)
+        public static async void NavigateFolderBy(Form1 form, int delta)
         {
             if (form._folderList.Count == 0) return;
             int newIndex = form._currentFolderIndex + delta;
@@ -271,26 +301,96 @@ namespace MangaViewer
             if (newIndex == form._currentFolderIndex) return;
 
             form._currentFolderIndex = newIndex;
-            form.LoadAndSortImages(form._folderList[newIndex]);
-            form._currentIndex = 0;
-            DisplayImagesCore(form, 0);
+            try
+            {
+                if (!await form.LoadAndSortImagesAsync(form._folderList[newIndex]))
+                    return;
+            }
+            catch (Exception ex)
+            {
+                StartupHandler.WriteErrorLog($"[FormNavigator] NavigateFolderBy failed: {ex}");
+                return;
+            }
+
+            DisplayImagesCore(form, form._currentIndex);
+            form.ScheduleNavigationCbzPreload();
             form.listBoxFolders.SetSelected(newIndex, true);
         }
 
-        public static void NavigateToNextUnrated(Form1 form)
+        public static async void NavigateToNextUnrated(Form1 form)
         {
-            for (int i = 0; i < form._folderList.Count; i++)
+            if (form._folderList.Count == 0)
+                return;
+
+            int startIndex = form._currentFolderIndex >= 0
+                ? form._currentFolderIndex + 1
+                : 0;
+
+            for (int i = startIndex; i < form._folderList.Count; i++)
             {
                 if (RatingService.ReadRating(form._folderList[i]) == -1)
                 {
                     form._currentFolderIndex = i;
-                    form.LoadAndSortImages(form._folderList[i]);
-                    form._currentIndex = 0;
-                    DisplayImagesCore(form, 0);
+                    try
+                    {
+                        if (!await form.LoadAndSortImagesAsync(form._folderList[i]))
+                            return;
+                    }
+                    catch (Exception ex)
+                    {
+                        StartupHandler.WriteErrorLog($"[FormNavigator] NavigateToNextUnrated failed: {ex}");
+                        return;
+                    }
+
+                    DisplayImagesCore(form, form._currentIndex);
+                    form.ScheduleNavigationCbzPreload();
                     form.listBoxFolders.SelectedIndex = i;
                     return;
                 }
             }
+        }
+
+        /// <summary>
+        /// 指定フォルダの評価値を現在のDBList表示へ即時反映する。
+        /// Ctrl+数字で評価設定した直後の表示更新に使用する。
+        /// </summary>
+        public static void RefreshFolderRatingDisplay(Form1 form, string folderPath)
+        {
+            if (string.IsNullOrWhiteSpace(folderPath))
+                return;
+
+            int idx = form._folderList.IndexOf(folderPath);
+            if (idx < 0 || idx >= form.listBoxFolders.Items.Count)
+                return;
+
+            int rating = RatingService.ReadRating(folderPath);
+
+            if (form._activeCjData != null && form._activeCjData.Folders.TryGetValue(folderPath, out var entry))
+            {
+                entry.Rating = rating;
+                int displayCount = entry.CbzZipCount ?? 0;
+                string ratingStr = rating >= 0 ? $"({rating})" : "[-]";
+                string folderName = Path.GetFileName(folderPath);
+                form.listBoxFolders.Items[idx] = $"[{displayCount}] {ratingStr} {folderName}";
+                return;
+            }
+
+            // Fallback: CJエントリがない場合でも評価だけは即時表示する
+            int cbzCount = 0;
+            string folderOnlyName = Path.GetFileName(folderPath);
+            string metaJson = Path.Combine(folderPath, $"{folderOnlyName}.json");
+            if (File.Exists(metaJson))
+            {
+                try
+                {
+                    var (_, cnt, _) = FolderService.ReadFolderJson(metaJson);
+                    cbzCount = cnt;
+                }
+                catch { }
+            }
+
+            string fallbackRatingStr = rating >= 0 ? $"({rating})" : "[-]";
+            form.listBoxFolders.Items[idx] = $"[{cbzCount}] {fallbackRatingStr} {folderOnlyName}";
         }
 
         public static void SetDisplayCount(Form1 form, int count)
@@ -314,30 +414,48 @@ namespace MangaViewer
             form.Focus();
         }
 
-        public static void NavigateCbzNext(Form1 form)
+        public static async void NavigateCbzNext(Form1 form)
         {
             if (form._cbzManager == null || !NavigationHandler.CanNavigateCbx(form._cbzManager.CbxFiles.Count)) return;
 
-            var nextCbx = form._cbzManager.SwitchToNextCbx();
-            if (nextCbx != null)
+            int beforeIndex = form._cbzManager.ActiveCbxIndex;
+            StartupHandler.WriteStartupLog($"[NAV] action=NavigateCbzNext before={beforeIndex} count={form._cbzManager.CbxFiles.Count}");
+
+            try
             {
-                form._imagePaths = form._cbzManager.CurrentImagePaths;
-                form._currentIndex = 0;
-                DisplayImagesCore(form, 0);
+                if (!await form.SwitchToNextCbxAsync())
+                    return;
             }
+            catch (Exception ex)
+            {
+                StartupHandler.WriteErrorLog($"[FormNavigator] NavigateCbzNext failed: {ex}");
+                return;
+            }
+
+            StartupHandler.WriteStartupLog($"[NAV] after=NavigateCbzNext activeIndex={form._cbzManager.ActiveCbxIndex} file={Path.GetFileName(form._cbzManager.CbxFiles[form._cbzManager.ActiveCbxIndex])} imageCount={form._imagePaths.Count}");
+            DisplayImagesCore(form, 0);
         }
 
-        public static void NavigateCbzPrev(Form1 form)
+        public static async void NavigateCbzPrev(Form1 form)
         {
             if (form._cbzManager == null || !NavigationHandler.CanNavigateCbx(form._cbzManager.CbxFiles.Count)) return;
 
-            var prevCbx = form._cbzManager.SwitchToPreviousCbx();
-            if (prevCbx != null)
+            int beforeIndex = form._cbzManager.ActiveCbxIndex;
+            StartupHandler.WriteStartupLog($"[NAV] action=NavigateCbzPrev before={beforeIndex} count={form._cbzManager.CbxFiles.Count}");
+
+            try
             {
-                form._imagePaths = form._cbzManager.CurrentImagePaths;
-                form._currentIndex = 0;
-                DisplayImagesCore(form, 0);
+                if (!await form.SwitchToPreviousCbxAsync())
+                    return;
             }
+            catch (Exception ex)
+            {
+                StartupHandler.WriteErrorLog($"[FormNavigator] NavigateCbzPrev failed: {ex}");
+                return;
+            }
+
+            StartupHandler.WriteStartupLog($"[NAV] after=NavigateCbzPrev activeIndex={form._cbzManager.ActiveCbxIndex} file={Path.GetFileName(form._cbzManager.CbxFiles[form._cbzManager.ActiveCbxIndex])} imageCount={form._imagePaths.Count}");
+            DisplayImagesCore(form, 0);
         }
 
         // ===== FullScreen info-text refresh =====

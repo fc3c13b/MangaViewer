@@ -1,4 +1,4 @@
-namespace MangaViewer
+﻿namespace MangaViewer
 {
     /// <summary>
     /// ナビゲーション操作のインターフェース。
@@ -36,6 +36,9 @@ namespace MangaViewer
          bool IsSlideshowRunning { get; }
          void StartSlideshow();
           void StopSlideshow();
+
+          bool IsLeadingBlankPageEnabled { get; }
+          void ToggleLeadingBlankPage();
 
            // CBZファイル間を切り替え（Alt+左右用）
            void NavigateCbzNext();

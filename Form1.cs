@@ -81,14 +81,13 @@ namespace MangaViewer
                     if (IsRankDisplayMode && _folderList.Count > 0 && _currentFolderIndex >= 0 && _initTask?.IsCompleted != false)
                     {
                         LoadAndSortImages(_folderList[_currentFolderIndex]);
-                        _currentIndex = 0;
                         _displayManager.ImagePaths = _imagePaths;
-                        _displayManager.DisplayImages(0);
+                        _displayManager.DisplayImages(_currentIndex);
                     }
 
                     _settings.LastRootFolder = parentFolder;
                     SettingsManager.Save(_settings);
-                    UpdateWindowTitle();
+                    ScheduleWindowTitleUpdate();
                 }
                 else if (autoCreate)
                 {
@@ -130,15 +129,14 @@ namespace MangaViewer
                 if (IsRankDisplayMode && _folderList.Count > 0 && _currentFolderIndex >= 0)
                 {
                     LoadAndSortImages(_folderList[_currentFolderIndex]);
-                    _currentIndex = 0;
                     _displayManager.ImagePaths = _imagePaths;
-                    _displayManager.DisplayImages(0);
+                    _displayManager.DisplayImages(_currentIndex);
                 }
 
                 _settings.LastRootFolder = parentFolder;
                 SettingsManager.Save(_settings);
 
-                UpdateWindowTitle();
+                ScheduleWindowTitleUpdate();
                 labelInfo.Text = $"CJ作成完了: {parentFolder}";
             }
             catch (Exception ex)
@@ -173,6 +171,9 @@ namespace MangaViewer
         internal FolderService? _folderService;
         private System.Windows.Forms.Timer? _slideshowTimer;
         private System.Windows.Forms.Timer? _folderDebounceTimer;
+        private System.Windows.Forms.Timer? _titleUpdateTimer;
+        private int _folderLoadGeneration;
+        private int _cbzLoadGeneration;
 
         // ListBox scroll/draw helper (TASK09.25)
         private ListBoxScrollHelper? _listBoxScrollHelper;
@@ -217,7 +218,9 @@ namespace MangaViewer
                 }
 
                 // 上下キー：CBZ List 非表示時のみフォルダリスト操作（TASK09.31）
-                if ((e.KeyCode == Keys.Up || e.KeyCode == Keys.Down) && !IsCbzListVisible)
+                // Alt/Ctrl 修飾付きの上下キーは、ナビゲーションの一元処理に委譲する。
+                // ここで拾うと、同じキーが複数入口で処理される重複発火の原因になる。
+                if ((e.KeyCode == Keys.Up || e.KeyCode == Keys.Down) && !IsCbzListVisible && !e.Alt && !e.Control)
                 {
                     HandleFolderListArrowKey(e);
                     return;
@@ -268,7 +271,7 @@ namespace MangaViewer
             e.Handled = true;
         }
 
-        private void OnFolderDebounceTimerTick(object? sender, EventArgs e)
+        private async void OnFolderDebounceTimerTick(object? sender, EventArgs e)
         {
             if (_folderDebounceTimer == null) return;
             _folderDebounceTimer.Stop();
@@ -276,25 +279,32 @@ namespace MangaViewer
             if (_currentFolderIndex < 0 || _currentFolderIndex >= _folderList.Count)
                 return;
 
-            LoadAndSortImages(_folderList[_currentFolderIndex]);
-            _currentIndex = 0;
-            DisplayImages(0);
+            int loadGeneration = System.Threading.Volatile.Read(ref _folderLoadGeneration);
+            string folderPath = _folderList[_currentFolderIndex];
+
+            try
+            {
+                if (!await LoadAndSortImagesAsync(folderPath))
+                    return;
+            }
+            catch (Exception ex)
+            {
+                StartupHandler.WriteErrorLog($"[Form1] folder load failed: {ex}");
+                labelInfo.Text = "画像読み込みに失敗しました。";
+                return;
+            }
+
+            DisplayImages(_currentIndex);
             ScheduleNavigationCbzPreload();
-            UpdateWindowTitle();
+            ScheduleWindowTitleUpdate();
         }
 
         protected override bool ProcessCmdKey(ref Message m, Keys keyData)
         {
-            if (keyData == (Keys.Control | Keys.Up) || keyData == (Keys.Control | Keys.Down) ||
-                keyData == (Keys.Control | Keys.Left) || keyData == (Keys.Control | Keys.Right) ||
-                keyData == (Keys.Alt | Keys.Left) || keyData == (Keys.Alt | Keys.Right))
-            {
-                var e = new KeyEventArgs(keyData);
-                KeyboardInputHandler.HandleKeyDown(e, this);
-                return true;
-            }
+            // Ctrl/Alt の矢印は KeyboardInputHandler で一元処理する。
+            // ここで重複すると、1 回のキー押下で同じナビゲーションが 2 回実行される。
 
-            // 上下キーもここで補足し、Form の KeyDown と同じ処理を行う（CBZ List 非表示時のみ）
+            // 上下キーはフォームの Folder List への移動のみを担う（CBZ List 非表示時のみ）
             if (!IsCbzListVisible && (keyData == Keys.Up || keyData == Keys.Down))
             {
                 var e = new KeyEventArgs(keyData);
@@ -333,8 +343,70 @@ namespace MangaViewer
 
         internal void LoadAndSortImages(string folderPath)
         {
+            RememberCurrentPlaybackPosition();
             _currentFolder = folderPath;
             ImageLoader.Load(this);
+            ApplyPlaybackStartPosition();
+        }
+
+        internal async Task<bool> LoadAndSortImagesAsync(string folderPath)
+        {
+            int loadGeneration = System.Threading.Interlocked.Increment(ref _folderLoadGeneration);
+
+            RememberCurrentPlaybackPosition();
+            _currentFolder = folderPath;
+
+            await Task.Run(() => ImageLoader.Load(this)).ConfigureAwait(false);
+
+            if (loadGeneration != System.Threading.Volatile.Read(ref _folderLoadGeneration))
+                return false;
+
+            ApplyPlaybackStartPosition();
+            return true;
+        }
+
+        internal async Task<bool> SwitchToNextCbxAsync()
+        {
+            if (_cbzManager == null || !NavigationHandler.CanNavigateCbx(_cbzManager.CbxFiles.Count))
+                return false;
+
+            int loadGeneration = System.Threading.Interlocked.Increment(ref _cbzLoadGeneration);
+
+            RememberCurrentPlaybackPosition();
+            string? nextCbx = await Task.Run(() => _cbzManager.SwitchToNextCbx()).ConfigureAwait(false);
+
+            if (loadGeneration != System.Threading.Volatile.Read(ref _cbzLoadGeneration))
+                return false;
+
+            if (nextCbx == null)
+                return false;
+
+            _imagePaths = _cbzManager.CurrentImagePaths;
+            _currentIndex = 0;
+            _displayManager.ImagePaths = _imagePaths;
+            return true;
+        }
+
+        internal async Task<bool> SwitchToPreviousCbxAsync()
+        {
+            if (_cbzManager == null || !NavigationHandler.CanNavigateCbx(_cbzManager.CbxFiles.Count))
+                return false;
+
+            int loadGeneration = System.Threading.Interlocked.Increment(ref _cbzLoadGeneration);
+
+            RememberCurrentPlaybackPosition();
+            string? prevCbx = await Task.Run(() => _cbzManager.SwitchToPreviousCbx()).ConfigureAwait(false);
+
+            if (loadGeneration != System.Threading.Volatile.Read(ref _cbzLoadGeneration))
+                return false;
+
+            if (prevCbx == null)
+                return false;
+
+            _imagePaths = _cbzManager.CurrentImagePaths;
+            _currentIndex = 0;
+            _displayManager.ImagePaths = _imagePaths;
+            return true;
         }
 
         internal void ScheduleNavigationCbzPreload()
@@ -355,6 +427,26 @@ namespace MangaViewer
 
             if (!string.IsNullOrWhiteSpace(nextNextFolder))
                 _cbzManager.PreloadFirstCbxForFolder(nextNextFolder);
+        }
+
+        internal void ScheduleWindowTitleUpdate()
+        {
+            if (IsDisposed)
+                return;
+
+            if (_titleUpdateTimer == null)
+            {
+                _titleUpdateTimer = new System.Windows.Forms.Timer { Interval = 100 };
+                _titleUpdateTimer.Tick += (s, e) =>
+                {
+                    _titleUpdateTimer?.Stop();
+                    if (!IsDisposed)
+                        UpdateWindowTitle();
+                };
+            }
+
+            _titleUpdateTimer.Stop();
+            _titleUpdateTimer.Start();
         }
 
         internal void UpdateWindowTitle()
@@ -495,7 +587,7 @@ namespace MangaViewer
                     // Start scroll animation for newly selected row
                     ResetScrollAnimation();
                     ScheduleNavigationCbzPreload();
-                    UpdateWindowTitle();
+                    ScheduleWindowTitleUpdate();
                 }
             };
 
@@ -568,19 +660,7 @@ namespace MangaViewer
             // Save playback position for next launch.
             try
             {
-                _settings.LastViewedFolderPath = _currentFolder ?? "";
-                _settings.LastViewedImageIndex = Math.Max(0, _currentIndex);
-
-                if (_cbzManager != null && _cbzManager.CbxFiles.Count > 0)
-                {
-                    int idx = Math.Clamp(_cbzManager.ActiveCbxIndex, 0, _cbzManager.CbxFiles.Count - 1);
-                    _settings.LastViewedCbzFile = _cbzManager.CbxFiles[idx] ?? "";
-                }
-                else
-                {
-                    _settings.LastViewedCbzFile = "";
-                }
-
+                RememberCurrentPlaybackPosition();
                 SettingsManager.Save(_settings);
             }
             catch
@@ -677,6 +757,71 @@ namespace MangaViewer
         public int FolderListCount => _folderList.Count;
         public string CurrentFolder => _currentFolder;
 
+        internal string GetPlaybackTitleKey()
+        {
+            return _currentFolder ?? "";
+        }
+
+        internal int GetRememberedPlaybackIndex()
+        {
+            string key = GetPlaybackTitleKey();
+            if (!string.IsNullOrWhiteSpace(key) && _settings.LastViewedImageIndexByTitle.TryGetValue(key, out int savedIndex))
+                return Math.Max(0, savedIndex);
+
+            return Math.Max(0, _settings.LastViewedImageIndex);
+        }
+
+        internal void ApplyPlaybackStartPosition()
+        {
+            if (!_settings.StartFromLastViewedPosition)
+            {
+                _currentIndex = 0;
+                return;
+            }
+
+            string key = GetPlaybackTitleKey();
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                _currentIndex = 0;
+                return;
+            }
+
+            if (_settings.LastViewedImageIndexByTitle.TryGetValue(key, out int savedIndex))
+            {
+                int maxIndex = Math.Max(0, _imagePaths.Count - 1);
+                _currentIndex = Math.Clamp(Math.Max(0, savedIndex), 0, maxIndex);
+                return;
+            }
+
+            _currentIndex = 0;
+        }
+
+        internal void RememberCurrentPlaybackPosition()
+        {
+            string key = GetPlaybackTitleKey();
+            if (string.IsNullOrWhiteSpace(key))
+                return;
+
+            int index = Math.Max(0, _currentIndex);
+            _settings.LastViewedImageIndexByTitle[key] = index;
+            _settings.LastViewedFolderPath = _currentFolder ?? "";
+
+            if (_cbzManager != null && _cbzManager.CbxFiles.Count > 0)
+            {
+                int idx = Math.Clamp(_cbzManager.ActiveCbxIndex, 0, _cbzManager.CbxFiles.Count - 1);
+                _settings.LastViewedCbzFile = _cbzManager.CbxFiles[idx] ?? "";
+                _settings.LastViewedCbzFileByTitle[key] = _settings.LastViewedCbzFile;
+            }
+            else
+            {
+                _settings.LastViewedCbzFile = "";
+                _settings.LastViewedCbzFileByTitle[key] = "";
+            }
+
+            _settings.LastViewedImageIndex = index;
+            SettingsManager.Save(_settings);
+        }
+
         // Root folder dialog + ChangeRootFolder delegated.
         public void ShowRootFolderDialog()
         {
@@ -766,8 +911,20 @@ namespace MangaViewer
             {
                 panelCbzListOverlay = new Panel
                 {
-                    BackColor = Color.FromArgb(128, 0, 0, 0),
-                    Dock = DockStyle.Fill
+                    BackColor = Color.Transparent,
+                    BorderStyle = BorderStyle.None,
+                    Visible = false,
+                    Location = Point.Empty,
+                    Size = Size.Empty
+                };
+
+                var titleLabel = new Label
+                {
+                    Height = 28,
+                    ForeColor = Color.White,
+                    BackColor = Color.FromArgb(60, 60, 60),
+                    Padding = new Padding(8, 6, 8, 0),
+                    Text = "CBZ一覧 (Lキーで閉じる)"
                 };
 
                 listBoxCbzFiles = new ListBox
@@ -779,23 +936,79 @@ namespace MangaViewer
                     SelectionMode = SelectionMode.One,
                     HorizontalScrollbar = true,
                     TabStop = false,
-                    DrawMode = DrawMode.OwnerDrawFixed
+                    DrawMode = DrawMode.OwnerDrawFixed,
+                    IntegralHeight = false
                 };
 
                 listBoxCbzFiles.DrawItem += ListBoxCbzFiles_DrawItem;
                 listBoxCbzFiles.SelectedIndexChanged += ListBoxCbzFiles_SelectedIndexChanged;
 
                 panelCbzListOverlay.Controls.Add(listBoxCbzFiles);
+                panelCbzListOverlay.Controls.Add(titleLabel);
                 this.Controls.Add(panelCbzListOverlay);
+                panelCbzListOverlay.Paint += PanelCbzListOverlay_Paint;
             }
 
             if (_cbzManager != null)
             {
                 listBoxCbzFiles.Items.Clear();
                 listBoxCbzFiles.Items.AddRange(_cbzManager.CbxFiles.ToArray());
+                if (_cbzManager.CbxFiles.Count > 0)
+                    listBoxCbzFiles.SelectedIndex = Math.Clamp(_cbzManager.ActiveCbxIndex, 0, _cbzManager.CbxFiles.Count - 1);
             }
 
+            LayoutCbzSelectDialog();
             panelCbzListOverlay.Visible = true;
+            panelCbzListOverlay.BringToFront();
+            listBoxCbzFiles?.Focus();
+        }
+
+        private void LayoutCbzSelectDialog()
+        {
+            if (panelCbzListOverlay == null || listBoxCbzFiles == null)
+                return;
+
+            int appWidth = Math.Max(1, this.ClientSize.Width);
+            int appHeight = Math.Max(1, this.ClientSize.Height);
+
+            int charWidth;
+            int rowHeight;
+            using (var g = CreateGraphics())
+            {
+                charWidth = TextRenderer.MeasureText(g, new string('W', 60), listBoxCbzFiles.Font, new Size(int.MaxValue, int.MaxValue), TextFormatFlags.NoPadding).Width;
+                rowHeight = listBoxCbzFiles.ItemHeight;
+            }
+
+            int listWidth = Math.Min(Math.Max(charWidth + 32, 420), Math.Max(240, appWidth - 80));
+            int visibleRows = Math.Min(40, Math.Max(8, listBoxCbzFiles.Items.Count == 0 ? 8 : listBoxCbzFiles.Items.Count));
+            int listHeight = Math.Min((rowHeight * visibleRows) + 6, appHeight - 120);
+
+            int dialogWidth = listWidth + 24;
+            int dialogHeight = listHeight + 40;
+            int dialogLeft = Math.Max(0, (appWidth - dialogWidth) / 2);
+            int dialogTop = Math.Max(0, (appHeight - dialogHeight) / 2);
+
+            var titleLabel = panelCbzListOverlay.Controls.OfType<Label>().FirstOrDefault();
+            if (titleLabel != null)
+                titleLabel.Bounds = new Rectangle(0, 0, dialogWidth, 28);
+
+            listBoxCbzFiles.Bounds = new Rectangle(12, 28, listWidth, listHeight);
+            panelCbzListOverlay.Location = new Point(dialogLeft, dialogTop);
+            panelCbzListOverlay.Size = new Size(dialogWidth, dialogHeight);
+            panelCbzListOverlay.Tag = new Rectangle(0, 0, dialogWidth, dialogHeight);
+        }
+
+        private void PanelCbzListOverlay_Paint(object? sender, PaintEventArgs e)
+        {
+            if (panelCbzListOverlay == null)
+                return;
+
+            using var fillBrush = new SolidBrush(Color.FromArgb(235, 24, 24, 24));
+            using var borderPen = new Pen(Color.FromArgb(220, 220, 220, 220));
+            var panelRect = new Rectangle(0, 0, panelCbzListOverlay.Width, panelCbzListOverlay.Height);
+
+            e.Graphics.FillRectangle(fillBrush, panelRect);
+            e.Graphics.DrawRectangle(borderPen, new Rectangle(0, 0, panelCbzListOverlay.Width - 1, panelCbzListOverlay.Height - 1));
         }
 
         private void ListBoxCbzFiles_DrawItem(object sender, DrawItemEventArgs e)
@@ -817,6 +1030,7 @@ namespace MangaViewer
             if (listBoxCbzFiles.SelectedIndex >= 0)
             {
                 string selectedFile = listBoxCbzFiles.SelectedItem.ToString();
+                RememberCurrentPlaybackPosition();
                 _cbzManager?.LoadCbx(selectedFile);
                 HideCbzSelectDialog();
             }
@@ -828,6 +1042,8 @@ namespace MangaViewer
             {
                 panelCbzListOverlay.Visible = false;
             }
+
+            Focus();
         }
 
         public bool IsCbzListVisible => panelCbzListOverlay?.Visible ?? false;
@@ -883,6 +1099,7 @@ namespace MangaViewer
             if (listBoxCbzFiles != null && listBoxCbzFiles.SelectedItem != null)
             {
                 string selectedFile = listBoxCbzFiles.SelectedItem.ToString();
+                RememberCurrentPlaybackPosition();
                 _cbzManager?.LoadCbx(selectedFile);
                 HideCbzSelectDialog();
             }

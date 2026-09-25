@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Windows.Forms;
 
 namespace MangaViewer
@@ -38,6 +38,8 @@ namespace MangaViewer
             bool ctrl = (e.Control && !e.Alt);
             bool alt = e.Alt && !e.Control;
 
+            StartupHandler.WriteStartupLog($"[KEY] source=KeyboardInputHandler key={key} ctrl={ctrl} alt={alt} listBoxFocused={listBoxFocused}");
+
             // Ctrl+数字/テンキー/etc は評価用（既存の動作）
             if (ctrl && IsRatingKey(e))
             {
@@ -51,10 +53,12 @@ namespace MangaViewer
                 switch (key)
                 {
                     case Keys.Left:
+                        StartupHandler.WriteStartupLog("[KEY] action=NavigateCbzNext via Alt+Left");
                         e.Handled = true;
                         nav.NavigateCbzNext();
                         return;
                     case Keys.Right:
+                        StartupHandler.WriteStartupLog("[KEY] action=NavigateCbzPrev via Alt+Right");
                         e.Handled = true;
                         nav.NavigateCbzPrev();
                         return;
@@ -117,7 +121,7 @@ namespace MangaViewer
                  switch (key)
                  {
                      case Keys.D1:
-                         try { StartupHandler.LogError("[Keyboard] D1 pressed, calling SetDisplayCount(1)"); } catch { }
+                         try { StartupHandler.WriteErrorLog("[Keyboard] D1 pressed, calling SetDisplayCount(1)"); } catch { }
                          e.Handled = true;
                          nav.SetDisplayCount(1);
                          return;
@@ -162,7 +166,15 @@ namespace MangaViewer
                 }
             }
 
-            // S キー: スライドショー切替（ListBoxフォーカス時は無効化）
+            // A キー: 2ページ表示時に先頭を空白のダミーページにする調整トグル（Adjust）
+            if (!ctrl && !alt && key == Keys.A && !listBoxFocused)
+            {
+                e.Handled = true;
+                nav.ToggleLeadingBlankPage();
+                return;
+            }
+
+            // S キー: スライドショーの開始/停止（ListBoxフォーカス時は無効化）
             if (!ctrl && !alt && key == Keys.S && !listBoxFocused)
             {
                 e.Handled = true;
@@ -280,6 +292,8 @@ namespace MangaViewer
             {
                 e.Handled = true;
                 RatingService.SaveRating(nav.CurrentFolder, rating);
+                if (nav is Form1 form)
+                    FormNavigator.RefreshFolderRatingDisplay(form, nav.CurrentFolder);
                 nav.NavigateToNextUnrated();
             }
         }

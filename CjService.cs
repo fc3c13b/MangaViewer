@@ -18,6 +18,18 @@ namespace MangaViewer
         {
             if (!Directory.Exists(parentFolder)) return null;
 
+            // 1. ローカルキャッシュファイル (ratings_cache_*.json) を優先確認
+            string cachePath = AppPaths.GetCacheFilePath(parentFolder);
+            if (File.Exists(cachePath))
+            {
+                var cachedCj = LoadCjFromFile(cachePath);
+                if (cachedCj != null && cachedCj.Folders.Count > 0)
+                {
+                    return (cachePath, cachedCj);
+                }
+            }
+
+            // 2. 親フォルダ配下の collection_*.json を検索
             var candidates = Directory.GetFiles(
                 parentFolder,
                 "*.json",

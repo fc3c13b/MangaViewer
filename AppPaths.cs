@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 
@@ -17,12 +17,23 @@ namespace MangaViewer
         /// <summary>
         /// エラーログファイルのフルパス。
         /// </summary>
-        public static string ErrorLogPath => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "error_log.txt");
+        public static string ErrorLogPath => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "error.log");
 
         /// <summary>
-        /// READ ONLY フォルダ向けの評価キャッシュJSON (ratings_cache.json) のフルパス。
+        /// READ ONLY フォルダ向けの評価キャッシュJSON の正本パス。
+        /// 書き込み可能なユーザー領域を使用し、再起動後の復元元として扱う。
         /// </summary>
-        public static string RatingsCacheFilePath => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ratings_cache.json");
+        public static string RatingsCacheDir => Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "MangaViewer");
+
+        public static string RatingsCacheFilePath => Path.Combine(RatingsCacheDir, "ratings_cache.json");
+
+        /// <summary>
+        /// 旧来のビルド出力配置を互換用として読み込むためのパス。
+        /// 書き込みは行わず、存在時のみ移行元として扱う。
+        /// </summary>
+        public static string LegacyRatingsCacheFilePath => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ratings_cache.json");
 
         /// <summary>
         /// READ ONLY フォルダ向けのフォルダメタデータローカル保存ディレクトリ。
@@ -51,7 +62,7 @@ namespace MangaViewer
             return Path.Combine(CacheDir, $"ratings_cache_{escapedName}.json");
         }
 
-        private static readonly System.Text.RegularExpressions.Regex _safeCharRegex = 
+        private static readonly System.Text.RegularExpressions.Regex _safeCharRegex =
             new System.Text.RegularExpressions.Regex(@"[^A-Za-z0-9_.\-]");
 
         private static string EscapeForFileName(string path)

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -53,7 +53,28 @@ namespace MangaViewer
         /// </summary>
         public static bool IsReadOnlyFolder(string folderPath)
         {
-            return RatingService.IsReadOnlyCached(folderPath);
+            if (string.IsNullOrWhiteSpace(folderPath))
+                return false;
+
+            string normalized = Path.GetFullPath(Path.TrimEndingDirectorySeparator(folderPath));
+            string probeFile = Path.Combine(normalized, ".write_test_tmp");
+
+            try
+            {
+                File.WriteAllText(probeFile, "test");
+                File.Delete(probeFile);
+                return false;
+            }
+            catch
+            {
+                try
+                {
+                    if (File.Exists(probeFile))
+                        File.Delete(probeFile);
+                }
+                catch { }
+                return true;
+            }
         }
 
         private Action<string>? _statusCallback;
@@ -143,7 +164,11 @@ namespace MangaViewer
                         }
                         else if (!hasDjRating && hasDjGc)
                         {
-                            // 規則3: DJにRなし + DJにGCあり → スキャンスキップ
+                            // 規則3: DJにRなし + DJにGCあり
+                            // READ ONLY 運用では評価は ratings_cache.json 側にのみ存在するため、
+                            // キャッシュ評価があればそれを採用してスキャンはスキップする。
+                            if (hasCjRating)
+                                djRating = cachedRating;
                         }
                         else
                         {

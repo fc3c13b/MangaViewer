@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -20,7 +20,8 @@ namespace MangaViewer
         internal PictureBox[] pictureBoxes;
 
         /// <summary>Current images displayed in each PictureBox</summary>
-        private Image?[] currentImages;
+        private System.Threading.CancellationTokenSource? _renderCts;
+        private int _renderGeneration;
 
         /// <summary>Number of images to display (2 or 8)</summary>
         public int DisplayCount => _settings.DisplayCount;
@@ -37,7 +38,6 @@ namespace MangaViewer
             _settings = settings;
             _imageService = imageService;
             pictureBoxes = new PictureBox[0];
-            currentImages = Array.Empty<Image?>();
         }
 
         /// <summary>
@@ -49,7 +49,6 @@ namespace MangaViewer
             DisposePictureBoxes();
             int count = DisplayCount;
             pictureBoxes = new PictureBox[count];
-            currentImages = new Image?[count];
 
             for (int i = 0; i < count; i++)
             {
@@ -82,47 +81,115 @@ namespace MangaViewer
             pictureBoxes = new PictureBox[0];
         }
 
-        /// <summary>
-        /// Display images starting from the given index.
-        /// </summary>
-        public void DisplayImages(int startIndex)
+        private void CancelRender()
         {
-            StartupHandler.Log(string.Format("[DisplayManager] DisplayImages(startIndex={0}, DisplayCount={1}, ImagePaths.Count={2})",
-                startIndex, DisplayCount, ImagePaths != null ? ImagePaths.Count : 0));
-            try { System.IO.File.AppendAllText("error.log", $"[DisplayManager] DisplayImages(startIndex={startIndex}, DisplayCount={DisplayCount}, ImagePaths.Count={ImagePaths.Count}){Environment.NewLine}"); } catch { }
-            
-            
-            CurrentIndex = startIndex;
-            int count = DisplayCount;
-
-            if (pictureBoxes.Length == 0 || pictureBoxes.Length != count)
-                InitializePictureBoxes();
-
-            try { System.IO.File.AppendAllText("error.log", $"[DisplayManager] pictureBoxes.Length={pictureBoxes.Length}, count={count}{Environment.NewLine}"); } catch { }
-
-            if (ImagePaths.Count == 0)
+            try
             {
-                foreach (var pb in pictureBoxes) pb.Image = null;
+                _renderCts?.Cancel();
+            }
+            catch
+            {
+                // ignore cancellation failures
+            }
+        }
+
+        private void ClearPictureBoxes()
+        {
+            if (pictureBoxes == null) return;
+
+            foreach (var pb in pictureBoxes)
+            {
+                if (pb == null) continue;
+                var oldImage = pb.Image;
+                pb.Image = null;
+                if (oldImage != null)
+                    ImageService.DisposeImage(oldImage);
+            }
+        }
+
+        private void QueueAssignImage(int generation, int index, Image? image)
+        {
+            if (_ownerForm.IsDisposed || !_ownerForm.IsHandleCreated)
+            {
+                image?.Dispose();
                 return;
             }
 
-            // Manga reading order: right-to-left, top-to-bottom
-            // Panel position (col,row) maps to page index: row * cols + (cols - 1 - col)
+            try
+            {
+                _ownerForm.BeginInvoke(new Action(() =>
+                {
+                    try
+                    {
+                        if (generation != System.Threading.Volatile.Read(ref _renderGeneration) ||
+                            index < 0 || index >= pictureBoxes.Length)
+                        {
+                            image?.Dispose();
+                            return;
+                        }
+
+                        var pb = pictureBoxes[index];
+                        if (pb == null || pb.IsDisposed)
+                        {
+                            image?.Dispose();
+                            return;
+                        }
+
+                        var oldImage = pb.Image;
+                        pb.Image = image;
+                        if (oldImage != null)
+                            ImageService.DisposeImage(oldImage);
+                    }
+                    catch (Exception ex)
+                    {
+                        StartupHandler.WriteStartupLog($"[DisplayManager] assign image failed index={index} error={ex.GetType().Name}");
+                        image?.Dispose();
+                    }
+                }));
+            }
+            catch
+            {
+                image?.Dispose();
+            }
+        }
+
+        private void RenderImagesAsync(int generation, int startIndex, System.Threading.CancellationToken token)
+        {
+            int count = DisplayCount;
             int cols = count == 8 ? 4 : (count == 1 ? 1 : 2);
-            try { System.IO.File.AppendAllText("error.log", $"[DisplayManager] cols={cols}, count={count}{Environment.NewLine}"); } catch { }
+
             for (int i = 0; i < count; i++)
             {
+                if (token.IsCancellationRequested || generation != System.Threading.Volatile.Read(ref _renderGeneration))
+                    return;
+
                 int col = i % cols;
                 int row = i / cols;
                 int pageOffset = row * cols + (cols - 1 - col);
                 int imgIdx = startIndex + pageOffset;
-                string? imagePath = imgIdx < ImagePaths.Count ? ImagePaths[imgIdx] : null;
-                try { System.IO.File.AppendAllText("error.log", $"[DisplayManager] i={i}, imgIdx={imgIdx}, imagePath={(string.IsNullOrEmpty(imagePath) ? "(null)" : Path.GetFileName(imagePath))}{Environment.NewLine}"); } catch { }
-                LoadImageIntoPictureBox(pictureBoxes[i], ref currentImages![i], imagePath);
+                string? imagePath = (imgIdx >= 0 && imgIdx < ImagePaths.Count) ? ImagePaths[imgIdx] : null;
+
+                Image? loadedImage = null;
+                try
+                {
+                    if (!string.IsNullOrEmpty(imagePath) && File.Exists(imagePath))
+                        loadedImage = _imageService.LoadOrGetCachedImage(imagePath);
+                }
+                catch (Exception ex)
+                {
+                    StartupHandler.WriteStartupLog($"[DisplayManager] render load failed imagePath={imagePath} error={ex.GetType().Name}");
+                    loadedImage = null;
+                }
+
+                if (token.IsCancellationRequested || generation != System.Threading.Volatile.Read(ref _renderGeneration))
+                {
+                    loadedImage?.Dispose();
+                    return;
+                }
+
+                QueueAssignImage(generation, i, loadedImage);
             }
 
-            // Preload next batch into cache (closest in sort order first)
-            // 2-display: 8, 8-display: 16
             int prefetchCount = DisplayCount == 2 ? 8 : 16;
             int nextIdx = startIndex + count;
             if (nextIdx < ImagePaths.Count)
@@ -130,9 +197,44 @@ namespace MangaViewer
                 System.Threading.Tasks.Task.Run(() =>
                 {
                     for (int i = 0; i < prefetchCount && (nextIdx + i) < ImagePaths.Count; i++)
+                    {
+                        if (token.IsCancellationRequested || generation != System.Threading.Volatile.Read(ref _renderGeneration))
+                            return;
                         _imageService.LoadOrGetCachedImage(ImagePaths[nextIdx + i]);
-                });
+                    }
+                }, token);
             }
+        }
+
+        /// <summary>
+        /// Display images starting from the given index.
+        /// </summary>
+        public void DisplayImages(int startIndex)
+        {
+            StartupHandler.WriteStartupLog(string.Format("[DisplayManager] DisplayImages(startIndex={0}, DisplayCount={1}, ImagePaths.Count={2})",
+                startIndex, DisplayCount, ImagePaths != null ? ImagePaths.Count : 0));
+
+
+            CurrentIndex = startIndex;
+            int count = DisplayCount;
+
+            if (pictureBoxes.Length == 0 || pictureBoxes.Length != count)
+                InitializePictureBoxes();
+
+            StartupHandler.WriteStartupLog($"[DisplayManager] pictureBoxes.Length={pictureBoxes.Length}, count={count}");
+
+            CancelRender();
+            var renderCts = new System.Threading.CancellationTokenSource();
+            _renderCts = renderCts;
+            int generation = System.Threading.Interlocked.Increment(ref _renderGeneration);
+
+            ClearPictureBoxes();
+
+            if (ImagePaths.Count == 0)
+                return;
+
+            StartupHandler.WriteStartupLog($"[DisplayManager] render generation={generation} cols={(count == 8 ? 4 : (count == 1 ? 1 : 2))}");
+            _ = System.Threading.Tasks.Task.Run(() => RenderImagesAsync(generation, startIndex, renderCts.Token), renderCts.Token);
         }
 
         /// <summary>
@@ -152,7 +254,7 @@ namespace MangaViewer
             for (int i = 0; i < count; i++)
             {
                 int imgIdx = CurrentIndex + i;
-                if (imgIdx < ImagePaths.Count)
+                if (imgIdx >= 0 && imgIdx < ImagePaths.Count)
                     pageNumbers.Add(FolderService.ExtractNumberFromFileName(ImagePaths[imgIdx]));
             }
 
@@ -164,64 +266,10 @@ namespace MangaViewer
             else
                 pagesText = string.Join(" / ", pageNumbers);
 
-            int spreadIndex = CurrentIndex / count + 1;
+            int spreadIndex = (CurrentIndex < 0) ? 1 : (CurrentIndex / count + 1);
             int totalSpreads = (ImagePaths.Count + count - 1) / count;
 
             return $"{folderInfo}{folderIndexInfo}{pagesText} | {spreadIndex}/{totalSpreads}";
-        }
-
-        private void LoadImageIntoPictureBox(PictureBox pb, ref Image? currentImage, string? imagePath)
-        {
-            try { System.IO.File.AppendAllText("error.log", $"[DisplayManager] LoadImageIntoPictureBox(imagePath={imagePath}){Environment.NewLine}"); } catch { }
-            if (currentImage != null)
-            {
-                ImageService.DisposeImage(currentImage);
-                currentImage = null;
-            }
-
-            if (string.IsNullOrEmpty(imagePath) || !File.Exists(imagePath))
-            {
-                pb.Image = null;
-                return;
-            }
-
-            try
-            {
-                var img = _imageService.LoadOrGetCachedImage(imagePath);
-                // LoadOrGetCachedImage may return null for invalid/corrupted images.
-                if (img != null)
-                {
-                    currentImage = img;
-                    pb.Image = currentImage;
-                }
-                else
-                {
-                    // Show blank/black panel instead of crashing.
-                    pb.Image = null;
-                }
-            }
-            catch (OutOfMemoryException)
-            {
-                // Unsupported or too large image: show error once, then continue.
-                MessageBox.Show("画像の読み込みに失敗しました:\n" + imagePath, "エラー", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                pb.Image = null;
-                if (currentImage != null)
-                {
-                    ImageService.DisposeImage(currentImage);
-                    currentImage = null;
-                }
-            }
-            catch (Exception ex)
-            {
-                // Unexpected error: show dialog but do not crash.
-                MessageBox.Show("画像の読み込みに失敗しました:\n" + imagePath + "\n\n" + ex.Message, "エラー", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                pb.Image = null;
-                if (currentImage != null)
-                {
-                    ImageService.DisposeImage(currentImage);
-                    currentImage = null;
-                }
-            }
         }
 
         /// <summary>
@@ -295,9 +343,11 @@ namespace MangaViewer
 
         public void Dispose()
         {
+            CancelRender();
             if (pictureBoxes != null)
                 DisposePictureBoxes();
-            currentImages = Array.Empty<Image?>();
+            _renderCts?.Dispose();
+            _renderCts = null;
         }
     }
 }

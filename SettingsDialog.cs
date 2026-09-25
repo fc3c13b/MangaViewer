@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -85,6 +85,11 @@ namespace MangaViewer
         /// </summary>
         public bool MinEvaluationEqualFilterValue => cbMinEvalEqualFilter.Checked;
 
+        /// <summary>
+        /// 読了位置から読み始めるかどうか
+        /// </summary>
+        public bool StartFromLastViewedPositionValue => cbStartFromLastViewedPosition.Checked;
+
         // デフォルト値
         private const int DefaultMinDisplayCount = 20;
         private const int DefaultMaxDisplayCount = 1000;
@@ -96,6 +101,7 @@ namespace MangaViewer
         // 新フィルタ用コントロール
         private CheckBox cbMinEvalFilterEnabled = null!;
         private CheckBox cbMinEvalEqualFilter = null!;
+        private CheckBox cbStartFromLastViewedPosition = null!;
 
         public SettingsDialog()
         {
@@ -108,7 +114,7 @@ namespace MangaViewer
             // ダイアログ基本設定
             this.Text = "設定";
             this.StartPosition = FormStartPosition.CenterScreen;
-            this.Size = new System.Drawing.Size(420, 500);
+            this.Size = new System.Drawing.Size(420, 540);
             this.MinimizeBox = false;
             this.MaximizeBox = false;
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
@@ -328,6 +334,18 @@ namespace MangaViewer
             };
             this.Controls.Add(labelFullPercentUnit);
 
+            // 読了位置から読み始める
+            cbStartFromLastViewedPosition = new CheckBox
+            {
+                Text = "読了位置から読み始める",
+                Location = new System.Drawing.Point(20, 340),
+                AutoSize = true,
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(40, 40, 40),
+                Checked = true,
+            };
+            this.Controls.Add(cbStartFromLastViewedPosition);
+
             // 評価値フィルタ設定セクション
             Label labelFilterSection = new Label
             {
@@ -335,7 +353,7 @@ namespace MangaViewer
                 AutoSize = true,
                 ForeColor = Color.LimeGreen,
                 Font = new System.Drawing.Font("Meiryo UI", 10F, FontStyle.Bold),
-                Location = new System.Drawing.Point(20, 345),
+                Location = new System.Drawing.Point(20, 380),
             };
             this.Controls.Add(labelFilterSection);
 
@@ -343,7 +361,7 @@ namespace MangaViewer
             cbMinEvalFilterEnabled = new CheckBox
             {
                 Text = "評価値フィルタを有効にする",
-                Location = new System.Drawing.Point(20, 375),
+                Location = new System.Drawing.Point(20, 410),
                 AutoSize = true,
                 ForeColor = Color.White,
                 BackColor = Color.FromArgb(40, 40, 40),
@@ -355,7 +373,7 @@ namespace MangaViewer
             cbMinEvalEqualFilter = new CheckBox
             {
                 Text = "評価値を『等しい』でフィルタする（OFF=「以上」）",
-                Location = new System.Drawing.Point(20, 405),
+                Location = new System.Drawing.Point(20, 440),
                 AutoSize = true,
                 ForeColor = Color.White,
                 BackColor = Color.FromArgb(40, 40, 40),
@@ -473,6 +491,7 @@ namespace MangaViewer
             int normalPercent = DefaultNormalModeImageAreaPercent;
             int fullScreenPercent = DefaultFullScreenModeImageAreaPercent;
 
+            bool startFromLastViewedPosition = true;
             bool minEvalFilterEnabled = true;
             bool minEvalEqualFilter = false;
 
@@ -532,6 +551,12 @@ namespace MangaViewer
                             fullScreenPercent = val;
                     }
 
+                    if (doc.RootElement.TryGetProperty("StartFromLastViewedPosition", out var startFromProp)
+                        && (startFromProp.ValueKind == JsonValueKind.True || startFromProp.ValueKind == JsonValueKind.False))
+                    {
+                        startFromLastViewedPosition = startFromProp.GetBoolean();
+                    }
+
                     // 評価値フィルタ設定読み込み（旧 DbFilterGreaterOrEqual から移行）
                     if (doc.RootElement.TryGetProperty("MinEvaluationFilterEnabled", out var mefProp) && (mefProp.ValueKind == JsonValueKind.True || mefProp.ValueKind == JsonValueKind.False))
                     {
@@ -563,7 +588,8 @@ namespace MangaViewer
                             minEval,
                             displayCnt,
                             normalPercent,
-                            fullScreenPercent);
+                            fullScreenPercent,
+                            startFromLastViewedPosition);
                     }
                 }
                 catch
@@ -575,7 +601,8 @@ namespace MangaViewer
                         DefaultMinEvaluation,
                         DefaultDisplayCountVal,
                         DefaultNormalModeImageAreaPercent,
-                        DefaultFullScreenModeImageAreaPercent);
+                        DefaultFullScreenModeImageAreaPercent,
+                        true);
                 }
             }
 
@@ -591,6 +618,8 @@ namespace MangaViewer
 
             if (fullScreenPercent >= (int)numFullScreenLayoutRatio.Minimum && fullScreenPercent <= (int)numFullScreenLayoutRatio.Maximum)
                 numFullScreenLayoutRatio.Value = fullScreenPercent;
+
+            cbStartFromLastViewedPosition.Checked = startFromLastViewedPosition;
 
             // 評価値フィルタ設定を反映
             cbMinEvalFilterEnabled.Checked = minEvalFilterEnabled;
@@ -614,10 +643,11 @@ namespace MangaViewer
 
             int normalPercent = NormalModeImageAreaPercent;
             int fullScreenPercent = FullScreenModeImageAreaPercent;
+            bool startFromLastViewedPosition = StartFromLastViewedPositionValue;
 
             SaveSettingsToFile(
                 minDisplayCount, maxDisplayCount, minEvaluation, displayCount,
-                normalPercent, fullScreenPercent);
+                normalPercent, fullScreenPercent, startFromLastViewedPosition);
 
             this.DialogResult = DialogResult.OK;
         }
@@ -631,7 +661,8 @@ namespace MangaViewer
             int minEvaluation,
             int displayCount,
             int normalPercent,
-            int fullScreenPercent)
+            int fullScreenPercent,
+            bool startFromLastViewedPosition)
         {
             try
             {
@@ -656,6 +687,7 @@ namespace MangaViewer
                 existing["DisplayCount"] = JsonSerializer.SerializeToElement(displayCount);
                 existing["NormalModeImageAreaPercent"] = JsonSerializer.SerializeToElement(normalPercent);
                 existing["FullScreenModeImageAreaPercent"] = JsonSerializer.SerializeToElement(fullScreenPercent);
+                existing["StartFromLastViewedPosition"] = JsonSerializer.SerializeToElement(startFromLastViewedPosition);
 
                 // 評価値フィルタ設定
                 existing["MinEvaluationFilterEnabled"] = JsonSerializer.SerializeToElement(cbMinEvalFilterEnabled.Checked);
