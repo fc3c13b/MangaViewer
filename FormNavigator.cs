@@ -88,7 +88,7 @@ namespace MangaViewer
                     DisplayImagesCore(form, 0);
                 }
 
-                form.labelInfo.Text = "表示可能なフォルダがありません。";
+                form.UpdateInfoLabelBase("表示可能なフォルダがありません。", "navigator:no-folders");
             }
         }
 
@@ -160,9 +160,9 @@ namespace MangaViewer
 
             string infoText = BuildInfoText(form, startIndex);
             if (!string.IsNullOrEmpty(infoText))
-                form.labelInfo.Text = infoText;
+                form.UpdateInfoLabelBase(infoText);
             else
-                form.labelInfo.Text = $"[{GetFolderDisplay(form)}] 表示可能な画像がありません。";
+                form.UpdateInfoLabelBase($"[{GetFolderDisplay(form)}] 表示可能な画像がありません。");
 
             // CBZ preload when near end
             if (form._cbzManager != null && form._imagePaths.Count > 0)
@@ -464,9 +464,9 @@ namespace MangaViewer
         {
             string infoText = BuildInfoText(form, form._currentIndex);
             if (!string.IsNullOrEmpty(infoText))
-                form.labelInfo.Text = infoText;
+                form.UpdateInfoLabelBase(infoText, "navigator:refresh-fullscreen");
             else
-                form.labelInfo.Text = $"[{GetFolderDisplay(form)}] 表示可能な画像がありません。";
+                form.UpdateInfoLabelBase($"[{GetFolderDisplay(form)}] 表示可能な画像がありません。", "navigator:refresh-fullscreen");
 
             form.UpdateLayout();
         }

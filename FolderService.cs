@@ -46,6 +46,11 @@ namespace MangaViewer
     /// </summary>
     public class FolderService
     {
+        private static readonly HashSet<string> SupportedImageExtensions = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".jpg", ".jpeg", ".webp", ".png"
+        };
+
         private readonly Settings _settings;
         /// <summary>
         /// 指定フォルダが READ-ONLY（書き込み禁止）として登録されているか判定。
@@ -337,17 +342,76 @@ namespace MangaViewer
             if (string.IsNullOrWhiteSpace(folderPath)) return imagePaths;
             if (!Directory.Exists(folderPath)) return imagePaths;
 
-            string[] extensions = { "*.jpg", "*.jpeg", "*.webp", "*.png" };
-            var allFiles = new List<string>();
-            foreach (var ext in extensions)
+            string folderName = Path.GetFileName(folderPath);
+            string jsonPath = Path.Combine(folderPath, $"{folderName}.json");
+            var (cachedImageCount, cachedCbzCount, _) = ReadFolderJson(jsonPath);
+
+            // 安全策(2): 通常画像0件 + CBZあり かつ フォルダ更新時刻 <= JSON更新時刻 のとき、
+            // 通常画像スキャンをスキップする。
+            // 追加案(1): ただし誤スキップ防止として、先頭一致のみの軽量プローブを行う。
+            if (cachedImageCount == 0 && cachedCbzCount > 0 && IsFolderNotNewerThanJson(folderPath, jsonPath))
             {
-                try { allFiles.AddRange(Directory.GetFiles(folderPath, ext, SearchOption.TopDirectoryOnly)); }
-                catch { /* 拡張子ごとのファイル取得は失敗しても他の拡張子は続行 */ }
+                string? imageProbe = ProbeFirstSupportedImagePath(folderPath);
+                if (imageProbe == null)
+                {
+                    StartupHandler.WriteStartupLog($"[IMG-SCAN] skipped folder={folderPath} reason=meta-no-image cbzCount={cachedCbzCount}");
+                    return imagePaths;
+                }
+
+                StartupHandler.WriteStartupLog($"[IMG-SCAN] fallback-rescan folder={folderPath} reason=probe-found file={Path.GetFileName(imageProbe)}");
             }
 
-            imagePaths = allFiles.OrderBy(f => ExtractNumberFromFileName(f)).ToList();
+            // 追加案(3): 拡張子ごとの4回列挙を廃止し、1回列挙 + 拡張子フィルタに統一。
+            var scanWatch = System.Diagnostics.Stopwatch.StartNew();
+            try
+            {
+                imagePaths = Directory.EnumerateFiles(folderPath, "*.*", SearchOption.TopDirectoryOnly)
+                    .Where(path => SupportedImageExtensions.Contains(Path.GetExtension(path)))
+                    .OrderBy(path => ExtractNumberFromFileName(path))
+                    .ToList();
+            }
+            catch
+            {
+                return new List<string>();
+            }
+
+            scanWatch.Stop();
+            StartupHandler.WriteStartupLog($"[IMG-SCAN] scanned folder={folderPath} images={imagePaths.Count} elapsedMs={scanWatch.ElapsedMilliseconds}");
+
+            if (imagePaths.Count != cachedImageCount)
+                SaveImageCountJson(jsonPath, imagePaths.Count);
 
             return imagePaths;
+        }
+
+        private static bool IsFolderNotNewerThanJson(string folderPath, string jsonPath)
+        {
+            try
+            {
+                if (!File.Exists(jsonPath))
+                    return false;
+
+                DateTime folderWriteTime = Directory.GetLastWriteTime(folderPath);
+                DateTime jsonWriteTime = File.GetLastWriteTime(jsonPath);
+                return folderWriteTime <= jsonWriteTime;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static string? ProbeFirstSupportedImagePath(string folderPath)
+        {
+            try
+            {
+                return Directory.EnumerateFiles(folderPath, "*.*", SearchOption.TopDirectoryOnly)
+                    .FirstOrDefault(path => SupportedImageExtensions.Contains(Path.GetExtension(path)));
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         /// <summary>

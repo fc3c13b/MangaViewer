@@ -114,7 +114,7 @@ namespace MangaViewer
             try
             {
                 Application.DoEvents();
-                SafeInvokeUI(() => labelInfo.Text = "CJ作成中…");
+                SafeInvokeUI(() => UpdateInfoLabelBase("CJ作成中…", "create-cj:start"));
 
                 var (cjPath, cjData) = CjService.CreateForParent(parentFolder);
 
@@ -137,12 +137,12 @@ namespace MangaViewer
                 SettingsManager.Save(_settings);
 
                 ScheduleWindowTitleUpdate();
-                labelInfo.Text = $"CJ作成完了: {parentFolder}";
+                UpdateInfoLabelBase($"CJ作成完了: {parentFolder}", "create-cj:done");
             }
             catch (Exception ex)
             {
                 MessageBox.Show(this, "CJ作成エラー:\n" + ex.Message, "CJ エラー", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                labelInfo.Text = "CJ作成に失敗しました。";
+                UpdateInfoLabelBase("CJ作成に失敗しました。", "create-cj:error");
             }
         }
 
@@ -172,8 +172,16 @@ namespace MangaViewer
         private System.Windows.Forms.Timer? _slideshowTimer;
         private System.Windows.Forms.Timer? _folderDebounceTimer;
         private System.Windows.Forms.Timer? _titleUpdateTimer;
+        private System.Windows.Forms.Timer? _cacheStatusTimer;
         private int _folderLoadGeneration;
         private int _cbzLoadGeneration;
+        private long _arrowNavSequence;
+        private long _pendingArrowNavSequence;
+        private long _pendingArrowNavScheduledAtMs;
+        private string _baseInfoLabelText = "フォルダを選択してください (キー1)";
+        private string? _cacheStatusLabelText;
+        private DateTime _cacheStatusExpiresAtUtc = DateTime.MinValue;
+        private string? _lastRenderedInfoLabelText;
 
         // ListBox scroll/draw helper (TASK09.25)
         private ListBoxScrollHelper? _listBoxScrollHelper;
@@ -246,6 +254,11 @@ namespace MangaViewer
         {
             if (_folderList == null || _folderList.Count == 0) return;
 
+            // 上下キーのリスト移動を最優先にする。
+            // 進行中のフォルダ読込結果は世代不一致で破棄し、入力応答を優先する。
+            int canceledGeneration = System.Threading.Interlocked.Increment(ref _folderLoadGeneration);
+            long seq = System.Threading.Interlocked.Increment(ref _arrowNavSequence);
+
             int current = listBoxFolders.SelectedIndex;
             if (current < 0)
                 current = _currentFolderIndex >= 0 ? _currentFolderIndex : 0;
@@ -257,7 +270,13 @@ namespace MangaViewer
                 _         => current
             };
 
-            if (next == current) return;
+            StartupHandler.WriteStartupLog($"[KEY-NAV] phase=key seq={seq} key={e.KeyCode} from={current} to={next} cancelGen={canceledGeneration}");
+
+            if (next == current)
+            {
+                StartupHandler.WriteStartupLog($"[KEY-NAV] phase=boundary seq={seq} index={current}");
+                return;
+            }
 
             _currentFolderIndex = next;
             listBoxFolders.SelectedIndex = next;
@@ -272,7 +291,11 @@ namespace MangaViewer
                 _folderDebounceTimer.Tick += OnFolderDebounceTimerTick;
             }
             _folderDebounceTimer.Start();
+            _pendingArrowNavSequence = seq;
+            _pendingArrowNavScheduledAtMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            StartupHandler.WriteStartupLog($"[KEY-NAV] phase=debounce-start seq={seq} waitMs=1000 targetIndex={next}");
             e.Handled = true;
+            e.SuppressKeyPress = true;
         }
 
         private async void OnFolderDebounceTimerTick(object? sender, EventArgs e)
@@ -280,24 +303,35 @@ namespace MangaViewer
             if (_folderDebounceTimer == null) return;
             _folderDebounceTimer.Stop();
 
+            long seq = System.Threading.Volatile.Read(ref _pendingArrowNavSequence);
+            long scheduledAt = System.Threading.Volatile.Read(ref _pendingArrowNavScheduledAtMs);
+            long nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            long waitedMs = scheduledAt > 0 ? Math.Max(0, nowMs - scheduledAt) : -1;
+            StartupHandler.WriteStartupLog($"[KEY-NAV] phase=debounce-fire seq={seq} waitedMs={waitedMs} currentIndex={_currentFolderIndex}");
+
             if (_currentFolderIndex < 0 || _currentFolderIndex >= _folderList.Count)
                 return;
 
-            int loadGeneration = System.Threading.Volatile.Read(ref _folderLoadGeneration);
             string folderPath = _folderList[_currentFolderIndex];
+            StartupHandler.WriteStartupLog($"[KEY-NAV] phase=load-request seq={seq} folder={folderPath}");
 
             try
             {
                 if (!await LoadAndSortImagesAsync(folderPath))
+                {
+                    StartupHandler.WriteStartupLog($"[KEY-NAV] phase=load-discarded seq={seq} reason=generation-mismatch folder={folderPath}");
                     return;
+                }
             }
             catch (Exception ex)
             {
+                StartupHandler.WriteStartupLog($"[KEY-NAV] phase=load-error seq={seq} error={ex.GetType().Name}");
                 StartupHandler.WriteErrorLog($"[Form1] folder load failed: {ex}");
-                labelInfo.Text = "画像読み込みに失敗しました。";
+                UpdateInfoLabelBase("画像読み込みに失敗しました。", "folder-load-error");
                 return;
             }
 
+            StartupHandler.WriteStartupLog($"[KEY-NAV] phase=load-applied seq={seq} index={_currentFolderIndex}");
             DisplayImages(_currentIndex);
             ScheduleNavigationCbzPreload();
             ScheduleWindowTitleUpdate();
@@ -356,14 +390,24 @@ namespace MangaViewer
         internal async Task<bool> LoadAndSortImagesAsync(string folderPath)
         {
             int loadGeneration = System.Threading.Interlocked.Increment(ref _folderLoadGeneration);
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            StartupHandler.WriteStartupLog($"[KEY-NAV] phase=load-start gen={loadGeneration} folder={folderPath}");
 
             RememberCurrentPlaybackPosition();
             _currentFolder = folderPath;
 
             await Task.Run(() => ImageLoader.Load(this)).ConfigureAwait(false);
 
-            if (loadGeneration != System.Threading.Volatile.Read(ref _folderLoadGeneration))
+            sw.Stop();
+
+            int latestGeneration = System.Threading.Volatile.Read(ref _folderLoadGeneration);
+            if (loadGeneration != latestGeneration)
+            {
+                StartupHandler.WriteStartupLog($"[KEY-NAV] phase=load-finish gen={loadGeneration} result=discarded latestGen={latestGeneration} elapsedMs={sw.ElapsedMilliseconds}");
                 return false;
+            }
+
+            StartupHandler.WriteStartupLog($"[KEY-NAV] phase=load-finish gen={loadGeneration} result=applied elapsedMs={sw.ElapsedMilliseconds}");
 
             ApplyPlaybackStartPosition();
             return true;
@@ -578,7 +622,16 @@ namespace MangaViewer
                 DrawMode = DrawMode.OwnerDrawFixed
             };
 
-            listBoxFolders.KeyDown += (s, e) => KeyboardInputHandler.HandleKeyDown(e, this);
+            listBoxFolders.KeyDown += (s, e) =>
+            {
+                if (!IsCbzListVisible && !e.Control && !e.Alt && (e.KeyCode == Keys.Up || e.KeyCode == Keys.Down))
+                {
+                    HandleFolderListArrowKey(e);
+                    return;
+                }
+
+                KeyboardInputHandler.HandleKeyDown(e, this);
+            };
 
             // TASK09.25: ListBoxScrollHelper handles DrawItem + scroll animation
             _listBoxScrollHelper = new ListBoxScrollHelper(listBoxFolders, panelList);
@@ -590,8 +643,8 @@ namespace MangaViewer
                     _currentFolderIndex = listBoxFolders.SelectedIndex;
                     // Start scroll animation for newly selected row
                     ResetScrollAnimation();
-                    ScheduleNavigationCbzPreload();
-                    ScheduleWindowTitleUpdate();
+                    // 上下キー移動中はフォーカス移動のみ行う。
+                    // 先読み/タイトル更新をここで走らせると、1秒デバウンス前にI/Oが発生する。
                 }
             };
 
@@ -611,6 +664,176 @@ namespace MangaViewer
             this.Resize += (s, e) => UpdateLayout();
         }
 
+        internal void UpdateInfoLabelBase(string text, string source = "base")
+        {
+            _baseInfoLabelText = text;
+            RefreshInfoLabelText(source + ":set");
+        }
+
+        internal void UpdateCacheStatusLabel(string cbzPath, string status)
+        {
+            void Apply()
+            {
+                if (IsDisposed || !IsHandleCreated)
+                    return;
+
+                if (!IsStatusForCurrentContext(cbzPath))
+                {
+                    StartupHandler.WriteStartupLog($"[INFO-LABEL] source=cache-status:skip path={Path.GetFileName(cbzPath)} active={GetActiveCbzFileNameForLog()}");
+                    return;
+                }
+
+                _cacheStatusLabelText = status;
+
+                if (status.StartsWith("DL中:", StringComparison.Ordinal))
+                    _cacheStatusExpiresAtUtc = DateTime.UtcNow.AddSeconds(5);
+                else if (status.StartsWith("Cache読込中:", StringComparison.Ordinal) || status.StartsWith("Cache作成中:", StringComparison.Ordinal))
+                    _cacheStatusExpiresAtUtc = DateTime.UtcNow.AddSeconds(3);
+                else if (status.StartsWith("先読み確認(", StringComparison.Ordinal))
+                    _cacheStatusExpiresAtUtc = DateTime.UtcNow.AddSeconds(1.6);
+                else if (status.StartsWith("表示準備完了:", StringComparison.Ordinal))
+                    _cacheStatusExpiresAtUtc = DateTime.UtcNow.AddSeconds(1.2);
+                else
+                    _cacheStatusExpiresAtUtc = DateTime.UtcNow.AddSeconds(2);
+
+                EnsureCacheStatusTimer();
+                RefreshInfoLabelText("cache-status:update");
+            }
+
+            if (InvokeRequired)
+                BeginInvoke((Action)Apply);
+            else
+                Apply();
+        }
+
+        private void EnsureCacheStatusTimer()
+        {
+            if (_cacheStatusTimer != null)
+                return;
+
+            _cacheStatusTimer = new System.Windows.Forms.Timer { Interval = 200 };
+            _cacheStatusTimer.Tick += (s, e) =>
+            {
+                if (IsDisposed)
+                    return;
+
+                if (string.IsNullOrEmpty(_cacheStatusLabelText))
+                    return;
+
+                if (DateTime.UtcNow >= _cacheStatusExpiresAtUtc)
+                {
+                    _cacheStatusLabelText = null;
+                    _cacheStatusExpiresAtUtc = DateTime.MinValue;
+                    RefreshInfoLabelText("cache-status:expire");
+                }
+            };
+            _cacheStatusTimer.Start();
+        }
+
+        private void RefreshInfoLabelText(string source = "refresh")
+        {
+            if (labelInfo == null)
+                return;
+
+            string nextText;
+            string mode;
+            if (!string.IsNullOrEmpty(_cacheStatusLabelText) && DateTime.UtcNow < _cacheStatusExpiresAtUtc)
+            {
+                nextText = _cacheStatusLabelText;
+                mode = "cache";
+            }
+            else
+            {
+                nextText = _baseInfoLabelText;
+                mode = "base";
+            }
+
+            if (!string.Equals(_lastRenderedInfoLabelText, nextText, StringComparison.Ordinal))
+            {
+                _lastRenderedInfoLabelText = nextText;
+                StartupHandler.WriteStartupLog($"[INFO-LABEL] source={source} mode={mode} text={TrimForLog(nextText)}");
+            }
+
+            labelInfo.Text = nextText;
+        }
+
+        private static string TrimForLog(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+                return "";
+
+            string singleLine = text.Replace("\r", " ").Replace("\n", " ");
+            return singleLine.Length <= 160 ? singleLine : singleLine.Substring(0, 160) + "...";
+        }
+
+        private bool IsStatusForCurrentContext(string cbzPath)
+        {
+            if (_cbzManager == null || _cbzManager.CbxFiles.Count == 0)
+                return IsPathUnderCurrentFolder(cbzPath);
+
+            int idx = _cbzManager.ActiveCbxIndex;
+            if (idx < 0 || idx >= _cbzManager.CbxFiles.Count)
+                return IsPathUnderCurrentFolder(cbzPath);
+
+            string? activePath = _cbzManager.CbxFiles[idx];
+            if (!string.IsNullOrWhiteSpace(activePath) && !string.IsNullOrWhiteSpace(cbzPath))
+            {
+                try
+                {
+                    string normalizedActive = Path.GetFullPath(activePath);
+                    string normalizedStatus = Path.GetFullPath(cbzPath);
+                    if (string.Equals(normalizedActive, normalizedStatus, StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+                catch
+                {
+                    // fall back to filename comparison
+                }
+            }
+
+            string activeName = Path.GetFileName(_cbzManager.CbxFiles[idx]);
+            string statusName = Path.GetFileName(cbzPath);
+
+            if (string.IsNullOrEmpty(activeName) || string.IsNullOrEmpty(statusName))
+                return IsPathUnderCurrentFolder(cbzPath);
+
+            if (string.Equals(activeName, statusName, StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            return IsPathUnderCurrentFolder(cbzPath);
+        }
+
+        private bool IsPathUnderCurrentFolder(string cbzPath)
+        {
+            if (string.IsNullOrWhiteSpace(cbzPath) || string.IsNullOrWhiteSpace(_currentFolder))
+                return true;
+
+            try
+            {
+                string folder = Path.GetFullPath(_currentFolder);
+                if (!folder.EndsWith(Path.DirectorySeparatorChar))
+                    folder += Path.DirectorySeparatorChar;
+                string path = Path.GetFullPath(cbzPath);
+                return path.StartsWith(folder, StringComparison.OrdinalIgnoreCase);
+            }
+            catch
+            {
+                return true;
+            }
+        }
+
+        private string GetActiveCbzFileNameForLog()
+        {
+            if (_cbzManager == null || _cbzManager.CbxFiles.Count == 0)
+                return "<none>";
+
+            int idx = _cbzManager.ActiveCbxIndex;
+            if (idx < 0 || idx >= _cbzManager.CbxFiles.Count)
+                return "<out-of-range>";
+
+            return Path.GetFileName(_cbzManager.CbxFiles[idx]);
+        }
+
         internal void DisplayImages(int startIndex)
         {
             _displayManager.ImagePaths = _imagePaths;
@@ -619,9 +842,9 @@ namespace MangaViewer
             string folderDisplay = BuildFolderDisplayWithCbz();
             string infoText = _displayManager.GetInfoText(_currentFolder, _currentFolderIndex, _folderService!.entries);
             if (!string.IsNullOrEmpty(infoText))
-                labelInfo.Text = $"[{folderDisplay}] {infoText.TrimStart()}";
+                UpdateInfoLabelBase($"[{folderDisplay}] {infoText.TrimStart()}");
             else
-                labelInfo.Text = $"[{folderDisplay}] 表示可能な画像がありません。";
+                UpdateInfoLabelBase($"[{folderDisplay}] 表示可能な画像がありません。");
 
             // CBZ: preload next when near end.
             if (_cbzManager != null && _imagePaths.Count > 0)
@@ -678,6 +901,7 @@ namespace MangaViewer
             // Stop timers to prevent further UI operations.
             _folderDebounceTimer?.Stop();
             _slideshowTimer?.Stop();
+            _cacheStatusTimer?.Stop();
 
             // Wait for startup background task with a simple timeout so Windows doesn't hang.
             var initTask = _initTask;
@@ -734,9 +958,9 @@ namespace MangaViewer
             string folderDisplay = BuildFolderDisplayWithCbz();
             string infoText = _displayManager.GetInfoText(_currentFolder, _currentFolderIndex, _folderService!.entries);
             if (!string.IsNullOrEmpty(infoText))
-                labelInfo.Text = $"[{folderDisplay}] {infoText.TrimStart()}";
+                UpdateInfoLabelBase($"[{folderDisplay}] {infoText.TrimStart()}", "toggle");
             else
-                labelInfo.Text = $"[{folderDisplay}] 表示可能な画像がありません。";
+                UpdateInfoLabelBase($"[{folderDisplay}] 表示可能な画像がありません。", "toggle");
         }
 
         // Build folder+CBZ display string.

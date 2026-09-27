@@ -43,7 +43,7 @@ namespace MangaViewer
 
                 // 3. 基本レイアウト確保＋表示（ローディング中表示）
                 form.EnsureBasicLayout();
-                form.labelInfo.Text = "起動中... DBを読み込みます";
+                form.UpdateInfoLabelBase("起動中... DBを読み込みます", "startup:init");
                 form.UpdateLayout();
 
                 // 4. バックグラウンド初期処理（CJ/DBList）→ TaskをForm1に保持させる
@@ -53,7 +53,7 @@ namespace MangaViewer
             {
                 form.EnsureBasicLayout();
                 WriteErrorLog($"Form1_Load error: {ex}");
-                form.labelInfo.Text = "初期化エラーが発生しました。";
+                form.UpdateInfoLabelBase("初期化エラーが発生しました。", "startup:init-error");
                 MessageBox.Show(
                     form,
                     "起動中にエラーが発生しました。\n\n" + ex.Message,
@@ -143,7 +143,7 @@ namespace MangaViewer
                             if (listBoxFoldersSafe(form, out var lb))
                                 lb.SelectedIndex = form._currentFolderIndex;
                             form.ScheduleNavigationCbzPreload();
-                            form.labelInfo.Text = "初期化完了";
+                            form.UpdateInfoLabelBase("初期化完了", "startup:done");
                             form.ScheduleWindowTitleUpdate();
                         });
                     }
@@ -156,7 +156,7 @@ namespace MangaViewer
                             form._displayManager.InitializePictureBoxes();
                             form.UpdateLayout();
                             form._displayManager.DisplayImages(form._currentIndex);
-                            form.labelInfo.Text = "DBList が空です。キー3でフォルダを選択してください。";
+                            form.UpdateInfoLabelBase("DBList が空です。キー3でフォルダを選択してください。", "startup:empty");
                             if (!string.IsNullOrEmpty(failReason))
                                 WriteErrorLog($"[Startup] DB load failed: {failReason}");
                         });
@@ -168,7 +168,7 @@ namespace MangaViewer
                 {
                     InvokeIfSafe(form, () => form.EnsureBasicLayout());
                     WriteErrorLog($"Background init error: {ex}");
-                    InvokeIfSafe(form, () => { form.labelInfo.Text = "初期化エラーが発生しました。"; });
+                    InvokeIfSafe(form, () => { form.UpdateInfoLabelBase("初期化エラーが発生しました。", "startup:bg-error"); });
                 }
             });
         }

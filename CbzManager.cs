@@ -780,7 +780,10 @@ namespace MangaViewer
                 var nextCbz = CbxFiles[targetIndex];
                 var cacheDir = GetArea1CacheDirectory(nextCbz);
                 if (IsCacheReady(cacheDir))
+                {
+                    NotifyCacheStatus(nextCbz, $"先読み確認(+{offset}): {Path.GetFileName(nextCbz)} はキャッシュ済み");
                     continue;
+                }
 
                 if (_pendingPreloads.ContainsKey(cacheDir))
                     continue;
