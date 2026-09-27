@@ -53,6 +53,20 @@ namespace MangaViewer
             "cache");
 
         /// <summary>
+        /// 共有CJキャッシュ保存先（Windows側）。
+        /// Android側は同等のSMB URIを利用する。
+        /// </summary>
+        public static string SharedCacheDir => @"Z:\MangaViewerCache";
+
+        /// <summary>
+        /// 端末識別子の保存先。
+        /// </summary>
+        public static string WriterIdFilePath => Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "MangaViewer",
+            "writer_id.txt");
+
+        /// <summary>
         /// CJ（アプリ缓存JSON）的save file path for specified parent folder.
         /// e.g. "O:\NEW" → "%APPDATA%\MangaViewer\cache\ratings_cache_O__New.json"
         /// </summary>

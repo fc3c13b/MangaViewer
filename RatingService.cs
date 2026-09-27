@@ -345,7 +345,7 @@ namespace MangaViewer
             if (readOnly)
             {
                 // READ ONLY フォルダ → ratings_cache.json の値を常に優先
-                if (isInCache && cacheMeta.Rating != -1)
+                if (isInCache && cacheMeta != null && cacheMeta.Rating != -1)
                     return cacheMeta.Rating;
 
                 // キャッシュに評価がない場合のみ、ローカルJSON を参照
@@ -356,7 +356,7 @@ namespace MangaViewer
                         return rating;
                 }
 
-                return isInCache ? cacheMeta.Rating : -1;
+                return isInCache && cacheMeta != null ? cacheMeta.Rating : -1;
             }
             else
             {
@@ -366,7 +366,7 @@ namespace MangaViewer
                     return localRating;
 
                 // ローカルにない場合、キャッシュがあれば使う（補助）
-                if (isInCache && cacheMeta.Rating != -1)
+                if (isInCache && cacheMeta != null && cacheMeta.Rating != -1)
                     return cacheMeta.Rating;
 
                 return -1;

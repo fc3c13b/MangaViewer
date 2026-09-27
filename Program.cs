@@ -53,7 +53,7 @@ namespace MangaViewer
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
-            Form1 form = null;
+            Form1? form = null;
             try
             {
                 LogWriter.WriteStartupLog("Creating Form1...");
@@ -66,6 +66,9 @@ namespace MangaViewer
                 MessageBox.Show($"起動エラー: {ex.Message}", "MangaViewer", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
+
+            if (form == null)
+                return;
 
             try
             {

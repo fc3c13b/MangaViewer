@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Drawing;
 using System.Windows.Forms;
 
@@ -115,7 +115,7 @@ namespace MangaViewer
             }
         }
 
-        private void ListBox_DrawItem(object sender, DrawItemEventArgs e)
+        private void ListBox_DrawItem(object? sender, DrawItemEventArgs e)
         {
             if (e.Index < 0 || e.Index >= _listBox.Items.Count) return;
 

@@ -151,6 +151,12 @@ namespace MangaViewer
             }
         }
 
+        public static void ShowSettingsDialog(Form1 form)
+        {
+            ApplySettingsChanges(form);
+            form.UpdateInfoLabelBase($"[設定] 反映済み: {Path.GetFileName(form._currentFolder)}", "settings:applied");
+        }
+
         // ===== Display / InfoText helpers =====
 
         public static void DisplayImages(Form1 form, int startIndex)
@@ -352,45 +358,11 @@ namespace MangaViewer
 
         /// <summary>
         /// 指定フォルダの評価値を現在のDBList表示へ即時反映する。
-        /// Ctrl+数字で評価設定した直後の表示更新に使用する。
+        /// UI更新処理は RatingDisplayService に委譲する。
         /// </summary>
         public static void RefreshFolderRatingDisplay(Form1 form, string folderPath)
         {
-            if (string.IsNullOrWhiteSpace(folderPath))
-                return;
-
-            int idx = form._folderList.IndexOf(folderPath);
-            if (idx < 0 || idx >= form.listBoxFolders.Items.Count)
-                return;
-
-            int rating = RatingService.ReadRating(folderPath);
-
-            if (form._activeCjData != null && form._activeCjData.Folders.TryGetValue(folderPath, out var entry))
-            {
-                entry.Rating = rating;
-                int displayCount = entry.CbzZipCount ?? 0;
-                string ratingStr = rating >= 0 ? $"({rating})" : "[-]";
-                string folderName = Path.GetFileName(folderPath);
-                form.listBoxFolders.Items[idx] = $"[{displayCount}] {ratingStr} {folderName}";
-                return;
-            }
-
-            // Fallback: CJエントリがない場合でも評価だけは即時表示する
-            int cbzCount = 0;
-            string folderOnlyName = Path.GetFileName(folderPath);
-            string metaJson = Path.Combine(folderPath, $"{folderOnlyName}.json");
-            if (File.Exists(metaJson))
-            {
-                try
-                {
-                    var (_, cnt, _) = FolderService.ReadFolderJson(metaJson);
-                    cbzCount = cnt;
-                }
-                catch { }
-            }
-
-            string fallbackRatingStr = rating >= 0 ? $"({rating})" : "[-]";
-            form.listBoxFolders.Items[idx] = $"[{cbzCount}] {fallbackRatingStr} {folderOnlyName}";
+            RatingDisplayService.RefreshFolderRatingDisplay(form, folderPath);
         }
 
         public static void SetDisplayCount(Form1 form, int count)
@@ -458,25 +430,33 @@ namespace MangaViewer
             DisplayImagesCore(form, 0);
         }
 
+        public static void StartSlideshow(Form1 form)
+        {
+            UiBehaviorService.StartSlideshow(form);
+        }
+
+        public static void StopSlideshow(Form1 form)
+        {
+            UiBehaviorService.StopSlideshow(form);
+        }
+
+        public static void CopyCurrentNameToClipboard(Form1 form)
+        {
+            UiBehaviorService.CopyCurrentNameToClipboard(form);
+        }
+
         // ===== FullScreen info-text refresh =====
 
         public static void RefreshFullScreenInfo(Form1 form)
         {
-            string infoText = BuildInfoText(form, form._currentIndex);
-            if (!string.IsNullOrEmpty(infoText))
-                form.UpdateInfoLabelBase(infoText, "navigator:refresh-fullscreen");
-            else
-                form.UpdateInfoLabelBase($"[{GetFolderDisplay(form)}] 表示可能な画像がありません。", "navigator:refresh-fullscreen");
-
-            form.UpdateLayout();
+            UiBehaviorService.RefreshFullScreenInfo(form);
         }
 
         // ===== Internal helper (no public caller) =====
 
         private static void DisplayImagesCore(Form1 form, int index)
         {
-            form._displayManager.ImagePaths = form._imagePaths;
-            form._displayManager.DisplayImages(index);
+            UiBehaviorService.DisplayImagesCore(form, index);
         }
     }
 }

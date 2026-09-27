@@ -28,6 +28,10 @@ namespace MangaViewer
     {
         public string ParentFolder { get; set; } = "";
         public Dictionary<string, CjFolderEntry> Folders { get; set; } = new();
+        public long SharedVersion { get; set; } = 0;
+        public long LocalVersion { get; set; } = 0;
+        public string LastWriter { get; set; } = "";
+        public long SavedAtUtcMs { get; set; } = 0;
     }
 
     /// <summary>
@@ -750,43 +754,7 @@ namespace MangaViewer
         /// </summary>
         public static CjRoot? LoadCj(string parentFolder)
         {
-            string path = GetCjFilePath(parentFolder);
-            if (!File.Exists(path)) return null;
-
-            try
-            {
-                var json = File.ReadAllText(path);
-                using var doc = JsonDocument.Parse(json);
-                var root = new CjRoot();
-
-                if (doc.RootElement.TryGetProperty("parentFolder", out var pf))
-                    root.ParentFolder = pf.GetString() ?? "";
-
-                var folders = new Dictionary<string, CjFolderEntry>();
-                if (doc.RootElement.TryGetProperty("folders", out var fj) && fj.ValueKind == JsonValueKind.Object)
-                {
-                    foreach (var entry in fj.EnumerateObject())
-                    {
-                        var cjEntry = new CjFolderEntry();
-                        if (entry.Value.TryGetProperty("folderName", out var fn))
-                            cjEntry.FolderName = fn.GetString() ?? "";
-                        if (entry.Value.TryGetProperty("CbzZipCount", out var cz) && cz.ValueKind == JsonValueKind.Number)
-                            cjEntry.CbzZipCount = cz.GetInt32();
-                        if (entry.Value.TryGetProperty("imageCount", out var ic) && ic.ValueKind == JsonValueKind.Number)
-                            cjEntry.ImageCount = ic.GetInt32();
-                        if (entry.Value.TryGetProperty("rating", out var r) && r.ValueKind == JsonValueKind.Number)
-                            cjEntry.Rating = r.GetInt32();
-                        if (entry.Value.TryGetProperty("updatedAt", out var ua) && ua.ValueKind == JsonValueKind.Number)
-                            cjEntry.UpdatedAt = ua.GetInt64();
-
-                        folders[entry.Name] = cjEntry;
-                    }
-                }
-
-                root.Folders = folders;
-                return root;
-            }
-            catch { return null; }
+            return CjService.LoadBestCjForParent(parentFolder);
         }
 
         /// <summary>
@@ -794,33 +762,7 @@ namespace MangaViewer
         /// </summary>
         public static void SaveCj(string parentFolder, CjRoot cjRoot)
         {
-            cjRoot.ParentFolder = parentFolder;
-            string path = GetCjFilePath(parentFolder);
-
-            var obj = new Dictionary<string, object>
-            {
-                ["parentFolder"] = parentFolder,
-                ["folders"] = new Dictionary<object, object>()
-            };
-
-            foreach (var kvp in cjRoot.Folders)
-            {
-                var entryObj = new Dictionary<object, object>
-                {
-                    ["folderName"] = kvp.Value.FolderName
-                };
-
-                if (kvp.Value.CbzZipCount.HasValue && kvp.Value.CbzZipCount.Value > 0)
-                    entryObj["CbzZipCount"] = kvp.Value.CbzZipCount.Value;
-                if (kvp.Value.ImageCount.HasValue && kvp.Value.ImageCount.Value > 0)
-                    entryObj["imageCount"] = kvp.Value.ImageCount.Value;
-                entryObj["rating"] = kvp.Value.Rating;
-                entryObj["updatedAt"] = kvp.Value.UpdatedAt;
-
-                ((Dictionary<object, object>)obj["folders"])[kvp.Key] = entryObj;
-            }
-
-            File.WriteAllText(path, JsonSerializer.Serialize(obj, new JsonSerializerOptions { WriteIndented = true }));
+            CjService.SaveCjSynced(parentFolder, cjRoot);
         }
 
         /// <summary>

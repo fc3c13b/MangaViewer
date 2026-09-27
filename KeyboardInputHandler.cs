@@ -293,7 +293,7 @@ namespace MangaViewer
                 e.Handled = true;
                 RatingService.SaveRating(nav.CurrentFolder, rating);
                 if (nav is Form1 form)
-                    FormNavigator.RefreshFolderRatingDisplay(form, nav.CurrentFolder);
+                    RatingDisplayService.RefreshFolderRatingDisplay(form, nav.CurrentFolder);
                 nav.NavigateToNextUnrated();
             }
         }

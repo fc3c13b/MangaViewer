@@ -211,9 +211,9 @@ namespace MangaViewer
         /// </summary>
         public void DisplayImages(int startIndex)
         {
+            var imagePaths = ImagePaths ?? new List<string>();
             StartupHandler.WriteStartupLog(string.Format("[DisplayManager] DisplayImages(startIndex={0}, DisplayCount={1}, ImagePaths.Count={2})",
-                startIndex, DisplayCount, ImagePaths != null ? ImagePaths.Count : 0));
-
+                startIndex, DisplayCount, imagePaths.Count));
 
             CurrentIndex = startIndex;
             int count = DisplayCount;
@@ -230,7 +230,7 @@ namespace MangaViewer
 
             ClearPictureBoxes();
 
-            if (ImagePaths.Count == 0)
+            if (imagePaths.Count == 0)
                 return;
 
             StartupHandler.WriteStartupLog($"[DisplayManager] render generation={generation} cols={(count == 8 ? 4 : (count == 1 ? 1 : 2))}");
@@ -242,7 +242,8 @@ namespace MangaViewer
         /// </summary>
         public string GetInfoText(string currentFolder, int folderIndex, List<FolderEntry>? folderList)
         {
-            if (ImagePaths.Count == 0) return "";
+            var imagePaths = ImagePaths ?? new List<string>();
+            if (imagePaths.Count == 0) return "";
 
             int count = DisplayCount;
 
@@ -250,8 +251,8 @@ namespace MangaViewer
             for (int i = 0; i < count; i++)
             {
                 int imgIdx = CurrentIndex + i;
-                if (imgIdx >= 0 && imgIdx < ImagePaths.Count)
-                    pageNumbers.Add(FolderService.ExtractNumberFromFileName(ImagePaths[imgIdx]));
+                if (imgIdx >= 0 && imgIdx < imagePaths.Count)
+                    pageNumbers.Add(FolderService.ExtractNumberFromFileName(imagePaths[imgIdx]));
             }
 
             string pagesText;
@@ -263,7 +264,7 @@ namespace MangaViewer
                 pagesText = string.Join(" / ", pageNumbers);
 
             int spreadIndex = (CurrentIndex < 0) ? 1 : (CurrentIndex / count + 1);
-            int totalSpreads = (ImagePaths.Count + count - 1) / count;
+            int totalSpreads = (imagePaths.Count + count - 1) / count;
 
             return $"{pagesText} | {spreadIndex}/{totalSpreads}";
         }

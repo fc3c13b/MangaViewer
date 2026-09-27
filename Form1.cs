@@ -11,7 +11,7 @@ namespace MangaViewer
     public partial class Form1 : Form, INavigationActions
     {
         internal DisplayManager _displayManager = null!;
-        private Panel panelList = null!;
+        internal Panel panelList = null!;
         internal ListBox listBoxFolders = null!;
         internal Label labelInfo = null!;
 
@@ -169,19 +169,19 @@ namespace MangaViewer
         internal Settings _settings = new Settings();
         internal readonly ImageService _imageService = new ImageService();
         internal FolderService? _folderService;
-        private System.Windows.Forms.Timer? _slideshowTimer;
+        internal System.Windows.Forms.Timer? _slideshowTimer = null;
         private System.Windows.Forms.Timer? _folderDebounceTimer;
         private System.Windows.Forms.Timer? _titleUpdateTimer;
-        private System.Windows.Forms.Timer? _cacheStatusTimer;
+        internal System.Windows.Forms.Timer? _cacheStatusTimer = null;
         private int _folderLoadGeneration;
         private int _cbzLoadGeneration;
         private long _arrowNavSequence;
         private long _pendingArrowNavSequence;
         private long _pendingArrowNavScheduledAtMs;
-        private string _baseInfoLabelText = "フォルダを選択してください (キー1)";
-        private string? _cacheStatusLabelText;
-        private DateTime _cacheStatusExpiresAtUtc = DateTime.MinValue;
-        private string? _lastRenderedInfoLabelText;
+        internal string _baseInfoLabelText = "フォルダを選択してください (キー1)";
+        internal string? _cacheStatusLabelText;
+        internal DateTime _cacheStatusExpiresAtUtc = DateTime.MinValue;
+        internal string? _lastRenderedInfoLabelText;
 
         // ListBox scroll/draw helper (TASK09.25)
         private ListBoxScrollHelper? _listBoxScrollHelper;
@@ -360,22 +360,7 @@ namespace MangaViewer
 
         internal void EnsureBasicLayout()
         {
-            if (this.ClientSize.Width < Constants.MinWidth || this.ClientSize.Height < Constants.MinHeight)
-                this.Size = new Size(Constants.InitialWidth, Constants.InitialHeight);
-
-            int cw = this.ClientSize.Width;
-            int ch = this.ClientSize.Height;
-
-            int listX = (int)(cw * 0.72);
-            int listW = cw - listX;
-
-            panelList.Bounds = new Rectangle(listX, 0, listW, ch);
-            if (listBoxFolders != null)
-                listBoxFolders.Bounds = panelList.ClientRectangle;
-
-            labelInfo.Visible = !_fullScreenMode;
-            if (!_fullScreenMode && labelInfo.Visible)
-                labelInfo.Location = new Point(10, ch - 25);
+            UiLayoutService.EnsureBasicLayout(this);
         }
 
 
@@ -415,66 +400,17 @@ namespace MangaViewer
 
         internal async Task<bool> SwitchToNextCbxAsync()
         {
-            if (_cbzManager == null || !NavigationHandler.CanNavigateCbx(_cbzManager.CbxFiles.Count))
-                return false;
-
-            int loadGeneration = System.Threading.Interlocked.Increment(ref _cbzLoadGeneration);
-
-            RememberCurrentPlaybackPosition();
-            string? nextCbx = await Task.Run(() => _cbzManager.SwitchToNextCbx()).ConfigureAwait(false);
-
-            if (loadGeneration != System.Threading.Volatile.Read(ref _cbzLoadGeneration))
-                return false;
-
-            if (nextCbx == null)
-                return false;
-
-            _imagePaths = _cbzManager.CurrentImagePaths;
-            _currentIndex = 0;
-            _displayManager.ImagePaths = _imagePaths;
-            return true;
+            return await CbzFormBridge.SwitchToNextAsync(this).ConfigureAwait(false);
         }
 
         internal async Task<bool> SwitchToPreviousCbxAsync()
         {
-            if (_cbzManager == null || !NavigationHandler.CanNavigateCbx(_cbzManager.CbxFiles.Count))
-                return false;
-
-            int loadGeneration = System.Threading.Interlocked.Increment(ref _cbzLoadGeneration);
-
-            RememberCurrentPlaybackPosition();
-            string? prevCbx = await Task.Run(() => _cbzManager.SwitchToPreviousCbx()).ConfigureAwait(false);
-
-            if (loadGeneration != System.Threading.Volatile.Read(ref _cbzLoadGeneration))
-                return false;
-
-            if (prevCbx == null)
-                return false;
-
-            _imagePaths = _cbzManager.CurrentImagePaths;
-            _currentIndex = 0;
-            _displayManager.ImagePaths = _imagePaths;
-            return true;
+            return await CbzFormBridge.SwitchToPreviousAsync(this).ConfigureAwait(false);
         }
 
         internal void ScheduleNavigationCbzPreload()
         {
-            if (_cbzManager == null) return;
-            if (_folderList == null || _folderList.Count == 0) return;
-            if (_currentFolderIndex < 0 || _currentFolderIndex >= _folderList.Count) return;
-
-            string currentFolder = _folderList[_currentFolderIndex];
-            string? nextFolder = (_currentFolderIndex + 1 < _folderList.Count)
-                ? _folderList[_currentFolderIndex + 1]
-                : null;
-            string? nextNextFolder = (_currentFolderIndex + 2 < _folderList.Count)
-                ? _folderList[_currentFolderIndex + 2]
-                : null;
-
-            _cbzManager.PreloadForNavigationContext(currentFolder, 3, nextFolder);
-
-            if (!string.IsNullOrWhiteSpace(nextNextFolder))
-                _cbzManager.PreloadFirstCbxForFolder(nextNextFolder);
+            CbzFormBridge.ScheduleNavigationPreload(this);
         }
 
         internal void ScheduleWindowTitleUpdate()
@@ -664,40 +600,26 @@ namespace MangaViewer
             this.Resize += (s, e) => UpdateLayout();
         }
 
+        internal int BeginCbzLoadGeneration()
+        {
+            return System.Threading.Interlocked.Increment(ref _cbzLoadGeneration);
+        }
+
+        internal bool IsLatestCbzLoadGeneration(int generation)
+        {
+            return generation == System.Threading.Volatile.Read(ref _cbzLoadGeneration);
+        }
+
         internal void UpdateInfoLabelBase(string text, string source = "base")
         {
-            _baseInfoLabelText = text;
-            RefreshInfoLabelText(source + ":set");
+            UiStateService.UpdateInfoLabelBase(this, text, source);
         }
 
         internal void UpdateCacheStatusLabel(string cbzPath, string status)
         {
             void Apply()
             {
-                if (IsDisposed || !IsHandleCreated)
-                    return;
-
-                if (!IsStatusForCurrentContext(cbzPath))
-                {
-                    StartupHandler.WriteStartupLog($"[INFO-LABEL] source=cache-status:skip path={Path.GetFileName(cbzPath)} active={GetActiveCbzFileNameForLog()}");
-                    return;
-                }
-
-                _cacheStatusLabelText = status;
-
-                if (status.StartsWith("DL中:", StringComparison.Ordinal))
-                    _cacheStatusExpiresAtUtc = DateTime.UtcNow.AddSeconds(5);
-                else if (status.StartsWith("Cache読込中:", StringComparison.Ordinal) || status.StartsWith("Cache作成中:", StringComparison.Ordinal))
-                    _cacheStatusExpiresAtUtc = DateTime.UtcNow.AddSeconds(3);
-                else if (status.StartsWith("先読み確認(", StringComparison.Ordinal))
-                    _cacheStatusExpiresAtUtc = DateTime.UtcNow.AddSeconds(1.6);
-                else if (status.StartsWith("表示準備完了:", StringComparison.Ordinal))
-                    _cacheStatusExpiresAtUtc = DateTime.UtcNow.AddSeconds(1.2);
-                else
-                    _cacheStatusExpiresAtUtc = DateTime.UtcNow.AddSeconds(2);
-
-                EnsureCacheStatusTimer();
-                RefreshInfoLabelText("cache-status:update");
+                UiStateService.UpdateCacheStatusLabel(this, cbzPath, status);
             }
 
             if (InvokeRequired)
@@ -706,155 +628,14 @@ namespace MangaViewer
                 Apply();
         }
 
-        private void EnsureCacheStatusTimer()
-        {
-            if (_cacheStatusTimer != null)
-                return;
-
-            _cacheStatusTimer = new System.Windows.Forms.Timer { Interval = 200 };
-            _cacheStatusTimer.Tick += (s, e) =>
-            {
-                if (IsDisposed)
-                    return;
-
-                if (string.IsNullOrEmpty(_cacheStatusLabelText))
-                    return;
-
-                if (DateTime.UtcNow >= _cacheStatusExpiresAtUtc)
-                {
-                    _cacheStatusLabelText = null;
-                    _cacheStatusExpiresAtUtc = DateTime.MinValue;
-                    RefreshInfoLabelText("cache-status:expire");
-                }
-            };
-            _cacheStatusTimer.Start();
-        }
-
-        private void RefreshInfoLabelText(string source = "refresh")
-        {
-            if (labelInfo == null)
-                return;
-
-            string nextText;
-            string mode;
-            if (!string.IsNullOrEmpty(_cacheStatusLabelText) && DateTime.UtcNow < _cacheStatusExpiresAtUtc)
-            {
-                nextText = _cacheStatusLabelText;
-                mode = "cache";
-            }
-            else
-            {
-                nextText = _baseInfoLabelText;
-                mode = "base";
-            }
-
-            if (!string.Equals(_lastRenderedInfoLabelText, nextText, StringComparison.Ordinal))
-            {
-                _lastRenderedInfoLabelText = nextText;
-                StartupHandler.WriteStartupLog($"[INFO-LABEL] source={source} mode={mode} text={TrimForLog(nextText)}");
-            }
-
-            labelInfo.Text = nextText;
-        }
-
-        private static string TrimForLog(string text)
-        {
-            if (string.IsNullOrEmpty(text))
-                return "";
-
-            string singleLine = text.Replace("\r", " ").Replace("\n", " ");
-            return singleLine.Length <= 160 ? singleLine : singleLine.Substring(0, 160) + "...";
-        }
-
-        private bool IsStatusForCurrentContext(string cbzPath)
-        {
-            if (_cbzManager == null || _cbzManager.CbxFiles.Count == 0)
-                return IsPathUnderCurrentFolder(cbzPath);
-
-            int idx = _cbzManager.ActiveCbxIndex;
-            if (idx < 0 || idx >= _cbzManager.CbxFiles.Count)
-                return IsPathUnderCurrentFolder(cbzPath);
-
-            string? activePath = _cbzManager.CbxFiles[idx];
-            if (!string.IsNullOrWhiteSpace(activePath) && !string.IsNullOrWhiteSpace(cbzPath))
-            {
-                try
-                {
-                    string normalizedActive = Path.GetFullPath(activePath);
-                    string normalizedStatus = Path.GetFullPath(cbzPath);
-                    if (string.Equals(normalizedActive, normalizedStatus, StringComparison.OrdinalIgnoreCase))
-                        return true;
-                }
-                catch
-                {
-                    // fall back to filename comparison
-                }
-            }
-
-            string activeName = Path.GetFileName(_cbzManager.CbxFiles[idx]);
-            string statusName = Path.GetFileName(cbzPath);
-
-            if (string.IsNullOrEmpty(activeName) || string.IsNullOrEmpty(statusName))
-                return IsPathUnderCurrentFolder(cbzPath);
-
-            if (string.Equals(activeName, statusName, StringComparison.OrdinalIgnoreCase))
-                return true;
-
-            return IsPathUnderCurrentFolder(cbzPath);
-        }
-
-        private bool IsPathUnderCurrentFolder(string cbzPath)
-        {
-            if (string.IsNullOrWhiteSpace(cbzPath) || string.IsNullOrWhiteSpace(_currentFolder))
-                return true;
-
-            try
-            {
-                string folder = Path.GetFullPath(_currentFolder);
-                if (!folder.EndsWith(Path.DirectorySeparatorChar))
-                    folder += Path.DirectorySeparatorChar;
-                string path = Path.GetFullPath(cbzPath);
-                return path.StartsWith(folder, StringComparison.OrdinalIgnoreCase);
-            }
-            catch
-            {
-                return true;
-            }
-        }
-
-        private string GetActiveCbzFileNameForLog()
-        {
-            if (_cbzManager == null || _cbzManager.CbxFiles.Count == 0)
-                return "<none>";
-
-            int idx = _cbzManager.ActiveCbxIndex;
-            if (idx < 0 || idx >= _cbzManager.CbxFiles.Count)
-                return "<out-of-range>";
-
-            return Path.GetFileName(_cbzManager.CbxFiles[idx]);
-        }
-
         internal void DisplayImages(int startIndex)
         {
             _displayManager.ImagePaths = _imagePaths;
             _displayManager.DisplayImages(startIndex);
 
-            string folderDisplay = BuildFolderDisplayWithCbz();
-            string infoText = _displayManager.GetInfoText(_currentFolder, _currentFolderIndex, _folderService!.entries);
-            if (!string.IsNullOrEmpty(infoText))
-                UpdateInfoLabelBase($"[{folderDisplay}] {infoText.TrimStart()}");
-            else
-                UpdateInfoLabelBase($"[{folderDisplay}] 表示可能な画像がありません。");
+            UpdateInfoLabelBase(UiStateService.BuildDisplayInfoText(this));
 
-            // CBZ: preload next when near end.
-            if (_cbzManager != null && _imagePaths.Count > 0)
-            {
-                int remainingPages = _imagePaths.Count - startIndex;
-                if (remainingPages <= 16)
-                {
-                    _ = Task.Run(() => _cbzManager.PreloadNextCbx());
-                }
-            }
+            CbzFormBridge.TriggerPreloadNearEnd(this, startIndex);
 
             // Alternate trigger path: if normal navigation hook was missed,
             // enforce focused/next title warmup from display path as well.
@@ -863,23 +644,7 @@ namespace MangaViewer
 
         internal void UpdateLayout()
         {
-            if (panelList == null || labelInfo == null) return;
-            if (_displayManager == null) return;
-
-            int clientWidth = this.ClientSize.Width;
-            int clientHeight = this.ClientSize.Height;
-
-            var bounds = _displayManager.CalculatePictureBoxBounds(clientWidth, clientHeight, out Rectangle listPanelBounds, _fullScreenMode);
-
-            for (int i = 0; i < _displayManager.pictureBoxes.Length; i++)
-                _displayManager.pictureBoxes[i].Bounds = bounds[i];
-
-            panelList.Bounds = listPanelBounds;
-            if (listBoxFolders != null) { listBoxFolders.Bounds = panelList.ClientRectangle; }
-
-            labelInfo.Visible = !_fullScreenMode;
-            if (!_fullScreenMode)
-                labelInfo.Location = new Point(10, clientHeight - 25);
+            UiLayoutService.UpdateLayout(this);
         }
 
         protected override void OnFormClosing(FormClosingEventArgs e)
@@ -919,7 +684,23 @@ namespace MangaViewer
 
         public void ToggleFullScreen()
         {
-            _fullScreenMode = !_fullScreenMode;
+            UiLayoutService.ToggleFullScreen(this);
+        }
+
+        public void ToggleLeadingBlankPage()
+        {
+            UiLayoutService.ToggleLeadingBlankPage(this);
+        }
+
+        // Shared label update for DisplayImages/ToggleFullScreen.
+        internal void UpdateInfoLabelAfterToggle()
+        {
+            UiStateService.UpdateInfoLabelAfterToggle(this);
+        }
+
+        internal void SetFullScreenMode(bool enabled)
+        {
+            _fullScreenMode = enabled;
 
             if (_fullScreenMode)
             {
@@ -935,14 +716,11 @@ namespace MangaViewer
                 this.WindowState = _savedWindowState;
                 this.Size = _savedSize;
             }
-
-            UpdateInfoLabelAfterToggle();
-            UpdateLayout();
         }
 
-        public void ToggleLeadingBlankPage()
+        internal void SetLeadingBlankPageEnabled(bool enabled)
         {
-            IsLeadingBlankPageEnabled = !IsLeadingBlankPageEnabled;
+            IsLeadingBlankPageEnabled = enabled;
             int startIndex = IsLeadingBlankPageEnabled ? -1 : 0;
             _currentIndex = startIndex;
 
@@ -950,32 +728,6 @@ namespace MangaViewer
                 DisplayImages(startIndex);
             else
                 UpdateInfoLabelAfterToggle();
-        }
-
-        // Shared label update for DisplayImages/ToggleFullScreen.
-        private void UpdateInfoLabelAfterToggle()
-        {
-            string folderDisplay = BuildFolderDisplayWithCbz();
-            string infoText = _displayManager.GetInfoText(_currentFolder, _currentFolderIndex, _folderService!.entries);
-            if (!string.IsNullOrEmpty(infoText))
-                UpdateInfoLabelBase($"[{folderDisplay}] {infoText.TrimStart()}", "toggle");
-            else
-                UpdateInfoLabelBase($"[{folderDisplay}] 表示可能な画像がありません。", "toggle");
-        }
-
-        // Build folder+CBZ display string.
-        private string BuildFolderDisplayWithCbz()
-        {
-            string folderName = Path.GetFileName(_currentFolder);
-            string cbzInfo = "";
-            if (_cbzManager != null && _cbzManager.CbxFiles.Count > 0)
-            {
-                int idx = Math.Clamp(_cbzManager.ActiveCbxIndex, 0, _cbzManager.CbxFiles.Count - 1);
-                string name = Path.GetFileNameWithoutExtension(_cbzManager.CbxFiles[idx]);
-                if (FolderService.ExtractNumberFromFileName(name) > 0)
-                    cbzInfo = $" [{name}]";
-            }
-            return $"{folderName}{cbzInfo}";
         }
 
         #region INavigationActions implementation (thin wrappers → FormNavigator)
@@ -987,67 +739,22 @@ namespace MangaViewer
 
         internal string GetPlaybackTitleKey()
         {
-            return _currentFolder ?? "";
+            return PlaybackStateService.GetTitleKey(this);
         }
 
         internal int GetRememberedPlaybackIndex()
         {
-            string key = GetPlaybackTitleKey();
-            if (!string.IsNullOrWhiteSpace(key) && _settings.LastViewedImageIndexByTitle.TryGetValue(key, out int savedIndex))
-                return Math.Max(0, savedIndex);
-
-            return Math.Max(0, _settings.LastViewedImageIndex);
+            return PlaybackStateService.GetRememberedIndex(this);
         }
 
         internal void ApplyPlaybackStartPosition()
         {
-            if (!_settings.StartFromLastViewedPosition)
-            {
-                _currentIndex = 0;
-                return;
-            }
-
-            string key = GetPlaybackTitleKey();
-            if (string.IsNullOrWhiteSpace(key))
-            {
-                _currentIndex = 0;
-                return;
-            }
-
-            if (_settings.LastViewedImageIndexByTitle.TryGetValue(key, out int savedIndex))
-            {
-                int maxIndex = Math.Max(0, _imagePaths.Count - 1);
-                _currentIndex = Math.Clamp(Math.Max(0, savedIndex), 0, maxIndex);
-                return;
-            }
-
-            _currentIndex = 0;
+            PlaybackStateService.ApplyStartPosition(this);
         }
 
         internal void RememberCurrentPlaybackPosition()
         {
-            string key = GetPlaybackTitleKey();
-            if (string.IsNullOrWhiteSpace(key))
-                return;
-
-            int index = Math.Max(0, _currentIndex);
-            _settings.LastViewedImageIndexByTitle[key] = index;
-            _settings.LastViewedFolderPath = _currentFolder ?? "";
-
-            if (_cbzManager != null && _cbzManager.CbxFiles.Count > 0)
-            {
-                int idx = Math.Clamp(_cbzManager.ActiveCbxIndex, 0, _cbzManager.CbxFiles.Count - 1);
-                _settings.LastViewedCbzFile = _cbzManager.CbxFiles[idx] ?? "";
-                _settings.LastViewedCbzFileByTitle[key] = _settings.LastViewedCbzFile;
-            }
-            else
-            {
-                _settings.LastViewedCbzFile = "";
-                _settings.LastViewedCbzFileByTitle[key] = "";
-            }
-
-            _settings.LastViewedImageIndex = index;
-            SettingsManager.Save(_settings);
+            PlaybackStateService.RememberCurrent(this);
         }
 
         // Root folder dialog + ChangeRootFolder delegated.
@@ -1137,138 +844,30 @@ namespace MangaViewer
         {
             if (panelCbzListOverlay == null)
             {
-                panelCbzListOverlay = new Panel
-                {
-                    BackColor = Color.Transparent,
-                    BorderStyle = BorderStyle.None,
-                    Visible = false,
-                    Location = Point.Empty,
-                    Size = Size.Empty
-                };
-
-                var titleLabel = new Label
-                {
-                    Height = 28,
-                    ForeColor = Color.White,
-                    BackColor = Color.FromArgb(60, 60, 60),
-                    Padding = new Padding(8, 6, 8, 0),
-                    Text = "CBZ一覧 (Lキーで閉じる)"
-                };
-
-                listBoxCbzFiles = new ListBox
-                {
-                    BackColor = Color.FromArgb(40, 40, 40),
-                    ForeColor = Color.White,
-                    BorderStyle = BorderStyle.None,
-                    Font = new Font("Meiryo UI", 9F),
-                    SelectionMode = SelectionMode.One,
-                    HorizontalScrollbar = true,
-                    TabStop = false,
-                    DrawMode = DrawMode.OwnerDrawFixed,
-                    IntegralHeight = false
-                };
-
-                listBoxCbzFiles.DrawItem += ListBoxCbzFiles_DrawItem;
-                listBoxCbzFiles.SelectedIndexChanged += ListBoxCbzFiles_SelectedIndexChanged;
-                listBoxCbzFiles.KeyDown += (s, e) =>
-                {
-                    if (!e.Control && !e.Alt && e.KeyCode == Keys.L)
-                    {
-                        e.Handled = true;
-                        HideCbzSelectDialog();
-                    }
-                };
-
-                panelCbzListOverlay.Controls.Add(listBoxCbzFiles);
-                panelCbzListOverlay.Controls.Add(titleLabel);
-                this.Controls.Add(panelCbzListOverlay);
-                panelCbzListOverlay.Paint += PanelCbzListOverlay_Paint;
+                panelCbzListOverlay = CbzDialogLayout.CreateOverlay(this);
+                listBoxCbzFiles = panelCbzListOverlay.Controls.OfType<ListBox>().FirstOrDefault();
             }
 
-            if (_cbzManager != null)
+            if (listBoxCbzFiles != null)
             {
-                listBoxCbzFiles.Items.Clear();
-                listBoxCbzFiles.Items.AddRange(_cbzManager.CbxFiles.ToArray());
-                if (_cbzManager.CbxFiles.Count > 0)
-                    listBoxCbzFiles.SelectedIndex = Math.Clamp(_cbzManager.ActiveCbxIndex, 0, _cbzManager.CbxFiles.Count - 1);
+                CbzSelectionBridge.PopulateSelectionList(this, _cbzManager, listBoxCbzFiles);
             }
 
-            LayoutCbzSelectDialog();
-            panelCbzListOverlay.Visible = true;
-            panelCbzListOverlay.BringToFront();
-            listBoxCbzFiles?.Focus();
-        }
-
-        private void LayoutCbzSelectDialog()
-        {
-            if (panelCbzListOverlay == null || listBoxCbzFiles == null)
-                return;
-
-            int appWidth = Math.Max(1, this.ClientSize.Width);
-            int appHeight = Math.Max(1, this.ClientSize.Height);
-
-            int charWidth;
-            int rowHeight;
-            using (var g = CreateGraphics())
+            if (panelCbzListOverlay != null && listBoxCbzFiles != null)
             {
-                charWidth = TextRenderer.MeasureText(g, new string('W', 60), listBoxCbzFiles.Font, new Size(int.MaxValue, int.MaxValue), TextFormatFlags.NoPadding).Width;
-                rowHeight = listBoxCbzFiles.ItemHeight;
-            }
-
-            int listWidth = Math.Min(Math.Max(charWidth + 32, 420), Math.Max(240, appWidth - 80));
-            int visibleRows = Math.Min(40, Math.Max(8, listBoxCbzFiles.Items.Count == 0 ? 8 : listBoxCbzFiles.Items.Count));
-            int listHeight = Math.Min((rowHeight * visibleRows) + 6, appHeight - 120);
-
-            int dialogWidth = listWidth + 24;
-            int dialogHeight = listHeight + 40;
-            int dialogLeft = Math.Max(0, (appWidth - dialogWidth) / 2);
-            int dialogTop = Math.Max(0, (appHeight - dialogHeight) / 2);
-
-            var titleLabel = panelCbzListOverlay.Controls.OfType<Label>().FirstOrDefault();
-            if (titleLabel != null)
-                titleLabel.Bounds = new Rectangle(0, 0, dialogWidth, 28);
-
-            listBoxCbzFiles.Bounds = new Rectangle(12, 28, listWidth, listHeight);
-            panelCbzListOverlay.Location = new Point(dialogLeft, dialogTop);
-            panelCbzListOverlay.Size = new Size(dialogWidth, dialogHeight);
-            panelCbzListOverlay.Tag = new Rectangle(0, 0, dialogWidth, dialogHeight);
-        }
-
-        private void PanelCbzListOverlay_Paint(object? sender, PaintEventArgs e)
-        {
-            if (panelCbzListOverlay == null)
-                return;
-
-            using var fillBrush = new SolidBrush(Color.FromArgb(235, 24, 24, 24));
-            using var borderPen = new Pen(Color.FromArgb(220, 220, 220, 220));
-            var panelRect = new Rectangle(0, 0, panelCbzListOverlay.Width, panelCbzListOverlay.Height);
-
-            e.Graphics.FillRectangle(fillBrush, panelRect);
-            e.Graphics.DrawRectangle(borderPen, new Rectangle(0, 0, panelCbzListOverlay.Width - 1, panelCbzListOverlay.Height - 1));
-        }
-
-        private void ListBoxCbzFiles_DrawItem(object sender, DrawItemEventArgs e)
-        {
-            if (e.Index < 0) return;
-
-            e.DrawBackground();
-            e.DrawFocusRectangle();
-
-            string fileName = Path.GetFileName(listBoxCbzFiles.Items[e.Index].ToString());
-            using (Brush brush = new SolidBrush(e.ForeColor))
-            {
-                e.Graphics.DrawString(fileName, e.Font, brush, e.Bounds);
+                CbzDialogLayout.Layout(this, panelCbzListOverlay, listBoxCbzFiles);
+                panelCbzListOverlay.Visible = true;
+                panelCbzListOverlay.BringToFront();
+                listBoxCbzFiles.Focus();
             }
         }
 
         private void ListBoxCbzFiles_SelectedIndexChanged(object sender, EventArgs e)
         {
-            if (listBoxCbzFiles.SelectedIndex >= 0)
+            if (listBoxCbzFiles != null && listBoxCbzFiles.SelectedIndex >= 0)
             {
-                string selectedFile = listBoxCbzFiles.SelectedItem.ToString();
-                RememberCurrentPlaybackPosition();
-                _cbzManager?.LoadCbx(selectedFile);
-                HideCbzSelectDialog();
+                string? selectedFile = listBoxCbzFiles.SelectedItem?.ToString();
+                CbzSelectionBridge.LoadSelectedCbz(this, selectedFile, RememberCurrentPlaybackPosition);
             }
         }
 
@@ -1295,7 +894,7 @@ namespace MangaViewer
         // Implementing missing methods from INavigationActions
         public void ShowSettingsDialog()
         {
-            FormNavigator.ApplySettingsChanges(this);
+            FormNavigator.ShowSettingsDialog(this);
         }
 
         public void NavigateForward(int pageCount)
@@ -1310,14 +909,12 @@ namespace MangaViewer
 
         public void StartSlideshow()
         {
-            // Implement the logic to start slideshow
-            MessageBox.Show("Slideshow start is not implemented yet.");
+            UiBehaviorService.StartSlideshow(this);
         }
 
         public void StopSlideshow()
         {
-            // Implement the logic to stop slideshow
-            MessageBox.Show("Slideshow stop is not implemented yet.");
+            UiBehaviorService.StopSlideshow(this);
         }
 
         public void NavigateCbzNext()
@@ -1332,18 +929,15 @@ namespace MangaViewer
 
         public void CopyCurrentNameToClipboard()
         {
-            // Implement the logic to copy the current name to clipboard
-            MessageBox.Show("Copy current name to clipboard is not implemented yet.");
+            UiBehaviorService.CopyCurrentNameToClipboard(this);
         }
 
         private void CbzListOnOk()
         {
             if (listBoxCbzFiles != null && listBoxCbzFiles.SelectedItem != null)
             {
-                string selectedFile = listBoxCbzFiles.SelectedItem.ToString();
-                RememberCurrentPlaybackPosition();
-                _cbzManager?.LoadCbx(selectedFile);
-                HideCbzSelectDialog();
+                string? selectedFile = listBoxCbzFiles.SelectedItem?.ToString();
+                CbzSelectionBridge.LoadSelectedCbz(this, selectedFile, RememberCurrentPlaybackPosition);
             }
         }
 
