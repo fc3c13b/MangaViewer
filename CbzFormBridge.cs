@@ -19,7 +19,20 @@ namespace MangaViewer
             int loadGeneration = form.BeginCbzLoadGeneration();
 
             form.RememberCurrentPlaybackPosition();
-            string? nextCbx = await Task.Run(() => form._cbzManager!.SwitchToNextCbx()).ConfigureAwait(false);
+
+            await form.VolumeTransitionGate.WaitAsync().ConfigureAwait(false);
+            string? nextCbx;
+            try
+            {
+                if (!form.IsLatestCbzLoadGeneration(loadGeneration))
+                    return false;
+
+                nextCbx = await Task.Run(() => form._cbzManager!.SwitchToNextCbx()).ConfigureAwait(false);
+            }
+            finally
+            {
+                form.VolumeTransitionGate.Release();
+            }
 
             if (!form.IsLatestCbzLoadGeneration(loadGeneration))
                 return false;
@@ -39,7 +52,20 @@ namespace MangaViewer
             int loadGeneration = form.BeginCbzLoadGeneration();
 
             form.RememberCurrentPlaybackPosition();
-            string? prevCbx = await Task.Run(() => form._cbzManager!.SwitchToPreviousCbx()).ConfigureAwait(false);
+
+            await form.VolumeTransitionGate.WaitAsync().ConfigureAwait(false);
+            string? prevCbx;
+            try
+            {
+                if (!form.IsLatestCbzLoadGeneration(loadGeneration))
+                    return false;
+
+                prevCbx = await Task.Run(() => form._cbzManager!.SwitchToPreviousCbx()).ConfigureAwait(false);
+            }
+            finally
+            {
+                form.VolumeTransitionGate.Release();
+            }
 
             if (!form.IsLatestCbzLoadGeneration(loadGeneration))
                 return false;

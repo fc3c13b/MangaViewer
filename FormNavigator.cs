@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace MangaViewer
@@ -215,42 +217,25 @@ namespace MangaViewer
 
         // ===== Navigation helpers (Ctrl/Alt arrows, etc.) =====
 
-        public static void NavigateForward(Form1 form, int pageCount)
+        public static async void NavigateForward(Form1 form, int pageCount)
         {
             if (pageCount <= 0) return;
-
-            if (form._imagePaths.Count == 0 && form._cbzManager != null)
-            {
-                if (form._cbzManager.MoveToNextCbxIfEndReached().Any())
-                {
-                    form._imagePaths = form._cbzManager.CurrentImagePaths;
-                    form._currentIndex = 0;
-                    DisplayImages(form, 0);
-                }
-                return;
-            }
 
             int maxIndex = NavigationHandler.ComputeMaxPageIndex(
                 form._imagePaths.Count, form._displayManager.DisplayCount);
 
-            // すでに最終ブロック表示中でさらに進む操作が来たら、次巻へ切り替える。
-            if (form._currentIndex >= maxIndex && form._cbzManager != null)
-            {
-                form.RememberCurrentPlaybackPosition();
-                var nextPathsAtEdge = form._cbzManager.MoveToNextCbxIfEndReached();
-                if (nextPathsAtEdge.Any())
-                {
-                    form._imagePaths = nextPathsAtEdge;
-                    form._currentIndex = 0;
-                }
-                else
-                {
-                    form._currentIndex = maxIndex;
-                }
+            bool atEnd = form._imagePaths.Count == 0 || form._currentIndex >= maxIndex;
 
-                DisplayImages(form, form._currentIndex);
+            // 巻末での前進は次巻への切替となり、CBZ展開I/Oが発生し得る。
+            // UIスレッドを塞がないよう、境界遷移だけ非同期コマンドに委譲する。
+            if (atEnd && form._cbzManager != null)
+            {
+                await CrossVolumeAsync(form, forward: true);
                 return;
             }
+
+            if (atEnd)
+                return;
 
             form._currentIndex = NavigationHandler.ComputeForwardIndex(
                 form._currentIndex, pageCount, form._imagePaths.Count, form._displayManager.DisplayCount);
@@ -258,45 +243,97 @@ namespace MangaViewer
             DisplayImages(form, form._currentIndex);
         }
 
-        public static void NavigateBackward(Form1 form, int pageCount)
+        public static async void NavigateBackward(Form1 form, int pageCount)
         {
             if (pageCount <= 0) return;
 
-            if (form._imagePaths.Count == 0 && form._cbzManager != null)
+            bool atStart = form._imagePaths.Count == 0 || form._currentIndex <= 0;
+
+            // 巻頭での後退は前巻への切替となり、CBZ展開I/Oが発生し得る。
+            // 境界遷移のみ非同期化し、UIスレッドの停止を防ぐ。
+            if (atStart && form._cbzManager != null)
             {
-                if (form._cbzManager.MoveToPreviousCbxIfAtStart().Any())
-                {
-                    form._imagePaths = form._cbzManager.CurrentImagePaths;
-                    form._currentIndex = 0;
-                    DisplayImages(form, 0);
-                }
+                await CrossVolumeAsync(form, forward: false);
                 return;
             }
 
-            // すでに先頭表示中でさらに戻る操作が来たら、前巻へ切り替える。
-            if (form._currentIndex <= 0 && form._cbzManager != null)
-            {
-                form.RememberCurrentPlaybackPosition();
-                var prevPathsAtEdge = form._cbzManager.MoveToPreviousCbxIfAtStart();
-                if (prevPathsAtEdge.Any())
-                {
-                    form._imagePaths = prevPathsAtEdge;
-                    form._currentIndex = NavigationHandler.ComputeMaxPageIndex(
-                        form._imagePaths.Count, form._displayManager.DisplayCount);
-                }
-                else
-                {
-                    form._currentIndex = 0;
-                }
-
-                DisplayImages(form, form._currentIndex);
+            if (atStart)
                 return;
-            }
 
             form._currentIndex = NavigationHandler.ComputeBackwardIndex(
                 form._currentIndex, pageCount, form._imagePaths.Count, form._displayManager.DisplayCount);
 
             DisplayImages(form, form._currentIndex);
+        }
+
+        /// <summary>
+        /// 巻境界（次巻/前巻）への遷移を非同期で実行する。
+        /// - 重いCBZ展開はワーカースレッドで実行し、UIを塞がない。
+        /// - 直列化ゲートで同時遷移を防ぎ、ActiveCbxIndex の競合を回避する。
+        /// - 世代トークンで最新要求のみUI反映し、古い結果は破棄する。
+        /// - 失敗・隣接巻なしの場合は現在の端で表示を維持する。
+        /// </summary>
+        private static async Task CrossVolumeAsync(Form1 form, bool forward)
+        {
+            var mgr = form._cbzManager;
+            if (mgr == null) return;
+
+            int generation = form.BeginCbzLoadGeneration();
+            form.RememberCurrentPlaybackPosition();
+
+            await form.VolumeTransitionGate.WaitAsync().ConfigureAwait(true);
+            try
+            {
+                // ゲート取得までに新しい要求が来ていれば、この遷移は破棄する。
+                if (!form.IsLatestCbzLoadGeneration(generation))
+                {
+                    StartupHandler.WriteStartupLog($"[NAV-CROSS] discarded(pre) gen={generation} forward={forward}");
+                    return;
+                }
+
+                int beforeIndex = mgr.ActiveCbxIndex;
+                List<string> paths;
+                try
+                {
+                    paths = await Task.Run(() => forward
+                        ? mgr.MoveToNextCbxIfEndReached()
+                        : mgr.MoveToPreviousCbxIfAtStart()).ConfigureAwait(true);
+                }
+                catch (Exception ex)
+                {
+                    StartupHandler.WriteErrorLog($"[FormNavigator] CrossVolume failed forward={forward}: {ex}");
+                    return; // 失敗時は現ページ維持
+                }
+
+                if (!form.IsLatestCbzLoadGeneration(generation))
+                {
+                    StartupHandler.WriteStartupLog($"[NAV-CROSS] discarded(post) gen={generation} forward={forward}");
+                    return;
+                }
+
+                bool advanced = mgr.ActiveCbxIndex != beforeIndex && paths.Count > 0;
+                if (advanced)
+                {
+                    form._imagePaths = paths;
+                    form._currentIndex = forward
+                        ? 0
+                        : NavigationHandler.ComputeMaxPageIndex(paths.Count, form._displayManager.DisplayCount);
+                }
+                else
+                {
+                    // 隣接巻がない場合は現在の端に留まる。
+                    form._currentIndex = forward
+                        ? NavigationHandler.ComputeMaxPageIndex(form._imagePaths.Count, form._displayManager.DisplayCount)
+                        : 0;
+                }
+
+                StartupHandler.WriteStartupLog($"[NAV-CROSS] applied gen={generation} forward={forward} advanced={advanced} index={form._currentIndex}");
+                DisplayImages(form, form._currentIndex);
+            }
+            finally
+            {
+                form.VolumeTransitionGate.Release();
+            }
         }
 
         public static async void NavigateFolderBy(Form1 form, int delta)

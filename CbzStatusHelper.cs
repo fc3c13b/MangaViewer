@@ -32,9 +32,9 @@ namespace MangaViewer
 
             if (totalEntries <= 0 || processedEntries <= 0)
             {
-                // 進捗が未確定な待機中は、経過秒をそのまま目安表示に使う。
-                remainingSeconds = Math.Max(1, (int)Math.Ceiling(Math.Max(1.0, elapsed.TotalSeconds)));
-                return $"DL中: {fileName} 残り約{remainingSeconds}秒";
+                // 進捗が未確定な段階では残り時間を推定できないため、算出中として表示する。
+                int elapsedSeconds = Math.Max(1, (int)Math.Ceiling(Math.Max(1.0, elapsed.TotalSeconds)));
+                return $"DL中: {fileName} 残り時間算出中 (経過{elapsedSeconds}秒)";
             }
 
             if (processedEntries >= totalEntries)

@@ -175,6 +175,8 @@ namespace MangaViewer
         internal System.Windows.Forms.Timer? _cacheStatusTimer = null;
         private int _folderLoadGeneration;
         private int _cbzLoadGeneration;
+        // Serializes volume transitions so concurrent key presses cannot corrupt ActiveCbxIndex.
+        private readonly System.Threading.SemaphoreSlim _volumeTransitionGate = new(1, 1);
         private long _arrowNavSequence;
         private long _pendingArrowNavSequence;
         private long _pendingArrowNavScheduledAtMs;
@@ -609,6 +611,8 @@ namespace MangaViewer
         {
             return generation == System.Threading.Volatile.Read(ref _cbzLoadGeneration);
         }
+
+        internal System.Threading.SemaphoreSlim VolumeTransitionGate => _volumeTransitionGate;
 
         internal void UpdateInfoLabelBase(string text, string source = "base")
         {
