@@ -112,12 +112,26 @@ namespace MangaViewer
                         // UI更新失敗は無視
                     }
                 };
-                    form._cbzManager.CacheStatusChanged += status =>
+                    form._cbzManager.CacheStatusChanged += (cbzPath, status) =>
                     {
                         try
                         {
                             if (form.IsDisposed || !form.IsHandleCreated)
                                 return;
+
+                            string? activeCbzPath = form._cbzManager != null && form._cbzManager.CbxFiles.Count > 0 && form._cbzManager.ActiveCbxIndex >= 0 && form._cbzManager.ActiveCbxIndex < form._cbzManager.CbxFiles.Count
+                                ? form._cbzManager.CbxFiles[form._cbzManager.ActiveCbxIndex]
+                                : null;
+
+                            string? activeFileName = string.IsNullOrEmpty(activeCbzPath) ? null : Path.GetFileName(activeCbzPath);
+                            string? statusFileName = string.IsNullOrEmpty(cbzPath) ? null : Path.GetFileName(cbzPath);
+
+                            // 古い巻の状況が新しい current 巻の表示を上書きしないよう抑止する。
+                            if (!string.IsNullOrEmpty(activeFileName) && !string.IsNullOrEmpty(statusFileName) &&
+                                !string.Equals(activeFileName, statusFileName, StringComparison.OrdinalIgnoreCase))
+                            {
+                                return;
+                            }
 
                             if (form.InvokeRequired)
                             {

@@ -56,8 +56,8 @@ namespace MangaViewer
 
         /// <summary>展開キャッシュの追加・削除後に、UIへ表示更新を通知する。</summary>
         public event Action? CacheChanged;
-        /// <summary>CBZ読み出し・展開中の状態をUIへ通知する。</summary>
-        public event Action<string>? CacheStatusChanged;
+        /// <summary>CBZ読み出し・展開中の状態をUIへ通知する。ファイル名とメッセージをセットする。</summary>
+        public event Action<string, string>? CacheStatusChanged;
 
         private static readonly HashSet<string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -489,7 +489,13 @@ namespace MangaViewer
             if (IsCacheReady(cacheDir))
                 return false;
 
-            if (!EnsureCacheExtracted(cacheDir, cbzPath, NotifyCacheStatus))
+            // I/O は共通ロックで直列化するが、ステータス表示は「現在巻」の展開だけに限定する。
+            // 先読みやナビゲーション用のキュー実行は、UI 側へ DL中 を出さない。
+            Action<string>? statusCallback = string.Equals(trigger, "current", StringComparison.OrdinalIgnoreCase)
+                ? message => NotifyCacheStatus(cbzPath, message)
+                : null;
+
+            if (!EnsureCacheExtracted(cacheDir, cbzPath, statusCallback))
                 return false;
 
             WriteCacheCreateLog(cbzPath, cacheDir, trigger);
@@ -570,6 +576,11 @@ namespace MangaViewer
 
             var cbzFile = CbxFiles[ActiveCbxIndex];
 
+            // Never block the current-volume display behind neighbor preloads.
+            // Once the required cache is ready, the current image list should be
+            // unveiled immediately; +1/+2 preloads are opportunistic and should
+            // start only after the active volume has been served.
+
             // The common path: callers frequently ask for the already-selected
             // volume. Avoid both disk enumeration and list allocation.
             if (_loadedCbzFile == cbzFile && _imagePathsByCbz.TryGetValue(cbzFile, out var cached))
@@ -605,11 +616,15 @@ namespace MangaViewer
                 if (cachedPaths.Count > 0)
                 {
                     _imagePathCacheHits++;
-                    NotifyCacheStatus($"Cache読込中: {Path.GetFileName(cbzFile)}");
+                    NotifyCacheStatus(cbzFile, $"Cache読込中: {Path.GetFileName(cbzFile)}");
                     SetCurrentImagePaths(cbzFile, cachedPaths);
                     _cbzByCacheDirectory[cacheDir] = cbzFile;
                     StartupHandler.WriteStartupLog($"[PROF] CbzManager.ImagePaths cbz={Path.GetFileName(cbzFile)} source=memory images={cachedPaths.Count} total={sw.ElapsedMilliseconds}ms");
-                    if (preloadNext) _ = PreloadNextCbzIfAvailableAsync();
+                    if (preloadNext)
+                    {
+                        ScheduleNeighborPreloads(ActiveCbxIndex);
+                        _ = PreloadNextCbzIfAvailableAsync();
+                    }
                     return;
                 }
 
@@ -640,7 +655,7 @@ namespace MangaViewer
                 StartupHandler.WriteStartupLog($"[CBZ-STARTUP] Cache MISS: {cbzFile}");
                 try
                 {
-                    NotifyCacheStatus($"{(RequiresSerializedDownload(cbzFile) ? "DL中" : "Cache作成中")}: {Path.GetFileName(cbzFile)}");
+                    NotifyCacheStatus(cbzFile, BuildDownloadStatus(cbzFile, 0, 0, TimeSpan.Zero));
                     var extractSw = System.Diagnostics.Stopwatch.StartNew();
                     StartupHandler.WriteStartupLog($"[CBZ-STARTUP] Extracting: {cbzFile} → {cacheDir}");
                     bool extractedNow = TryAcquireCache(cbzFile, "current");
@@ -676,7 +691,7 @@ namespace MangaViewer
             {
                 // キャッシュヒット
                 System.Diagnostics.Debug.WriteLine($"[CBZ] Cache HIT: {Path.GetFileName(cbzFile)}");
-                NotifyCacheStatus($"Cache読込中: {Path.GetFileName(cbzFile)}");
+                NotifyCacheStatus(cbzFile, $"Cache読込中: {Path.GetFileName(cbzFile)}");
             }
 
             if (!IsCacheReady(cacheDir))
@@ -700,6 +715,11 @@ namespace MangaViewer
                 _imagePathsByCbz[cbzFile] = imagePaths;
                 _cbzByCacheDirectory[cacheDir] = cbzFile;
                 SetCurrentImagePaths(cbzFile, imagePaths);
+                if (preloadNext)
+                {
+                    ScheduleNeighborPreloads(ActiveCbxIndex);
+                    _ = PreloadNextCbzIfAvailableAsync();
+                }
                 string source = cacheDirectoryExisted ? "disk-cache" : "extracted";
                 StartupHandler.WriteStartupLog($"[CBZ-STARTUP] Refresh result: count={imagePaths.Count}, cacheDir={cacheDir}");
                 StartupHandler.WriteStartupLog($"[PROF] CbzManager.ImagePaths cbz={Path.GetFileName(cbzFile)} source={source} images={imagePaths.Count} extract={extractMs}ms enumerate={enumerateMs}ms total={sw.ElapsedMilliseconds}ms");
@@ -724,7 +744,11 @@ namespace MangaViewer
             }
 
             // 次のCBZがあれば自動的に展開（連続プリロード）
-            if (preloadNext) _ = PreloadNextCbzIfAvailableAsync();
+            if (preloadNext)
+            {
+                ScheduleNeighborPreloads(ActiveCbxIndex);
+                _ = PreloadNextCbzIfAvailableAsync();
+            }
         }
 
         private static void ShowRecoveryWarning(string message)
@@ -740,6 +764,29 @@ namespace MangaViewer
             catch
             {
                 // UI が不可能な環境では通知を抑止する
+            }
+        }
+
+        private void ScheduleNeighborPreloads(int activeIndex)
+        {
+            if (CbxFiles.Count <= 1) return;
+
+            for (int offset = 1; offset <= 2; offset++)
+            {
+                int targetIndex = activeIndex + offset;
+                if (targetIndex < 0 || targetIndex >= CbxFiles.Count)
+                    continue;
+
+                var nextCbz = CbxFiles[targetIndex];
+                var cacheDir = GetArea1CacheDirectory(nextCbz);
+                if (IsCacheReady(cacheDir))
+                    continue;
+
+                if (_pendingPreloads.ContainsKey(cacheDir))
+                    continue;
+
+                StartupHandler.WriteStartupLog($"[CBZ] schedule-preload activeIndex={activeIndex} targetIndex={targetIndex} file={Path.GetFileName(nextCbz)}");
+                RequestPreload(nextCbz, PreloadPriority.NextVolume);
             }
         }
 
@@ -965,19 +1012,17 @@ namespace MangaViewer
             if (currentCacheDir != null) ProtectCacheDirectory(currentCacheDir);
             ProtectCacheDirectory(cacheDir);
 
-            if (priority == PreloadPriority.NextVolume || priority == PreloadPriority.NextFolder)
-                NotifyCacheStatus($"{(RequiresSerializedDownload(cbzPath) ? "DL中" : "Cache作成中")}: {Path.GetFileName(cbzPath)}");
-
+            // キューに積んだだけでは「DL中」ではない。
+            // 実際にキャッシュ展開が始まった時点で、ExtractCbzTo() 側の statusCallback が進捗を通知する。
             Task.Run(() =>
             {
                 var sw = System.Diagnostics.Stopwatch.StartNew();
                 try
                 {
-                    if (IsCacheReady(cacheDir))
-                        NotifyCacheStatus($"Cache読込中: {Path.GetFileName(cbzPath)}");
+                    // 背景プリロードは UI の「DL中」を表示しない。
+                    // 実際に現在巻の展開が行われる場合だけ、RefreshCurrentImagePaths 側で status を発火させる。
                     if (TryAcquireCache(cbzPath, $"preload-{priority}", currentCacheDir))
                     {
-                        NotifyCacheStatus($"表示準備完了: {Path.GetFileName(cbzPath)}");
                         StartupHandler.WriteStartupLog($"[PROF] CbzManager.Preload cbz={Path.GetFileName(cbzPath)} pri={priority} source=extracted total={sw.ElapsedMilliseconds}ms");
                     }
                     else
@@ -1063,11 +1108,11 @@ namespace MangaViewer
             StartupHandler.WriteStartupLog($"[CACHE-CREATE] trigger={trigger} area={area} cbz={Path.GetFileName(cbzFile)} dir={cacheDir}");
         }
 
-        private void NotifyCacheStatus(string message)
+        private void NotifyCacheStatus(string cbzPath, string message)
         {
             try
             {
-                CacheStatusChanged?.Invoke(message);
+                CacheStatusChanged?.Invoke(cbzPath, message);
             }
             catch
             {
@@ -1082,10 +1127,18 @@ namespace MangaViewer
         private static bool EnsureCacheExtracted(string cacheDir, string cbzFile, Action<string>? statusCallback = null)
         {
             var extractionLock = CacheExtractionLocks.GetOrAdd(cacheDir, _ => new SemaphoreSlim(1, 1));
-            extractionLock.Wait();
-            bool usesSlowSourceLock = RequiresSerializedDownload(cbzFile);
+            var waitStartedAt = System.Diagnostics.Stopwatch.StartNew();
+            while (!extractionLock.Wait(2000))
+            {
+                statusCallback?.Invoke(BuildDownloadStatus(cbzFile, 0, 0, waitStartedAt.Elapsed));
+            }
+
+            if (waitStartedAt.ElapsedMilliseconds >= 2000)
+            {
+                statusCallback?.Invoke(BuildDownloadStatus(cbzFile, 0, 0, waitStartedAt.Elapsed));
+            }
+
             var startedAt = System.Diagnostics.Stopwatch.StartNew();
-            var nextPromptAt = TimeSpan.FromMinutes(1);
             try
             {
                 if (IsCacheReady(cacheDir))
@@ -1098,10 +1151,11 @@ namespace MangaViewer
                 if (Directory.Exists(temporaryDirectory))
                     Directory.Delete(temporaryDirectory, recursive: true);
 
-                if (usesSlowSourceLock)
-                    SlowSourceExtractionLock.Wait();
-
-                ExtractCbzTo(temporaryDirectory, cbzFile, startedAt, ref nextPromptAt, statusCallback);
+                // O:\ などの低速ソースをひとつのグローバルロックで直列化すると、
+                // 現在巻のキャッシュ作成中に＋1／＋2先読みが一切開始できなくなる。
+                // 1巻ごとのキャッシュロックは維持しつつ、先読みの優先度を保つため
+                // グローバル直列化は外して、次巻の並列準備を許可する。
+                ExtractCbzTo(temporaryDirectory, cbzFile, startedAt, statusCallback);
                 File.WriteAllText(Path.Combine(temporaryDirectory, CacheCompleteMarkerFileName), string.Empty);
                 Directory.Move(temporaryDirectory, cacheDir);
                 return true;
@@ -1121,8 +1175,6 @@ namespace MangaViewer
             }
             finally
             {
-                if (usesSlowSourceLock)
-                    SlowSourceExtractionLock.Release();
                 extractionLock.Release();
             }
         }
@@ -1135,7 +1187,7 @@ namespace MangaViewer
             return cbzFile.StartsWith("O:\\", StringComparison.OrdinalIgnoreCase);
         }
 
-        private static void ExtractCbzTo(string cacheDir, string cbzFile, System.Diagnostics.Stopwatch startedAt, ref TimeSpan nextPromptAt, Action<string>? statusCallback = null)
+        private static void ExtractCbzTo(string cacheDir, string cbzFile, System.Diagnostics.Stopwatch startedAt, Action<string>? statusCallback = null)
         {
             try
             {
@@ -1153,17 +1205,29 @@ namespace MangaViewer
                 int totalEntries = archive.Entries.Count(entry => !string.IsNullOrEmpty(entry.Name));
                 int processedEntries = 0;
                 long lastStatusMs = 0;
+                int extractionCompleted = 0;
+
+                // ラベルが他処理で上書きされても、DL中は2秒ごとに進捗を再通知する。
+                using var periodicStatusTimer = statusCallback == null
+                    ? null
+                    : new Timer(_ =>
+                    {
+                        if (Volatile.Read(ref extractionCompleted) != 0)
+                            return;
+
+                        int processedSnapshot = Volatile.Read(ref processedEntries);
+                        try
+                        {
+                            statusCallback(BuildDownloadStatus(cbzFile, processedSnapshot, totalEntries, startedAt.Elapsed));
+                        }
+                        catch
+                        {
+                            // UI通知失敗は無視
+                        }
+                    }, null, 2000, 2000);
 
                 foreach (var entry in archive.Entries)
                 {
-                    if (startedAt.Elapsed >= nextPromptAt)
-                    {
-                        int minutes = (int)Math.Floor(startedAt.Elapsed.TotalMinutes);
-                        if (!PromptContinueDownload(minutes))
-                            throw new OperationCanceledException();
-                        nextPromptAt = TimeSpan.FromMinutes(minutes + 1);
-                    }
-
                     if (string.IsNullOrEmpty(entry.Name)) continue;
 
                     processedEntries++;
@@ -1200,6 +1264,7 @@ namespace MangaViewer
                     }
                 }
 
+                Volatile.Write(ref extractionCompleted, 1);
                 statusCallback?.Invoke($"表示準備完了: {Path.GetFileName(cbzFile)}");
             }
             catch (OperationCanceledException)
@@ -1220,55 +1285,32 @@ namespace MangaViewer
         private static string BuildDownloadStatus(string cbzFile, int processedEntries, int totalEntries, TimeSpan elapsed)
         {
             string fileName = Path.GetFileName(cbzFile);
+            int remainingSeconds;
+
             if (totalEntries <= 0 || processedEntries <= 0)
-                return $"DL中: {fileName}";
+            {
+                // 進捗が未確定な待機中は、経過秒をそのまま目安表示に使う。
+                remainingSeconds = Math.Max(1, (int)Math.Ceiling(Math.Max(1.0, elapsed.TotalSeconds)));
+                return $"DL中: {fileName} 残り約{remainingSeconds}秒";
+            }
 
             if (processedEntries >= totalEntries)
-                return $"DL中: {fileName} ({processedEntries}/{totalEntries})";
+                return $"DL中: {fileName} ({processedEntries}/{totalEntries}) 残り約1秒";
 
             double avgMsPerEntry = elapsed.TotalMilliseconds / processedEntries;
             double remainingMs = avgMsPerEntry * Math.Max(0, totalEntries - processedEntries);
-            string eta = FormatApproxDuration(TimeSpan.FromMilliseconds(remainingMs));
-            return $"DL中: {fileName} ({processedEntries}/{totalEntries}) 残り約{eta}";
-        }
-
-        private static string FormatApproxDuration(TimeSpan duration)
-        {
-            if (duration.TotalHours >= 1)
-                return $"{(int)duration.TotalHours}時間{duration.Minutes}分";
-
-            if (duration.TotalMinutes >= 1)
-                return $"{duration.Minutes}分{duration.Seconds}秒";
-
-            return $"{Math.Max(1, duration.Seconds)}秒";
-        }
-
-        private static bool PromptContinueDownload(int elapsedMinutes)
-        {
-            try
-            {
-                var result = System.Windows.Forms.MessageBox.Show(
-                    $"ダウンロードが継続していますが、まだ終わっていません。\n{elapsedMinutes}分経過しました。継続しますか？",
-                    "ダウンロード継続確認",
-                    System.Windows.Forms.MessageBoxButtons.YesNo,
-                    System.Windows.Forms.MessageBoxIcon.Warning);
-                return result == System.Windows.Forms.DialogResult.Yes;
-            }
-            catch
-            {
-                // UI が不可能な環境では継続扱いにする
-                return true;
-            }
+            remainingSeconds = Math.Max(1, (int)Math.Ceiling(remainingMs / 1000.0));
+            return $"DL中: {fileName} ({processedEntries}/{totalEntries}) 残り約{remainingSeconds}秒";
         }
 
         [System.Runtime.InteropServices.DllImport("shlwapi.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode, ExactSpelling = true)]
         private static extern int StrCmpLogicalW(string psz1, string psz2);
 
-        private static readonly Regex VolumeKanPattern = new(@"第?\s*(\d+)\s*巻", RegexOptions.Compiled);
-        private static readonly Regex VolumeLatinPattern = new(@"(?:vol(?:ume)?\.?\s*)(\d+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-        private static readonly Regex VolumeParenPattern = new(@"[\(（]\s*(\d+)\s*[\)）]", RegexOptions.Compiled);
-        private static readonly Regex VolumeTailNumberPattern = new(@"(\d+)\s*$", RegexOptions.Compiled);
-        private static readonly Regex VolumeHeadNumberPattern = new(@"^(\d+)\b", RegexOptions.Compiled);
+        private static readonly Regex VolumeKanPattern = new(@"第?\s*(\d+)(?:[bBwWsS])?\s*巻", RegexOptions.Compiled);
+        private static readonly Regex VolumeLatinPattern = new(@"(?:vol(?:ume)?\.?\s*)(\d+)(?:[bBwWsS])?", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex VolumeParenPattern = new(@"[\(（]\s*(\d+)(?:[bBwWsS])?\s*[\)）]", RegexOptions.Compiled);
+        private static readonly Regex VolumeTailNumberPattern = new(@"(\d+)(?:[bBwWsS])?\s*$", RegexOptions.Compiled);
+        private static readonly Regex VolumeHeadNumberPattern = new(@"^(\d+)(?:[bBwWsS])?\b", RegexOptions.Compiled);
 
         internal static string NormalizeFullWidthDigits(string input)
         {

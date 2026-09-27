@@ -194,10 +194,14 @@ namespace MangaViewer
             this.KeyDown += (s, e) =>
             {
                 // L キー: CBZ/ZIP ファイル選択ダイアログの表示/非表示（TASK09.31）
+                // CBZリストがフォーカスされていても、ここで優先的に処理して閉じる。
                 if (!e.Control && !e.Alt && e.KeyCode == Keys.L)
                 {
                     e.Handled = true;
-                    this.ToggleCbzListDialog();
+                    if (IsCbzListVisible)
+                        HideCbzSelectDialog();
+                    else
+                        ShowCbzSelectDialog();
                     return;
                 }
 
@@ -942,6 +946,14 @@ namespace MangaViewer
 
                 listBoxCbzFiles.DrawItem += ListBoxCbzFiles_DrawItem;
                 listBoxCbzFiles.SelectedIndexChanged += ListBoxCbzFiles_SelectedIndexChanged;
+                listBoxCbzFiles.KeyDown += (s, e) =>
+                {
+                    if (!e.Control && !e.Alt && e.KeyCode == Keys.L)
+                    {
+                        e.Handled = true;
+                        HideCbzSelectDialog();
+                    }
+                };
 
                 panelCbzListOverlay.Controls.Add(listBoxCbzFiles);
                 panelCbzListOverlay.Controls.Add(titleLabel);
@@ -1043,7 +1055,13 @@ namespace MangaViewer
                 panelCbzListOverlay.Visible = false;
             }
 
-            Focus();
+            if (listBoxCbzFiles != null)
+            {
+                listBoxCbzFiles.SelectedIndex = -1;
+            }
+
+            this.Select();
+            this.Focus();
         }
 
         public bool IsCbzListVisible => panelCbzListOverlay?.Visible ?? false;

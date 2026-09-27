@@ -245,10 +245,6 @@ namespace MangaViewer
             if (ImagePaths.Count == 0) return "";
 
             int count = DisplayCount;
-            string folderName = Path.GetFileName(currentFolder);
-            string folderInfo = !string.IsNullOrEmpty(folderName) ? $"[{folderName}] " : "";
-            int folderCount = folderList?.Count ?? 0;
-            string folderIndexInfo = folderCount > 1 ? $"{folderIndex + 1}/{folderCount}話 " : "";
 
             var pageNumbers = new List<int>();
             for (int i = 0; i < count; i++)
@@ -269,41 +265,33 @@ namespace MangaViewer
             int spreadIndex = (CurrentIndex < 0) ? 1 : (CurrentIndex / count + 1);
             int totalSpreads = (ImagePaths.Count + count - 1) / count;
 
-            return $"{folderInfo}{folderIndexInfo}{pagesText} | {spreadIndex}/{totalSpreads}";
+            return $"{pagesText} | {spreadIndex}/{totalSpreads}";
         }
 
         /// <summary>
         /// Calculate bounds for all PictureBoxes and the folder list panel.
         /// </summary>
+        private (int imageTotalWidth, int listWidth) ComputeLayoutWidths(int clientWidth, bool fullScreenMode, int count)
+        {
+            int ratioPercent = fullScreenMode
+                ? _settings.FullScreenModeImageAreaPercent
+                : _settings.NormalModeImageAreaPercent;
+
+            ratioPercent = Math.Clamp(ratioPercent, 50, 99);
+            int imageTotalWidth = (int)Math.Round(clientWidth * (ratioPercent / 100.0));
+            int listWidth = Math.Max(0, clientWidth - imageTotalWidth);
+
+            StartupHandler.WriteStartupLog($"[Layout] mode={(fullScreenMode ? "full" : "normal")} count={count} ratio={ratioPercent}% imageWidth={imageTotalWidth} listWidth={listWidth} clientWidth={clientWidth}");
+            return (imageTotalWidth, listWidth);
+        }
+
         public Rectangle[] CalculatePictureBoxBounds(int clientWidth, int clientHeight, out Rectangle listPanelBounds, bool fullScreenMode = false)
         {
             // フルサイズモード時はgap=0、画像領域比率を最大に
             int gap = fullScreenMode ? 0 : 2;
             int count = DisplayCount;
 
-            double imageAreaRatio;
-            if (fullScreenMode)
-            {
-                // 設定：全画面表示の画像領域幅比率（%）
-                imageAreaRatio = _settings.FullScreenModeImageAreaPercent / 100.0;
-            }
-            else if (count == 2)
-            {
-                // 設定：ノーマル表示の画像領域幅比率（%）
-                imageAreaRatio = _settings.NormalModeImageAreaPercent / 100.0;
-            }
-            else if (count == 1)
-            {
-                // 1枚表示: 中央に全画面に近いサイズで表示
-                imageAreaRatio = 0.95;
-            }
-            else
-            {
-                imageAreaRatio = 0.85;
-            }
-
-            int imageTotalWidth = (int)(clientWidth * imageAreaRatio);
-            int listW = clientWidth - imageTotalWidth;
+            var (imageTotalWidth, listW) = ComputeLayoutWidths(clientWidth, fullScreenMode, count);
             int height = clientHeight - 30;
 
             int rows, cols;
