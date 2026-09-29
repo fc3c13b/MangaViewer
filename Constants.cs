@@ -51,10 +51,10 @@ namespace MangaViewer
             catch
             {
                 // Fallback: hard-coded safety version
-                _appVersion = "0.0.1";
+                _appVersion = "0.9.64";
             }
 
-                return _appVersion ?? "0.0.1";
+                return _appVersion ?? "0.9.64";
         }
 
         #endregion
