@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Reflection;
 
 namespace MangaViewer
@@ -51,10 +51,10 @@ namespace MangaViewer
             catch
             {
                 // Fallback: hard-coded safety version
-                _appVersion = "0.9.0";
+                _appVersion = "0.0.1";
             }
 
-            return _appVersion ?? "0.9.0";
+                return _appVersion ?? "0.0.1";
         }
 
         #endregion
