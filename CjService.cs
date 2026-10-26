@@ -71,40 +71,40 @@ namespace MangaViewer
 
         public static (string cjPath, CjRoot data) CreateForParent(string parentFolder)
         {
+            return CreateForParent(parentFolder, null);
+        }
+
+        /// <summary>
+        /// 親フォルダ直下の各フォルダをスキャンして CJ を作成する。
+        /// progress が指定されると (処理済み件数, 総件数, 現在のフォルダ名) を逐次通知する。
+        /// </summary>
+        public static (string cjPath, CjRoot data) CreateForParent(
+            string parentFolder,
+            IProgress<(int current, int total, string folderName)>? progress)
+        {
             if (!Directory.Exists(parentFolder))
                 throw new DirectoryNotFoundException($"Parent folder not found: {parentFolder}");
 
+            var dirs = Directory.GetDirectories(parentFolder, "*", SearchOption.TopDirectoryOnly);
+            int total = dirs.Length;
+            int processed = 0;
+
             var folders = new Dictionary<string, CjFolderEntry>();
-            foreach (string dir in Directory.GetDirectories(parentFolder, "*", SearchOption.TopDirectoryOnly))
+            foreach (string dir in dirs)
             {
+                progress?.Report((processed, total, Path.GetFileName(dir)));
                 try
                 {
-                    int imageCount = 0;
-                    int cbzZipCount = 0;
-
-                    var files = Directory.GetFiles(dir, "*");
-                    foreach (var f in files)
-                    {
-                        string ext = Path.GetExtension(f)?.ToLowerInvariant() ?? "";
-                        if (ext == ".cbz" || ext == ".zip")
-                            cbzZipCount++;
-                        else if (ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".webp")
-                            imageCount++;
-                    }
-
-                    int rating = RatingService.ReadRating(dir);
-                    folders[dir] = new CjFolderEntry
-                    {
-                        FolderName = Path.GetFileName(dir),
-                        ImageCount = imageCount,
-                        CbzZipCount = cbzZipCount,
-                        Rating = rating,
-                        UpdatedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-                    };
+                    folders[dir] = ScanFolderEntry(dir);
                 }
                 catch
                 {
                     // フォルダ読み取りエラーはスキップ
+                }
+                finally
+                {
+                    processed++;
+                    progress?.Report((processed, total, Path.GetFileName(dir)));
                 }
             }
 
@@ -117,6 +117,114 @@ namespace MangaViewer
             SaveCjSynced(parentFolder, cjData);
             return (AppPaths.GetCacheFilePath(parentFolder), cjData);
         }
+
+        /// <summary>
+        /// 既存 CJ を基準に親フォルダ直下を差分同期する。
+        /// - 変化なし（フォルダの LastWriteTime が UpdatedAt 以下）: 既存エントリを保持
+        /// - 更新あり（LastWriteTime が UpdatedAt より新しい）: 再スキャンしてエントリ更新
+        /// - 新規フォルダ: スキャンして追加
+        /// - ディスク上に存在しないフォルダ: CJ から削除
+        /// 変更が1件でもあれば保存する。
+        /// </summary>
+        public static (string cjPath, CjRoot data, int updated, int added, int removed) SyncForParent(
+            string parentFolder,
+            CjRoot existing,
+            IProgress<(int current, int total, string folderName)>? progress)
+        {
+            if (!Directory.Exists(parentFolder))
+                throw new DirectoryNotFoundException($"Parent folder not found: {parentFolder}");
+
+            var cjData = existing ?? new CjRoot { ParentFolder = parentFolder, Folders = new Dictionary<string, CjFolderEntry>() };
+            cjData.Folders ??= new Dictionary<string, CjFolderEntry>();
+
+            var dirs = Directory.GetDirectories(parentFolder, "*", SearchOption.TopDirectoryOnly);
+            int total = dirs.Length;
+            int processed = 0;
+            int updated = 0, added = 0, removed = 0;
+
+            var existingOnDisk = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (string dir in dirs)
+            {
+                existingOnDisk.Add(dir);
+                progress?.Report((processed, total, Path.GetFileName(dir)));
+                try
+                {
+                    long folderMs = GetFolderLastWriteMs(dir);
+
+                    if (cjData.Folders.TryGetValue(dir, out var entry))
+                    {
+                        if (folderMs > entry.UpdatedAt)
+                        {
+                            cjData.Folders[dir] = ScanFolderEntry(dir);
+                            updated++;
+                        }
+                        // 変化なしは保持（何もしない）
+                    }
+                    else
+                    {
+                        cjData.Folders[dir] = ScanFolderEntry(dir);
+                        added++;
+                    }
+                }
+                catch
+                {
+                    // フォルダ読み取りエラーはスキップ
+                }
+                finally
+                {
+                    processed++;
+                    progress?.Report((processed, total, Path.GetFileName(dir)));
+                }
+            }
+
+            var toRemove = cjData.Folders.Keys.Where(p => !existingOnDisk.Contains(p)).ToList();
+            foreach (var p in toRemove)
+            {
+                cjData.Folders.Remove(p);
+                removed++;
+            }
+
+            cjData.ParentFolder = parentFolder;
+
+            if (updated > 0 || added > 0 || removed > 0)
+                SaveCjSynced(parentFolder, cjData);
+
+            return (AppPaths.GetCacheFilePath(parentFolder), cjData, updated, added, removed);
+        }
+
+        private static long GetFolderLastWriteMs(string dir)
+        {
+            try { return new DateTimeOffset(Directory.GetLastWriteTime(dir)).ToUnixTimeMilliseconds(); }
+            catch { return 0; }
+        }
+
+        private static CjFolderEntry ScanFolderEntry(string dir)
+        {
+            int imageCount = 0;
+            int cbzZipCount = 0;
+
+            var files = Directory.GetFiles(dir, "*");
+            foreach (var f in files)
+            {
+                string ext = Path.GetExtension(f)?.ToLowerInvariant() ?? "";
+                if (ext == ".cbz" || ext == ".zip")
+                    cbzZipCount++;
+                else if (ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".webp")
+                    imageCount++;
+            }
+
+            int rating = RatingService.ReadRating(dir);
+            return new CjFolderEntry
+            {
+                FolderName = Path.GetFileName(dir),
+                ImageCount = imageCount,
+                CbzZipCount = cbzZipCount,
+                Rating = rating,
+                UpdatedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+            };
+        }
+
 
         public static CjRoot? LoadCjFromFile(string path)
         {

@@ -26,6 +26,9 @@ namespace MangaViewer
                 var (settings, errors) = SettingsManager.LoadWithValidation();
                 form._settings = settings;
 
+                // 1b. 既読履歴を起動時に一度だけロード（setting.json からの移行も含む）
+                PlaybackHistoryService.EnsureLoaded(settings);
+
                 if (errors.Count > 0)
                 {
                     MessageBox.Show(
@@ -81,7 +84,7 @@ namespace MangaViewer
                     if (!string.IsNullOrEmpty(lastRoot) && Directory.Exists(lastRoot))
                     {
                         WriteStartupLog("[Startup] LoadCjForParent start");
-                        InvokeIfSafeSync(form, () => form.LoadCjForParent(lastRoot));
+                        InvokeIfSafeSync(form, () => form.LoadCjForParentForStartup(lastRoot));
 
                         var (ok, reason) = EvaluateLoadResult(form);
                         if (ok)

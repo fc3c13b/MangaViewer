@@ -41,14 +41,21 @@ namespace MangaViewer
         // INavigationActions implementation (exact signature required)
         public void LoadCjForParent(string parentFolder)
         {
-            LoadCjForParentInternal(parentFolder, autoCreate: true);
+            // キー3経由: 既存 CJ を読み込んだ後に差分同期を行う
+            LoadCjForParentInternal(parentFolder, autoCreate: true, syncOnLoad: true);
         }
 
-        private void LoadCjForParentInternal(string parentFolder, bool autoCreate)
+        // 起動時用: 差分同期を行わず、CJ をそのまま読み込む
+        internal void LoadCjForParentForStartup(string parentFolder)
+        {
+            LoadCjForParentInternal(parentFolder, autoCreate: true, syncOnLoad: false);
+        }
+
+        private void LoadCjForParentInternal(string parentFolder, bool autoCreate, bool syncOnLoad)
         {
             try
             {
-                StartupHandler.WriteStartupLog($"[Form1] LoadCjForParent called: {parentFolder}, autoCreate={autoCreate}");
+                StartupHandler.WriteStartupLog($"[Form1] LoadCjForParent called: {parentFolder}, autoCreate={autoCreate}, syncOnLoad={syncOnLoad}");
 
                 if (string.IsNullOrEmpty(parentFolder))
                 {
@@ -56,7 +63,7 @@ namespace MangaViewer
                     return;
                 }
 
-                if (_activeCjParentFolder == parentFolder && _activeCjData != null)
+                if (_activeCjParentFolder == parentFolder && _activeCjData != null && !syncOnLoad)
                 {
                     StartupHandler.WriteStartupLog($"[Form1] LoadCjForParent: already loaded for {parentFolder}, skipping.");
                     return;
@@ -73,6 +80,13 @@ namespace MangaViewer
                     StartupHandler.WriteStartupLog(
                         $"[Form1] LoadCjForParent OK: cjFile={_activeDbFile}, " +
                         $"FoldersMapCount={_activeCjData.Folders.Count}");
+
+                    // キー3経由: 読み込んだ CJ を基準に差分同期してからリストを再構築
+                    if (syncOnLoad)
+                    {
+                        _ = SyncCjForParentAsync(parentFolder, _activeCjData);
+                        return;
+                    }
 
                     if (IsRankDisplayMode)
                         BuildRankFilteredListFromActiveCj();
@@ -106,17 +120,77 @@ namespace MangaViewer
             }
         }
 
+        private async Task SyncCjForParentAsync(string parentFolder, CjRoot existing)
+        {
+            var progressDialog = new CjProgressDialog(parentFolder);
+            var progress = new Progress<(int current, int total, string folderName)>(
+                p => progressDialog.ReportProgress(p.current, p.total, p.folderName));
+
+            try
+            {
+                UpdateInfoLabelBase("CJ同期中…", "sync-cj:start");
+                progressDialog.Show(this);
+
+                var (cjPath, cjData, updated, added, removed) = await Task.Run(
+                    () => CjService.SyncForParent(parentFolder, existing, progress));
+
+                _activeCjParentFolder = parentFolder;
+                _activeCjData = cjData;
+                _activeDbFile = cjPath;
+
+                StartupHandler.WriteStartupLog(
+                    $"[Form1] SyncCjForParent done: updated={updated}, added={added}, removed={removed}, FoldersMapCount={cjData.Folders.Count}");
+
+                if (IsRankDisplayMode)
+                    BuildRankFilteredListFromActiveCj();
+
+                if (IsRankDisplayMode && _folderList.Count > 0 && _currentFolderIndex >= 0)
+                {
+                    LoadAndSortImages(_folderList[_currentFolderIndex]);
+                    _displayManager.ImagePaths = _imagePaths;
+                    _displayManager.DisplayImages(_currentIndex);
+                }
+
+                _settings.LastRootFolder = parentFolder;
+                SettingsManager.Save(_settings);
+
+                ScheduleWindowTitleUpdate();
+                UpdateInfoLabelBase($"CJ同期完了: 更新{updated} 追加{added} 削除{removed}", "sync-cj:done");
+            }
+            catch (Exception ex)
+            {
+                StartupHandler.WriteErrorLog($"[Form1] SyncCjForParent error: {ex}");
+                MessageBox.Show(this, "CJ同期エラー:\n" + ex.Message, "CJ エラー", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                UpdateInfoLabelBase("CJ同期に失敗しました。", "sync-cj:error");
+            }
+            finally
+            {
+                progressDialog.Close();
+                progressDialog.Dispose();
+            }
+        }
+
         public void CreateCjForParent(string parentFolder)
         {
             if (string.IsNullOrWhiteSpace(parentFolder)) return;
             if (!Directory.Exists(parentFolder)) return;
 
+            _ = CreateCjForParentAsync(parentFolder);
+        }
+
+        private async Task CreateCjForParentAsync(string parentFolder)
+        {
+            var progressDialog = new CjProgressDialog(parentFolder);
+            var progress = new Progress<(int current, int total, string folderName)>(
+                p => progressDialog.ReportProgress(p.current, p.total, p.folderName));
+
             try
             {
-                Application.DoEvents();
-                SafeInvokeUI(() => UpdateInfoLabelBase("CJ作成中…", "create-cj:start"));
+                UpdateInfoLabelBase("CJ作成中…", "create-cj:start");
+                progressDialog.Show(this);
 
-                var (cjPath, cjData) = CjService.CreateForParent(parentFolder);
+                var (cjPath, cjData) = await Task.Run(
+                    () => CjService.CreateForParent(parentFolder, progress));
 
                 _activeCjParentFolder = parentFolder;
                 _activeCjData = cjData;
@@ -143,6 +217,11 @@ namespace MangaViewer
             {
                 MessageBox.Show(this, "CJ作成エラー:\n" + ex.Message, "CJ エラー", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 UpdateInfoLabelBase("CJ作成に失敗しました。", "create-cj:error");
+            }
+            finally
+            {
+                progressDialog.Close();
+                progressDialog.Dispose();
             }
         }
 
@@ -636,6 +715,8 @@ namespace MangaViewer
         {
             _displayManager.ImagePaths = _imagePaths;
             _displayManager.DisplayImages(startIndex);
+
+            PlaybackStateService.OnPageDisplayed(this, startIndex);
 
             UpdateInfoLabelBase(UiStateService.BuildDisplayInfoText(this));
 

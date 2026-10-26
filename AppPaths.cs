@@ -15,6 +15,11 @@ namespace MangaViewer
         public static string SettingsFilePath => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "setting.json");
 
         /// <summary>
+        /// タイトルごとの既読履歴ファイルパス。
+        /// </summary>
+        public static string PlaybackHistoryFilePath => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "playback-history.json");
+
+        /// <summary>
         /// エラーログファイルのフルパス。
         /// </summary>
         public static string ErrorLogPath => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "error.log");

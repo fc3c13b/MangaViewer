@@ -28,22 +28,28 @@ namespace MangaViewer
             _panelList = panelList;
 
             _scrollTimer = new Timer { Interval = 16 }; // ~60 FPS
-            _scrollTimer.Tick += (s, e) => UpdateScrollAnimation();
+            _scrollTimer.Tick += ScrollTimer_Tick;
             _scrollTimer.Start();
 
             listBox.DrawItem += ListBox_DrawItem;
         }
+
+        private void ScrollTimer_Tick(object? sender, EventArgs e) => UpdateScrollAnimation();
 
         public void Dispose()
         {
             if (_scrollTimer != null)
             {
                 _scrollTimer.Stop();
-                _scrollTimer.Tick -= (s, e) => UpdateScrollAnimation();
+                _scrollTimer.Tick -= ScrollTimer_Tick;
                 _scrollTimer.Dispose();
                 _scrollTimer = null;
             }
         }
+
+        // ハンドル生成を強制せず、破棄済み ListBox へのアクセスを避ける
+        private bool IsListBoxUsable()
+            => _listBox is { IsDisposed: false, Disposing: false, IsHandleCreated: true };
 
         /// <summary>
         /// Called when a new item is selected to start/reset its scroll animation.
@@ -55,6 +61,7 @@ namespace MangaViewer
 
         public void ResetScrollAnimation()
         {
+            if (!IsListBoxUsable()) return;
             if (_listBox.SelectedIndex < 0) return;
 
             string text = _listBox.Items[_listBox.SelectedIndex]?.ToString() ?? "";
@@ -79,6 +86,13 @@ namespace MangaViewer
 
         private void UpdateScrollAnimation()
         {
+            // 破棄済みならタイマーを止める。ハンドル未生成（起動直後など）は次Tickに委ねる。
+            if (_listBox is null || _listBox.IsDisposed || _listBox.Disposing)
+            {
+                _scrollTimer?.Stop();
+                return;
+            }
+            if (!_listBox.IsHandleCreated) return;
             if (_listBox.SelectedIndex < 0) return;
 
             long nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
