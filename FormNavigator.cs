@@ -36,7 +36,8 @@ namespace MangaViewer
                 if (form._activeCjData.Folders.TryGetValue(folderPath, out var entry))
                 {
                     string folderName = Path.GetFileName(folderPath);
-                    int displayCount = entry.CbzZipCount ?? 0;
+                    int cbz = entry.CbzZipCount ?? 0;
+                    int displayCount = cbz > 0 ? cbz : (entry.ImageCount ?? 0);
                     string ratingStr = entry.Rating >= 0 ? $"({entry.Rating})" : "[-]";
                     form.listBoxFolders.Items.Add($"[{displayCount}] {ratingStr} {folderName}");
                 }

@@ -215,11 +215,12 @@ namespace MangaViewer
             }
 
             int rating = RatingService.ReadRating(dir);
+            // CBZありなら ImageCount=null、画像のみなら CbzZipCount=null（FolderService の規約に統一）
             return new CjFolderEntry
             {
                 FolderName = Path.GetFileName(dir),
-                ImageCount = imageCount,
-                CbzZipCount = cbzZipCount,
+                ImageCount = cbzZipCount > 0 ? null : imageCount,
+                CbzZipCount = cbzZipCount > 0 ? cbzZipCount : null,
                 Rating = rating,
                 UpdatedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
             };
