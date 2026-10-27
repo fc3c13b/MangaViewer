@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Drawing;
 using System.IO;
@@ -162,8 +162,9 @@ namespace MangaViewer
         {
             while (_imageCache.Count >= Constants.MaxCacheSize)
             {
+                // TryGetValue でアクセス: OrderBy 評価中に他スレッドが削除しても KeyNotFoundException にならない
                 var oldestKey = _imageCache.Keys
-                    .OrderBy(k => _imageCache[k].LastAccessed)
+                    .OrderBy(k => _imageCache.TryGetValue(k, out var e) ? e.LastAccessed : DateTime.MaxValue)
                     .FirstOrDefault();
 
                 if (oldestKey == null) break;
