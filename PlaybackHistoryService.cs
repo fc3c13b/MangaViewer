@@ -98,6 +98,12 @@ namespace MangaViewer
                 entry.LastImageIndex = v.GetInt32();
             if (el.TryGetProperty("maxReachedIndex", out v) && v.ValueKind == JsonValueKind.Number)
                 entry.MaxReachedIndex = v.GetInt32();
+            bool hasVolIndex = false;
+            if (el.TryGetProperty("maxReadVolIndex", out v) && v.ValueKind == JsonValueKind.Number)
+            {
+                entry.MaxReadVolIndex = v.GetInt32();
+                hasVolIndex = true;
+            }
             if (el.TryGetProperty("lastCbzFile", out v) && v.ValueKind == JsonValueKind.String)
                 entry.LastCbzFile = v.GetString() ?? string.Empty;
             if (el.TryGetProperty("totalImages", out v) && v.ValueKind == JsonValueKind.Number)
@@ -116,6 +122,11 @@ namespace MangaViewer
                 entry.LastOpenedAt = v.GetInt64();
             if (el.TryGetProperty("openCount", out v) && v.ValueKind == JsonValueKind.Number)
                 entry.OpenCount = v.GetInt32();
+
+            // 旧データ移行: maxReadVolIndex が無ければ completedVols 件数からシード
+            if (!hasVolIndex && entry.CompletedVols != null && entry.CompletedVols.Count > 0)
+                entry.MaxReadVolIndex = entry.CompletedVols.Count - 1;
+
             return entry;
         }
 
@@ -136,7 +147,7 @@ namespace MangaViewer
         /// <summary>
         /// ページを表示するたびに呼び出す。maxReachedIndex を更新する。
         /// </summary>
-        internal static void OnPageDisplayed(string folderPath, int displayedIndex, int displayCount, int totalImages)
+        internal static void OnPageDisplayed(string folderPath, int displayedIndex, int displayCount, int totalImages, int activeVolIndex)
         {
             if (string.IsNullOrWhiteSpace(folderPath) || totalImages <= 0) return;
 
@@ -161,6 +172,13 @@ namespace MangaViewer
                     changed = true;
                 }
 
+                // 既読巻数の単一情報源を更新（最大値のみ保持）
+                if (activeVolIndex > entry.MaxReadVolIndex)
+                {
+                    entry.MaxReadVolIndex = activeVolIndex;
+                    changed = true;
+                }
+
                 // 全ページ到達で読了フラグをセット（一度立てたら下げない）
                 if (!entry.IsCompleted && entry.MaxReachedIndex >= totalImages - 1)
                 {
@@ -179,10 +197,10 @@ namespace MangaViewer
         // ===== 更新（フォルダ離脱時）=====
 
         /// <summary>
-        /// フォルダを離れるときに呼び出す。再開位置・CBZファイル・巻の読了状態を保存する。
+        /// フォルダを離れるときに呼び出す。再開位置・CBZファイル・到達済みの巻を保存する。
         /// </summary>
         internal static void OnFolderLeave(string folderPath, int lastIndex, string lastCbzFile,
-            List<string>? completedVolFileNames, int totalImages)
+            int activeVolIndex, int totalImages)
         {
             if (string.IsNullOrWhiteSpace(folderPath)) return;
 
@@ -199,15 +217,9 @@ namespace MangaViewer
                 if (totalImages > 0)
                     entry.TotalImages = totalImages;
 
-                // 新たに読了した巻をマージ（既存リストに追記）
-                if (completedVolFileNames != null && completedVolFileNames.Count > 0)
-                {
-                    var vols = new HashSet<string>(entry.CompletedVols ?? new List<string>(),
-                        StringComparer.OrdinalIgnoreCase);
-                    foreach (var v in completedVolFileNames)
-                        vols.Add(v);
-                    entry.CompletedVols = new List<string>(vols);
-                }
+                // 既読巻数の単一情報源を更新（最大値のみ保持）
+                if (activeVolIndex > entry.MaxReadVolIndex)
+                    entry.MaxReadVolIndex = activeVolIndex;
 
                 if (!entry.IsCompleted && entry.TotalImages > 0 && entry.MaxReachedIndex >= entry.TotalImages - 1)
                     entry.IsCompleted = true;
@@ -258,6 +270,13 @@ namespace MangaViewer
 
         [JsonPropertyName("maxReachedIndex")]
         public int MaxReachedIndex { get; set; } = 0;
+
+        /// <summary>
+        /// これまでに開いた最大の巻インデックス（0始まり）。CBZ の既読巻数の単一情報源。
+        /// -1 は未読（CBZ を開いたことがない）を表す。
+        /// </summary>
+        [JsonPropertyName("maxReadVolIndex")]
+        public int MaxReadVolIndex { get; set; } = -1;
 
         [JsonPropertyName("lastCbzFile")]
         public string LastCbzFile { get; set; } = string.Empty;

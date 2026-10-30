@@ -28,6 +28,8 @@ namespace MangaViewer
             form.listBoxFolders.DataSource = null;
             form.listBoxFolders.Items.Clear();
 
+            PlaybackHistoryService.EnsureLoaded(form._settings);
+
             foreach (var folderPath in filteredFolders)
             {
                 if (string.IsNullOrEmpty(folderPath)) continue;
@@ -39,7 +41,17 @@ namespace MangaViewer
                     int cbz = entry.CbzZipCount ?? 0;
                     int displayCount = cbz > 0 ? cbz : (entry.ImageCount ?? 0);
                     string ratingStr = entry.Rating >= 0 ? $"({entry.Rating})" : "[-]";
-                    form.listBoxFolders.Items.Add($"[{displayCount}] {ratingStr} {folderName}");
+
+                    var pb = PlaybackHistoryService.Get(folderPath);
+                    string readStr;
+                    if (pb != null && pb.MaxReadVolIndex >= 0)
+                        readStr = $"[{pb.MaxReadVolIndex + 1}巻]";
+                    else if (pb != null && pb.MaxReachedIndex > 0)
+                        readStr = $"[{pb.MaxReachedIndex + 1}P]";
+                    else
+                        readStr = "[-]";
+
+                    form.listBoxFolders.Items.Add($"[{displayCount}]{readStr}{ratingStr} {folderName}");
                 }
             }
 

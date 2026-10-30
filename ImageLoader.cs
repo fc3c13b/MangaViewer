@@ -128,7 +128,7 @@ namespace MangaViewer
             }
 
             Log($"[CBZ] Calling InitializeForFolder...");
-            bool ok = form._cbzManager.InitializeForFolder(folderPath, preferredCbzFile);
+            bool ok = form._cbzManager.InitializeForFolder(folderPath, preferredCbzFile, cbzFiles);
             Log($"[CBZ] InitializeForFolder: ok={ok} CbxFiles.Count={form._cbzManager.CbxFiles.Count}");
 
             if (!ok || !form._cbzManager.CbxFiles.Any())

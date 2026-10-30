@@ -23,7 +23,11 @@ namespace MangaViewer
 
             form.labelInfo.Visible = !form._fullScreenMode;
             if (!form._fullScreenMode && form.labelInfo.Visible)
-                form.labelInfo.Location = new Point(10, ch - 25);
+                form.labelInfo.Location = new Point(10, ch - 45);
+
+            form.labelCacheStatus.Visible = !form._fullScreenMode;
+            if (!form._fullScreenMode)
+                form.labelCacheStatus.Location = new Point(10, ch - 25);
         }
 
         internal static void UpdateLayout(Form1 form)
@@ -45,7 +49,11 @@ namespace MangaViewer
 
             form.labelInfo.Visible = !form._fullScreenMode;
             if (!form._fullScreenMode)
-                form.labelInfo.Location = new Point(10, clientHeight - 25);
+                form.labelInfo.Location = new Point(10, clientHeight - 45);
+
+            form.labelCacheStatus.Visible = !form._fullScreenMode;
+            if (!form._fullScreenMode)
+                form.labelCacheStatus.Location = new Point(10, clientHeight - 25);
         }
 
         internal static void ToggleFullScreen(Form1 form)

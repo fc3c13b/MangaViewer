@@ -48,12 +48,22 @@ namespace MangaViewer
                 .Any(path => !string.Equals(Path.GetFileName(path), CbzManager.CacheCompleteMarkerFileName, StringComparison.OrdinalIgnoreCase));
         }
 
-        internal static bool EnsureCacheExtracted(string cacheDir, string cbzFile, Action<string>? statusCallback = null)
+        internal static bool EnsureCacheExtracted(string cacheDir, string cbzFile, Action<string>? statusCallback = null, CancellationToken ct = default)
         {
+            // 早期チェック: セマフォを触る前にキャッシュ済みなら即リターン
+            if (IsCacheReady(cacheDir))
+                return false;
+
             var extractionLock = CacheExtractionLocks.GetOrAdd(cacheDir, _ => new SemaphoreSlim(1, 1));
             var waitStartedAt = System.Diagnostics.Stopwatch.StartNew();
             while (!extractionLock.Wait(2000))
             {
+                ct.ThrowIfCancellationRequested();
+
+                // 待機中に別スレッドが展開完了していればスキップ（DL中の誤表示も防ぐ）
+                if (IsCacheReady(cacheDir))
+                    return false;
+
                 statusCallback?.Invoke(CbzStatusHelper.BuildDownloadStatus(cbzFile, 0, 0, waitStartedAt.Elapsed));
             }
 
@@ -75,7 +85,7 @@ namespace MangaViewer
                 if (Directory.Exists(temporaryDirectory))
                     Directory.Delete(temporaryDirectory, recursive: true);
 
-                ExtractCbzTo(temporaryDirectory, cbzFile, startedAt, statusCallback);
+                ExtractCbzTo(temporaryDirectory, cbzFile, startedAt, statusCallback, ct);
                 File.WriteAllText(Path.Combine(temporaryDirectory, CbzManager.CacheCompleteMarkerFileName), string.Empty);
                 Directory.Move(temporaryDirectory, cacheDir);
                 return true;
@@ -99,7 +109,7 @@ namespace MangaViewer
             }
         }
 
-        private static void ExtractCbzTo(string cacheDir, string cbzFile, System.Diagnostics.Stopwatch startedAt, Action<string>? statusCallback = null)
+        private static void ExtractCbzTo(string cacheDir, string cbzFile, System.Diagnostics.Stopwatch startedAt, Action<string>? statusCallback = null, CancellationToken ct = default)
         {
             try
             {
@@ -139,6 +149,8 @@ namespace MangaViewer
                 foreach (var entry in archive.Entries)
                 {
                     if (string.IsNullOrEmpty(entry.Name)) continue;
+
+                    ct.ThrowIfCancellationRequested();
 
                     processedEntries++;
 

@@ -61,7 +61,7 @@ namespace MangaViewer
         /// 共有CJキャッシュ保存先（Windows側）。
         /// Android側は同等のSMB URIを利用する。
         /// </summary>
-        public static string SharedCacheDir => @"Z:\MangaViewerCache";
+        public static string SharedCacheDir => @"Q:\MangaViewerCache";
 
         /// <summary>
         /// 端末識別子の保存先。

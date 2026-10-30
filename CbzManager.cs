@@ -113,28 +113,7 @@ namespace MangaViewer
                                     .ToList();
                 long tScanEnd = sw.ElapsedMilliseconds;
 
-                if (cbzs.Count == 0)
-                    return false;
-
-                StartupHandler.WriteStartupLog($"[CBZ] Scan complete: {cbzs.Count} CBZ files found in {folderPath}");
-                CbxFiles = cbzs;
-                ActiveCbxIndex = 0;
-
-                if (!string.IsNullOrWhiteSpace(preferredCbzFile))
-                {
-                    int preferredIndex = CbxFiles.FindIndex(x => string.Equals(x, preferredCbzFile, StringComparison.OrdinalIgnoreCase));
-                    if (preferredIndex >= 0)
-                        ActiveCbxIndex = preferredIndex;
-                }
-
-                // 起動時は先頭（現在）巻だけを準備する。次巻の展開は非同期で
-                // 先読みし、全巻を起動時に展開しない。
-                RefreshCurrentImagePaths(extractEvenIfEmpty: true);
-
-                long tRefreshEnd = sw.ElapsedMilliseconds;
-                StartupHandler.WriteStartupLog($"[PROF] CbzManager.InitializeForFolder total={tRefreshEnd}ms scan={tScanEnd - t0}ms refresh={tRefreshEnd - tScanEnd}ms cbzCount={cbzs.Count} folder={folderPath}");
-
-                return CurrentImagePaths.Any();
+                return InitializeFromScannedFiles(folderPath, preferredCbzFile, cbzs, sw, tScanEnd - t0, tScanEnd);
             }
             catch
             {
@@ -142,6 +121,67 @@ namespace MangaViewer
                 Reset();
                 return false;
             }
+        }
+
+        /// <summary>
+        /// スキャン済みの CBZ ファイルリストを渡して初期化する。
+        /// ImageLoader が既に Directory.GetFiles を実行済みの場合に重複スキャンを防ぐ。
+        /// </summary>
+        public bool InitializeForFolder(string folderPath, string? preferredCbzFile, IReadOnlyList<string> preScannedCbzFiles, bool forceReset = true)
+        {
+            StartupHandler.WriteStartupLog($"[CBZ] InitializeForFolder START folder={folderPath} forceReset={forceReset} (pre-scanned={preScannedCbzFiles.Count})");
+
+            if (!forceReset && string.Equals(CurrentFolder, folderPath, StringComparison.OrdinalIgnoreCase) && CbxFiles.Any())
+            {
+                RefreshCurrentImagePaths(extractEvenIfEmpty: false);
+                return CurrentImagePaths.Any();
+            }
+
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            Reset();
+
+            try
+            {
+                CurrentFolder = folderPath;
+                var cbzs = preScannedCbzFiles
+                    .Where(f => f.EndsWith(".cbz", StringComparison.OrdinalIgnoreCase) ||
+                                f.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                    .OrderBy(f => f, new CbzVolumeComparer())
+                    .ToList();
+
+                return InitializeFromScannedFiles(folderPath, preferredCbzFile, cbzs, sw, 0, sw.ElapsedMilliseconds);
+            }
+            catch
+            {
+                Reset();
+                return false;
+            }
+        }
+
+        /// <summary>スキャン済みリストから初期化する共通処理。</summary>
+        private bool InitializeFromScannedFiles(string folderPath, string? preferredCbzFile, List<string> cbzs,
+            System.Diagnostics.Stopwatch sw, long scanMs, long tScanEnd)
+        {
+            if (cbzs.Count == 0)
+                return false;
+
+            StartupHandler.WriteStartupLog($"[CBZ] Scan complete: {cbzs.Count} CBZ files found in {folderPath}");
+            CbxFiles = cbzs;
+            ActiveCbxIndex = 0;
+
+            if (!string.IsNullOrWhiteSpace(preferredCbzFile))
+            {
+                int preferredIndex = CbxFiles.FindIndex(x => string.Equals(x, preferredCbzFile, StringComparison.OrdinalIgnoreCase));
+                if (preferredIndex >= 0)
+                    ActiveCbxIndex = preferredIndex;
+            }
+
+            RefreshCurrentImagePaths(extractEvenIfEmpty: true);
+
+            long tRefreshEnd = sw.ElapsedMilliseconds;
+            StartupHandler.WriteStartupLog($"[PROF] CbzManager.InitializeForFolder total={tRefreshEnd}ms scan={scanMs}ms refresh={tRefreshEnd - tScanEnd}ms cbzCount={cbzs.Count} folder={folderPath}");
+
+            return CurrentImagePaths.Any();
         }
 
         /// <summary>
@@ -275,6 +315,44 @@ namespace MangaViewer
         }
 
         /// <summary>
+        /// フォルダ移動開始時に呼び出す。BG-PRELOAD を即キャンセルし、
+        /// 古い currentIndex での遅延起動を防ぐ。
+        /// </summary>
+        /// <summary>
+        /// フォルダ移動開始時に呼び出す。BG-PRELOAD を即キャンセルし、
+        /// 古い currentIndex での遅延起動を防ぐ。
+        /// </summary>
+        public void CancelBackgroundListPreload() =>
+            _preloadCoordinator.CancelBackgroundListPreload();
+
+        /// <summary>
+        /// 指定フォルダインデックスで既に BG-PRELOAD が起動済みか。
+        /// true の場合は巻切替による重複起動を防ぐ。
+        /// </summary>
+        internal bool IsBgPreloadRunningFor(int folderIndex) =>
+            _preloadCoordinator.IsBgPreloadRunningFor(folderIndex);
+
+        /// <summary>指定キャッシュディレクトリの展開が RequestPreload 経由で進行中か。</summary>
+        internal bool IsExtractionPending(string cacheDir) =>
+            _preloadCoordinator.IsExtractionPending(cacheDir);
+
+        /// <summary>
+        /// 現在の高優先度先読みが全て完了した後、リスト下位コンテンツで
+        /// 「次回表示時に実際に開く巻」を順次バックグラウンド先読みする。
+        /// 対象巻の選定は表示ロジック(ImageLoader.Load)と一致させる。
+        /// コンテンツ切替時は自動キャンセル。空き容量が minFreeSpaceBytes を下回ったら停止。
+        /// </summary>
+        public void StartBackgroundListPreloadAsync(
+            IReadOnlyList<string> folderList,
+            int currentIndex,
+            long minFreeSpaceBytes,
+            bool startFromLastViewed)
+        {
+            _preloadCoordinator.StartBackgroundListPreloadAsync(
+                this, folderList, currentIndex, _cacheRootArea1, minFreeSpaceBytes, startFromLastViewed);
+        }
+
+        /// <summary>
         /// キャッシュ取得の唯一の入口。
         /// - 既存キャッシュはそのまま利用
         /// - 未作成なら展開して .complete を確定
@@ -282,15 +360,39 @@ namespace MangaViewer
         /// </summary>
         internal bool TryAcquireCache(string cbzPath, string trigger, params string?[] protectedCacheDirs)
         {
+            return TryAcquireCacheCore(cbzPath, trigger, CancellationToken.None, protectedCacheDirs);
+        }
+
+        internal bool TryAcquireCache(string cbzPath, string trigger, CancellationToken ct, params string?[] protectedCacheDirs)
+        {
+            return TryAcquireCacheCore(cbzPath, trigger, ct, protectedCacheDirs);
+        }
+
+        private bool TryAcquireCacheCore(string cbzPath, string trigger, CancellationToken ct, string?[] protectedCacheDirs)
+        {
             string cacheDir = GetArea1CacheDirectory(cbzPath);
             if (CbzCacheHelper.IsCacheReady(cacheDir))
                 return false;
 
-            Action<string>? statusCallback = string.Equals(trigger, "current", StringComparison.OrdinalIgnoreCase)
-                ? message => NotifyCacheStatus(cbzPath, message)
-                : null;
+            // "current" トリガーの場合、同じ CBZ を先読みタスクが展開中であれば
+            // セマフォを競合させず、先読み完了を待ってから進む
+            if (string.Equals(trigger, "current", StringComparison.OrdinalIgnoreCase))
+            {
+                var waitDeadline = DateTime.UtcNow.AddSeconds(120);
+                while (_preloadCoordinator.IsExtractionPending(cacheDir) && DateTime.UtcNow < waitDeadline)
+                {
+                    if (CbzCacheHelper.IsCacheReady(cacheDir))
+                        return false; // 先読みが先に完了した
+                    System.Threading.Thread.Sleep(200);
+                }
+                if (CbzCacheHelper.IsCacheReady(cacheDir))
+                    return false;
+            }
 
-            if (!CbzCacheHelper.EnsureCacheExtracted(cacheDir, cbzPath, statusCallback))
+            // 全ての展開操作（現在表示・先読み問わず）でステータスを下段ラベルへ通知する
+            Action<string>? statusCallback = message => NotifyCacheStatus(cbzPath, message);
+
+            if (!CbzCacheHelper.EnsureCacheExtracted(cacheDir, cbzPath, statusCallback, ct))
                 return false;
 
             CbzStatusHelper.WriteCacheCreateLog(_cacheRootArea2, cbzPath, cacheDir, trigger);

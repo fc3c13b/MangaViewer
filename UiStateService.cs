@@ -17,38 +17,32 @@ namespace MangaViewer
             if (form.labelInfo == null)
                 return;
 
-            string nextText;
-            string mode;
-            if (!string.IsNullOrEmpty(form._cacheStatusLabelText) && DateTime.UtcNow < form._cacheStatusExpiresAtUtc)
-            {
-                nextText = form._cacheStatusLabelText;
-                mode = "cache";
-            }
-            else
-            {
-                nextText = form._baseInfoLabelText;
-                mode = "base";
-            }
+            // 上段は常にページ・フォルダ情報を表示する（キャッシュ状態で上書きしない）
+            string nextText = form._baseInfoLabelText;
 
             if (!string.Equals(form._lastRenderedInfoLabelText, nextText, StringComparison.Ordinal))
             {
                 form._lastRenderedInfoLabelText = nextText;
-                StartupHandler.WriteStartupLog($"[INFO-LABEL] source={source} mode={mode} text={TrimForLog(nextText)}");
+                StartupHandler.WriteStartupLog($"[INFO-LABEL] source={source} mode=base text={TrimForLog(nextText)}");
             }
 
             form.labelInfo.Text = nextText;
+        }
+
+        internal static void RefreshCacheStatusLabel(Form1 form)
+        {
+            if (form.labelCacheStatus == null)
+                return;
+
+            bool active = !string.IsNullOrEmpty(form._cacheStatusLabelText)
+                          && DateTime.UtcNow < form._cacheStatusExpiresAtUtc;
+            form.labelCacheStatus.Text = active ? form._cacheStatusLabelText! : "";
         }
 
         internal static void UpdateCacheStatusLabel(Form1 form, string cbzPath, string status)
         {
             if (form.IsDisposed || !form.IsHandleCreated)
                 return;
-
-            if (!IsStatusForCurrentContext(form, cbzPath))
-            {
-                StartupHandler.WriteStartupLog($"[INFO-LABEL] source=cache-status:skip path={Path.GetFileName(cbzPath)} active={GetActiveCbzFileNameForLog(form)}");
-                return;
-            }
 
             form._cacheStatusLabelText = status;
 
@@ -64,7 +58,7 @@ namespace MangaViewer
                 form._cacheStatusExpiresAtUtc = DateTime.UtcNow.AddSeconds(2);
 
             EnsureCacheStatusTimer(form);
-            RefreshInfoLabelText(form, "cache-status:update");
+            RefreshCacheStatusLabel(form);
         }
 
         internal static void EnsureCacheStatusTimer(Form1 form)
@@ -85,7 +79,7 @@ namespace MangaViewer
                 {
                     form._cacheStatusLabelText = null;
                     form._cacheStatusExpiresAtUtc = DateTime.MinValue;
-                    RefreshInfoLabelText(form, "cache-status:expire");
+                    RefreshCacheStatusLabel(form);
                 }
             };
             form._cacheStatusTimer.Start();

@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace MangaViewer
@@ -96,6 +98,21 @@ namespace MangaViewer
 
             if (!string.IsNullOrWhiteSpace(nextNextFolder))
                 form._cbzManager.PreloadFirstCbxForFolder(nextNextFolder);
+
+            // 起動完了後、かつフォルダが変わった時のみ BG-PRELOAD を（再）起動する
+            // 巻切替（同一フォルダ内の volume 切替）による重複起動を防ぐ
+            if (form._initTask?.IsCompleted != false
+                && form._currentFolderIndex + 1 < form._folderList.Count
+                && !form._cbzManager.IsBgPreloadRunningFor(form._currentFolderIndex))
+            {
+                var folderListSnapshot = form._folderList.ToList();
+                int currentIdx = form._currentFolderIndex;
+                form._cbzManager.StartBackgroundListPreloadAsync(
+                    folderListSnapshot,
+                    currentIdx,
+                    minFreeSpaceBytes: 50L * 1024 * 1024,
+                    startFromLastViewed: form._settings.StartFromLastViewedPosition);
+            }
         }
 
         internal static void TriggerPreloadNearEnd(Form1 form, int startIndex)

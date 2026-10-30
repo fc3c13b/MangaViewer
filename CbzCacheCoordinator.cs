@@ -7,9 +7,9 @@ namespace MangaViewer
 {
     internal sealed class CbzCacheCoordinator
     {
-        private const int MaxCachedCbzCountArea1 = 50;
+        private const int MaxCachedCbzCountArea1 = int.MaxValue; // キャッシュ上限なし（上限撤廃）
         private const int MaxCachedCbzCountArea2 = 0;
-        private const int PriorityCacheDirCount = MaxCachedCbzCountArea1;
+        private const int PriorityCacheDirCount = 200; // 保護リストのサイズ上限
 
         private readonly object _retentionLock = new();
         private readonly List<string> _priorityCacheDirs = new();

@@ -14,6 +14,7 @@ namespace MangaViewer
         internal Panel panelList = null!;
         internal ListBox listBoxFolders = null!;
         internal Label labelInfo = null!;
+        internal Label labelCacheStatus = null!;
 
         internal List<string> _imagePaths = new List<string>();
         internal CbzManager? _cbzManager;
@@ -447,6 +448,8 @@ namespace MangaViewer
 
         internal void LoadAndSortImages(string folderPath)
         {
+            // フォルダ移動開始時に即キャンセル（古い currentIndex での遅延起動を防ぐ）
+            _cbzManager?.CancelBackgroundListPreload();
             RememberCurrentPlaybackPosition();
             _currentFolder = folderPath;
             ImageLoader.Load(this);
@@ -458,6 +461,9 @@ namespace MangaViewer
             int loadGeneration = System.Threading.Interlocked.Increment(ref _folderLoadGeneration);
             var sw = System.Diagnostics.Stopwatch.StartNew();
             StartupHandler.WriteStartupLog($"[KEY-NAV] phase=load-start gen={loadGeneration} folder={folderPath}");
+
+            // フォルダ移動開始時に即キャンセル（古い currentIndex での遅延起動を防ぐ）
+            _cbzManager?.CancelBackgroundListPreload();
 
             RememberCurrentPlaybackPosition();
             _currentFolder = folderPath;
@@ -547,26 +553,25 @@ namespace MangaViewer
                     return "";
 
                 string currentFolder = _folderList[_currentFolderIndex];
-                string? nextFolder = (_currentFolderIndex + 1 < _folderList.Count) ? _folderList[_currentFolderIndex + 1] : null;
 
-                var candidateFolders = new List<string> { currentFolder };
-                if (!string.IsNullOrWhiteSpace(nextFolder))
-                    candidateFolders.Add(nextFolder);
-
-                var cbzFiles = new List<string>();
-                var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                foreach (var folder in candidateFolders)
+                // CbzManager が現在フォルダのリストを保持していれば再スキャン不要（NAS ブロック防止）
+                List<string> cbzFiles;
+                if (_cbzManager != null &&
+                    string.Equals(_cbzManager.CurrentFolder, currentFolder, StringComparison.OrdinalIgnoreCase) &&
+                    _cbzManager.CbxFiles.Count > 0)
                 {
-                    if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))
-                        continue;
+                    cbzFiles = _cbzManager.CbxFiles;
+                }
+                else
+                {
+                    // フォールバック: CbzManager が未初期化の場合のみスキャン
+                    if (string.IsNullOrWhiteSpace(currentFolder) || !Directory.Exists(currentFolder))
+                        return "";
 
-                    foreach (var file in Directory.GetFiles(folder, "*.*", SearchOption.TopDirectoryOnly)
-                                 .Where(f => f.EndsWith(".cbz", StringComparison.OrdinalIgnoreCase) ||
-                                             f.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)))
-                    {
-                        if (seen.Add(file))
-                            cbzFiles.Add(file);
-                    }
+                    cbzFiles = Directory.GetFiles(currentFolder, "*.*", SearchOption.TopDirectoryOnly)
+                        .Where(f => f.EndsWith(".cbz", StringComparison.OrdinalIgnoreCase) ||
+                                    f.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                        .ToList();
                 }
 
                 if (cbzFiles.Count == 0)
@@ -627,6 +632,9 @@ namespace MangaViewer
 
             labelInfo = new Label { Text = "フォルダを選択してください (キー1)", AutoSize = true, ForeColor = Color.White, BackColor = Color.FromArgb(64, 64, 64) };
             this.Controls.Add(labelInfo);
+
+            labelCacheStatus = new Label { Text = "", AutoSize = true, ForeColor = Color.Yellow, BackColor = Color.FromArgb(64, 64, 64) };
+            this.Controls.Add(labelCacheStatus);
 
             panelList = new Panel { BackColor = Color.FromArgb(30, 30, 30), BorderStyle = BorderStyle.FixedSingle };
             this.Controls.Add(panelList);
