@@ -69,8 +69,24 @@ namespace MangaViewer
             }
             catch (IOException)
             {
-                try { Console.WriteLine($"[ImageService] *** LOAD FAILED (IO): {imagePath} ***"); } catch { }
-                return null;
+                // 進捗展開中(案A')の未展開ページ → そのページだけオンデマンド展開して再試行
+                if (CbzProgressiveCache.TryMaterializePage(imagePath))
+                {
+                    try
+                    {
+                        fileBytes = File.ReadAllBytes(imagePath);
+                    }
+                    catch (IOException)
+                    {
+                        try { Console.WriteLine($"[ImageService] *** LOAD FAILED (IO retry): {imagePath} ***"); } catch { }
+                        return null;
+                    }
+                }
+                else
+                {
+                    try { Console.WriteLine($"[ImageService] *** LOAD FAILED (IO): {imagePath} ***"); } catch { }
+                    return null;
+                }
             }
 
 

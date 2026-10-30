@@ -13,6 +13,10 @@ namespace MangaViewer
     {
         private static readonly ConcurrentDictionary<string, SemaphoreSlim> CacheExtractionLocks = new();
 
+        /// <summary>cacheDir 単位の展開ロックを取得する（進捗展開と先読み展開の直列化用）。</summary>
+        internal static SemaphoreSlim GetExtractionLock(string cacheDir) =>
+            CacheExtractionLocks.GetOrAdd(cacheDir, _ => new SemaphoreSlim(1, 1));
+
         internal static string ComputeCacheHash(string cbzFile)
         {
             using var md5 = MD5.Create();
@@ -87,6 +91,14 @@ namespace MangaViewer
 
                 ExtractCbzTo(temporaryDirectory, cbzFile, startedAt, statusCallback, ct);
                 File.WriteAllText(Path.Combine(temporaryDirectory, CbzManager.CacheCompleteMarkerFileName), string.Empty);
+
+                // 進捗展開(案A')などが既に cacheDir を生成済みなら、こちらは破棄して譲る
+                if (Directory.Exists(cacheDir))
+                {
+                    try { Directory.Delete(temporaryDirectory, recursive: true); } catch { }
+                    return IsCacheReady(cacheDir);
+                }
+
                 Directory.Move(temporaryDirectory, cacheDir);
                 return true;
             }

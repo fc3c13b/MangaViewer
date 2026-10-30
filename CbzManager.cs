@@ -60,6 +60,20 @@ namespace MangaViewer
         private long _imagePathCacheHits;
         private long _imagePathCacheMisses;
 
+        // 進捗展開(案A')の現在巻用キャンセルソース。別巻へ移る/解放時にキャンセルする。
+        private CancellationTokenSource? _currentProgressiveCts;
+
+        private void CancelCurrentProgressive()
+        {
+            var cts = _currentProgressiveCts;
+            _currentProgressiveCts = null;
+            if (cts != null)
+            {
+                try { cts.Cancel(); } catch { }
+                try { cts.Dispose(); } catch { }
+            }
+        }
+
         /// <summary>展開キャッシュの追加・削除後に、UIへ表示更新を通知する。</summary>
         public event Action? CacheChanged;
         /// <summary>CBZ読み出し・展開中の状態をUIへ通知する。ファイル名とメッセージをセットする。</summary>
@@ -421,6 +435,7 @@ namespace MangaViewer
 
         private void Reset()
         {
+            CancelCurrentProgressive();
             _state.Reset();
             // CurrentImagePaths can reference an entry in _imagePathsByCbz.
             // Do not clear that shared list when changing folders; only detach
@@ -521,13 +536,69 @@ namespace MangaViewer
             if (!cacheDirectoryExisted)
             {
                 cacheDir = primaryCacheDir;
-                // キャッシュミス→展開
                 StartupHandler.WriteStartupLog($"[CBZ-STARTUP] Cache MISS: {cbzFile}");
+
+                // 案A': 進捗展開。予測パスを即時に返し、ページは出現し次第/
+                // オンデマンドで表示する。全展開完了時のみ .complete を書く。
+                var predicted = CbzProgressiveCache.Begin(cacheDir, cbzFile);
+                if (predicted.Count > 0)
+                {
+                    CancelCurrentProgressive();
+                    var cts = new CancellationTokenSource();
+                    _currentProgressiveCts = cts;
+                    var token = cts.Token;
+                    string cbzForTask = cbzFile;
+                    string cacheForTask = cacheDir;
+
+                    Task.Run(() =>
+                    {
+                        var extractLock = CbzCacheHelper.GetExtractionLock(cacheForTask);
+                        bool acquired = false;
+                        try
+                        {
+                            extractLock.Wait(token);
+                            acquired = true;
+                            CbzProgressiveCache.RunFullExtraction(cacheForTask, cbzForTask,
+                                (done, total) =>
+                                {
+                                    try
+                                    {
+                                        NotifyCacheStatus(cbzForTask,
+                                            CbzStatusHelper.BuildDownloadStatus(cbzForTask, done, total, TimeSpan.Zero));
+                                    }
+                                    catch { }
+                                }, token);
+
+                            if (CbzCacheHelper.IsCacheReady(cacheForTask))
+                            {
+                                CbzStatusHelper.WriteCacheCreateLog(_cacheRootArea2, cbzForTask, cacheForTask, "current-progressive");
+                                TrimCacheDirectories(cacheForTask);
+                                NotifyCacheChanged();
+                            }
+                        }
+                        catch (OperationCanceledException) { CbzProgressiveCache.End(cacheForTask); }
+                        catch { CbzProgressiveCache.End(cacheForTask); }
+                        finally { if (acquired) extractLock.Release(); }
+                    }, token);
+
+                    _imagePathsByCbz[cbzFile] = predicted;
+                    _cbzByCacheDirectory[cacheDir] = cbzFile;
+                    SetCurrentImagePaths(cbzFile, predicted);
+                    if (preloadNext)
+                    {
+                        ScheduleNeighborPreloads(ActiveCbxIndex);
+                        _ = PreloadNextCbzIfAvailableAsync();
+                    }
+                    StartupHandler.WriteStartupLog($"[PROF] CbzManager.ImagePaths cbz={Path.GetFileName(cbzFile)} source=progressive images={predicted.Count} total={sw.ElapsedMilliseconds}ms");
+                    return;
+                }
+
+                // フォールバック: 予測不可（zip 読取失敗等）→ 従来のブロッキング展開
                 try
                 {
                     CbzStatusHelper.NotifyCacheStatus(CacheStatusChanged, cbzFile, CbzStatusHelper.BuildDownloadStatus(cbzFile, 0, 0, TimeSpan.Zero));
                     var extractSw = System.Diagnostics.Stopwatch.StartNew();
-                    StartupHandler.WriteStartupLog($"[CBZ-STARTUP] Extracting: {cbzFile} → {cacheDir}");
+                    StartupHandler.WriteStartupLog($"[CBZ-STARTUP] Extracting(fallback): {cbzFile} → {cacheDir}");
                     bool extractedNow = TryAcquireCache(cbzFile, "current");
                     extractMs = extractSw.ElapsedMilliseconds;
                     StartupHandler.WriteStartupLog($"[CBZ] Extract {Path.GetFileName(cbzFile)}: {extractMs}ms, result={(extractedNow ? "success" : "already-existed")}");
@@ -724,6 +795,7 @@ namespace MangaViewer
 
         public void Dispose()
         {
+            CancelCurrentProgressive();
             CbxFiles.Clear();
             CurrentImagePaths.Clear();
             _imagePathsByCbz.Clear();

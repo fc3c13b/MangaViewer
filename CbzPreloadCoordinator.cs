@@ -203,6 +203,13 @@ namespace MangaViewer
                 return;
             }
 
+            // 表示中の巻を進捗展開(案A')している最中は、先読みで同じ cacheDir に介入しない
+            if (CbzProgressiveCache.IsActive(cacheDir))
+            {
+                System.Diagnostics.Debug.WriteLine($"[CBZ] Preload skip(progressive-active) pri={priority}: {Path.GetFileName(cbzPath)}");
+                return;
+            }
+
             if (!_pendingPreloads.TryAdd(cacheDir, priority))
             {
                 System.Diagnostics.Debug.WriteLine($"[CBZ] Preload skip(in-progress) pri={priority}: {Path.GetFileName(cbzPath)}");
