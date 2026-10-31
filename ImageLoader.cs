@@ -128,6 +128,8 @@ namespace MangaViewer
             }
 
             Log($"[CBZ] Calling InitializeForFolder...");
+            // 設定（CBZ完全展開を待つか/進捗展開するか）を毎回反映する
+            form._cbzManager.WaitForFullCbzDownload = form._settings.WaitForFullCbzDownload;
             bool ok = form._cbzManager.InitializeForFolder(folderPath, preferredCbzFile, cbzFiles);
             Log($"[CBZ] InitializeForFolder: ok={ok} CbxFiles.Count={form._cbzManager.CbxFiles.Count}");
 

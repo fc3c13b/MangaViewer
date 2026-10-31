@@ -90,6 +90,11 @@ namespace MangaViewer
         /// </summary>
         public bool StartFromLastViewedPositionValue => cbStartFromLastViewedPosition.Checked;
 
+        /// <summary>
+        /// CBZファイルのDL完了後に画像表示するか（true=完全展開を待つ, false=進捗展開で即表示）
+        /// </summary>
+        public bool WaitForFullCbzDownloadValue => cbWaitForFullCbzDownload.Checked;
+
         // デフォルト値
         private const int DefaultMinDisplayCount = 20;
         private const int DefaultMaxDisplayCount = 1000;
@@ -102,6 +107,7 @@ namespace MangaViewer
         private CheckBox cbMinEvalFilterEnabled = null!;
         private CheckBox cbMinEvalEqualFilter = null!;
         private CheckBox cbStartFromLastViewedPosition = null!;
+        private CheckBox cbWaitForFullCbzDownload = null!;
 
         public SettingsDialog()
         {
@@ -114,7 +120,7 @@ namespace MangaViewer
             // ダイアログ基本設定
             this.Text = "設定";
             this.StartPosition = FormStartPosition.CenterScreen;
-            this.Size = new System.Drawing.Size(420, 540);
+            this.Size = new System.Drawing.Size(420, 670);
             this.MinimizeBox = false;
             this.MaximizeBox = false;
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
@@ -381,6 +387,29 @@ namespace MangaViewer
             };
             this.Controls.Add(cbMinEvalEqualFilter);
 
+            // CBZ表示設定セクション
+            Label labelCbzSection = new Label
+            {
+                Text = "CBZ表示設定",
+                AutoSize = true,
+                ForeColor = Color.LimeGreen,
+                Font = new System.Drawing.Font("Meiryo UI", 10F, FontStyle.Bold),
+                Location = new System.Drawing.Point(20, 475),
+            };
+            this.Controls.Add(labelCbzSection);
+
+            // CBZファイルのDL完了後に画像表示する
+            cbWaitForFullCbzDownload = new CheckBox
+            {
+                Text = "CBZファイルのDL完了後に画像表示する",
+                Location = new System.Drawing.Point(20, 505),
+                AutoSize = true,
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(40, 40, 40),
+                Checked = false, // デフォルト：進捗展開(案A')で即表示
+            };
+            this.Controls.Add(cbWaitForFullCbzDownload);
+
             // バージョン表示ラベル（下部：Constants から一元取得）
             labelVersion = new Label
             {
@@ -494,6 +523,7 @@ namespace MangaViewer
             bool startFromLastViewedPosition = true;
             bool minEvalFilterEnabled = true;
             bool minEvalEqualFilter = false;
+            bool waitForFullCbzDownload = false;
 
             if (File.Exists(SettingsFilePath))
             {
@@ -574,6 +604,11 @@ namespace MangaViewer
                         minEvalEqualFilter = meqProp.GetBoolean();
                     }
 
+                    if (doc.RootElement.TryGetProperty("WaitForFullCbzDownload", out var wffdProp) && (wffdProp.ValueKind == JsonValueKind.True || wffdProp.ValueKind == JsonValueKind.False))
+                    {
+                        waitForFullCbzDownload = wffdProp.GetBoolean();
+                    }
+
                     // 設定値が存在しなかった場合はデフォルト値を保存（新旧互換対応）
                     bool countExists = doc.RootElement.TryGetProperty("MinDisplayCount", out _);
                     bool maxCountExists = doc.RootElement.TryGetProperty("MaxDisplayCount", out _);
@@ -589,7 +624,8 @@ namespace MangaViewer
                             displayCnt,
                             normalPercent,
                             fullScreenPercent,
-                            startFromLastViewedPosition);
+                            startFromLastViewedPosition,
+                            waitForFullCbzDownload);
                     }
                 }
                 catch
@@ -602,7 +638,8 @@ namespace MangaViewer
                         DefaultDisplayCountVal,
                         DefaultNormalModeImageAreaPercent,
                         DefaultFullScreenModeImageAreaPercent,
-                        true);
+                        true,
+                        false);
                 }
             }
 
@@ -620,6 +657,7 @@ namespace MangaViewer
                 numFullScreenLayoutRatio.Value = fullScreenPercent;
 
             cbStartFromLastViewedPosition.Checked = startFromLastViewedPosition;
+            cbWaitForFullCbzDownload.Checked = waitForFullCbzDownload;
 
             // 評価値フィルタ設定を反映
             cbMinEvalFilterEnabled.Checked = minEvalFilterEnabled;
@@ -644,10 +682,11 @@ namespace MangaViewer
             int normalPercent = NormalModeImageAreaPercent;
             int fullScreenPercent = FullScreenModeImageAreaPercent;
             bool startFromLastViewedPosition = StartFromLastViewedPositionValue;
+            bool waitForFullCbzDownload = WaitForFullCbzDownloadValue;
 
             SaveSettingsToFile(
                 minDisplayCount, maxDisplayCount, minEvaluation, displayCount,
-                normalPercent, fullScreenPercent, startFromLastViewedPosition);
+                normalPercent, fullScreenPercent, startFromLastViewedPosition, waitForFullCbzDownload);
 
             this.DialogResult = DialogResult.OK;
         }
@@ -662,7 +701,8 @@ namespace MangaViewer
             int displayCount,
             int normalPercent,
             int fullScreenPercent,
-            bool startFromLastViewedPosition)
+            bool startFromLastViewedPosition,
+            bool waitForFullCbzDownload)
         {
             try
             {
@@ -688,6 +728,7 @@ namespace MangaViewer
                 existing["NormalModeImageAreaPercent"] = JsonSerializer.SerializeToElement(normalPercent);
                 existing["FullScreenModeImageAreaPercent"] = JsonSerializer.SerializeToElement(fullScreenPercent);
                 existing["StartFromLastViewedPosition"] = JsonSerializer.SerializeToElement(startFromLastViewedPosition);
+                existing["WaitForFullCbzDownload"] = JsonSerializer.SerializeToElement(waitForFullCbzDownload);
 
                 // 評価値フィルタ設定
                 existing["MinEvaluationFilterEnabled"] = JsonSerializer.SerializeToElement(cbMinEvalFilterEnabled.Checked);

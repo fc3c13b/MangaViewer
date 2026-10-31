@@ -63,6 +63,12 @@ namespace MangaViewer
         // 進捗展開(案A')の現在巻用キャンセルソース。別巻へ移る/解放時にキャンセルする。
         private CancellationTokenSource? _currentProgressiveCts;
 
+        /// <summary>
+        /// true = CBZの完全展開を待ってから表示（案A'実装以前の従来動作）。
+        /// false = 進捗展開(案A')で展開中でも表示を開始する。
+        /// </summary>
+        internal bool WaitForFullCbzDownload { get; set; } = false;
+
         private void CancelCurrentProgressive()
         {
             var cts = _currentProgressiveCts;
@@ -540,7 +546,11 @@ namespace MangaViewer
 
                 // 案A': 進捗展開。予測パスを即時に返し、ページは出現し次第/
                 // オンデマンドで表示する。全展開完了時のみ .complete を書く。
-                var predicted = CbzProgressiveCache.Begin(cacheDir, cbzFile);
+                // 設定 WaitForFullCbzDownload=true の場合はこの経路を使わず、
+                // 従来のブロッキング展開（完全展開後に表示）にフォールバックする。
+                var predicted = WaitForFullCbzDownload
+                    ? new List<string>()
+                    : CbzProgressiveCache.Begin(cacheDir, cbzFile);
                 if (predicted.Count > 0)
                 {
                     CancelCurrentProgressive();

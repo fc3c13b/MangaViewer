@@ -198,6 +198,10 @@ namespace MangaViewer
             if (root.TryGetProperty("MinEvaluationEqualFilter", out var meqf) && (meqf.ValueKind == JsonValueKind.True || meqf.ValueKind == JsonValueKind.False))
                 settings.MinEvaluationEqualFilter = meqf.GetBoolean();
 
+            // WaitForFullCbzDownload: true/false
+            if (root.TryGetProperty("WaitForFullCbzDownload", out var wffd) && (wffd.ValueKind == JsonValueKind.True || wffd.ValueKind == JsonValueKind.False))
+                settings.WaitForFullCbzDownload = wffd.GetBoolean();
+
             return (settings, errors);
         }
 
@@ -225,7 +229,8 @@ namespace MangaViewer
                     { "NormalModeImageAreaPercent", settings.NormalModeImageAreaPercent },
                     { "FullScreenModeImageAreaPercent", settings.FullScreenModeImageAreaPercent },
                     { "MinEvaluationFilterEnabled", settings.MinEvaluationFilterEnabled },
-                    { "MinEvaluationEqualFilter", settings.MinEvaluationEqualFilter }
+                    { "MinEvaluationEqualFilter", settings.MinEvaluationEqualFilter },
+                    { "WaitForFullCbzDownload", settings.WaitForFullCbzDownload }
                 };
 
                 File.WriteAllText(AppPaths.SettingsFilePath, JsonSerializer.Serialize(obj, JsonOptions));

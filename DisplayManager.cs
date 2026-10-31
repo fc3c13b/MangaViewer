@@ -172,7 +172,10 @@ namespace MangaViewer
                 Image? loadedImage = null;
                 try
                 {
-                    if (!string.IsNullOrEmpty(imagePath) && File.Exists(imagePath))
+                    // 進捗展開(案A')で未展開のページは File.Exists=false だが、
+                    // LoadOrGetCachedImage 内でオンデマンド展開されるため呼び出す。
+                    if (!string.IsNullOrEmpty(imagePath)
+                        && (File.Exists(imagePath) || CbzProgressiveCache.IsPendingPage(imagePath)))
                         loadedImage = _imageService.LoadOrGetCachedImage(imagePath);
                 }
                 catch (Exception ex)

@@ -75,6 +75,19 @@ namespace MangaViewer
         internal static bool IsActive(string cacheDir) => _active.ContainsKey(cacheDir);
 
         /// <summary>
+        /// 指定パスが進捗展開中の巻のページ（オンデマンド展開可能）かどうか。
+        /// </summary>
+        internal static bool IsPendingPage(string imagePath)
+        {
+            foreach (var kv in _active)
+            {
+                if (kv.Value.PathToEntry.ContainsKey(imagePath))
+                    return true;
+            }
+            return false;
+        }
+
+        /// <summary>
         /// 未展開ページを要求されたとき、そのページだけ zip から取り出す。
         /// 既に存在すれば true。
         /// </summary>

@@ -27,6 +27,13 @@ namespace MangaViewer
         /// <summary>評価値フィルタの比較モード（true=等しい, false=以上）</summary>
         public bool MinEvaluationEqualFilter { get; set; } = false;
 
+        /// <summary>
+        /// CBZファイルのDL（展開）完了後に画像表示するかどうか。
+        /// true  = 完全展開を待ってから表示（案A'実装以前の従来動作）
+        /// false = 進捗展開(案A')で展開中でも表示を開始する
+        /// </summary>
+        public bool WaitForFullCbzDownload { get; set; } = false;
+
         /// <summary>画面表示数（1, 2, または 8 のみ許可）</summary>
         public int DisplayCount
         {
