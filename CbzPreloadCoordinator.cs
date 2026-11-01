@@ -138,7 +138,8 @@ namespace MangaViewer
             {
                 try
                 {
-                    var firstCbz = Directory.EnumerateFiles(folderPath, "*.cbz", SearchOption.TopDirectoryOnly)
+                    var firstCbz = Directory.EnumerateFiles(folderPath, "*.*", SearchOption.TopDirectoryOnly)
+                        .Where(ArchiveExtensions.IsArchive)
                         .OrderBy(path => path, new CbzVolumeComparer())
                         .FirstOrDefault();
                     if (!string.IsNullOrEmpty(firstCbz))
@@ -276,8 +277,7 @@ namespace MangaViewer
         private IEnumerable<string> GetSortedCbzFiles(string folderPath)
         {
             return Directory.EnumerateFiles(folderPath, "*.*", SearchOption.TopDirectoryOnly)
-                .Where(f => f.EndsWith(".cbz", StringComparison.OrdinalIgnoreCase) ||
-                            f.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                .Where(ArchiveExtensions.IsArchive)
                 .OrderBy(f => f, new CbzVolumeComparer());
         }
 

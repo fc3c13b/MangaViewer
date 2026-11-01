@@ -208,7 +208,7 @@ namespace MangaViewer
             foreach (var f in files)
             {
                 string ext = Path.GetExtension(f)?.ToLowerInvariant() ?? "";
-                if (ext == ".cbz" || ext == ".zip")
+                if (ext == ".cbz" || ext == ".zip" || ext == ".rar")
                     cbzZipCount++;
                 else if (ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".webp")
                     imageCount++;

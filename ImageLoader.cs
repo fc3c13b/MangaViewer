@@ -68,8 +68,7 @@ namespace MangaViewer
             try
             {
                 cbzFiles = Directory.GetFiles(folderPath, "*.*", SearchOption.TopDirectoryOnly)
-                    .Where(f => f.EndsWith(".cbz", StringComparison.OrdinalIgnoreCase) ||
-                                f.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                    .Where(ArchiveExtensions.IsArchive)
                     .ToArray();
             }
             catch (UnauthorizedAccessException)

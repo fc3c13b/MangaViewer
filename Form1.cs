@@ -569,8 +569,7 @@ namespace MangaViewer
                         return "";
 
                     cbzFiles = Directory.GetFiles(currentFolder, "*.*", SearchOption.TopDirectoryOnly)
-                        .Where(f => f.EndsWith(".cbz", StringComparison.OrdinalIgnoreCase) ||
-                                    f.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                        .Where(ArchiveExtensions.IsArchive)
                         .ToList();
                 }
 

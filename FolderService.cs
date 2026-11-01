@@ -481,7 +481,8 @@ namespace MangaViewer
 
             try
             {
-                return Directory.EnumerateFiles(dir, "*.cbz", SearchOption.TopDirectoryOnly).Count();
+                return Directory.EnumerateFiles(dir, "*.*", SearchOption.TopDirectoryOnly)
+                    .Count(ArchiveExtensions.IsArchive);
             }
             catch { return 0; }
         }

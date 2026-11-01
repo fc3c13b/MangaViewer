@@ -474,36 +474,55 @@ namespace MangaViewer
                         && prop.ValueKind == JsonValueKind.String)
                     {
                         string path = prop.ToString();
-                        if (!string.IsNullOrEmpty(path) && Directory.Exists(path))
+                        // Directory.Exists は NAS パスで長時間ブロックする可能性があるため省略し、
+                        // パスが空でなければそのまま返す（ComputeDisplayStats 内で安全に処理される）
+                        if (!string.IsNullOrEmpty(path))
                             return path;
                     }
                 }
             }
-            catch { /* ルートフォルダ取得失敗時はデフォルトにフォールバック */ }
-            // デフォルト: MyDocuments フォルダ
+            catch { }
             return Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
         }
 
         /// <summary>
-        /// フィルター統計を更新してUIに表示（非同期で30秒タイムアウト付き）
+        /// フィルター統計を更新してUIに表示。
+        /// UI値はUIスレッドで取得してからバックグラウンドで計算し、
+        /// ダイアログ破棄済みの場合は Invoke をスキップする。
         /// </summary>
         private void UpdateFilterStats()
         {
-            // 前回の非同期計算をキャンセルせず、新しい計算を開始
+            // UI値はUIスレッドで取得する（クロススレッドアクセス防止）
+            string root = RootFolder;
+            int minImages = (int)numMinDisplayCount.Value;
+            int maxImages = (int)numMaxDisplayCount.Value;
+            int minRating = (int)numMinEvaluation.Value;
+
             Task.Run(() =>
             {
-                string root = RootFolder;
-                int minImages = (int)numMinDisplayCount.Value;
-                int maxImages = (int)numMaxDisplayCount.Value;
-                int minRating = (int)numMinEvaluation.Value;
-
-                var (imagePass, total, ratingPass) = _folderService.ComputeDisplayStats(root, minImages, maxImages, minRating);
-
-                this.Invoke(new Action(() =>
+                try
                 {
-                    lblImageFilterStats.Text = $"[{imagePass}/{total}]";
-                    lblRatingFilterStats.Text = $"[{ratingPass}/{imagePass}]";
-                }));
+                    var (imagePass, total, ratingPass) = _folderService.ComputeDisplayStats(root, minImages, maxImages, minRating);
+
+                    // ダイアログが既に破棄されていれば Invoke しない
+                    if (IsDisposed || !IsHandleCreated) return;
+
+                    try
+                    {
+                        this.Invoke(new Action(() =>
+                        {
+                            if (IsDisposed) return;
+                            lblImageFilterStats.Text = $"[{imagePass}/{total}]";
+                            lblRatingFilterStats.Text = $"[{ratingPass}/{imagePass}]";
+                        }));
+                    }
+                    catch (ObjectDisposedException) { }
+                    catch (InvalidOperationException) { }
+                }
+                catch
+                {
+                    // 統計計算失敗はサイレントに無視
+                }
             });
         }
 

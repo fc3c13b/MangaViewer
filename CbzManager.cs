@@ -127,8 +127,7 @@ namespace MangaViewer
                 CurrentFolder = folderPath;
                 long t0 = sw.ElapsedMilliseconds;
                 var cbzs = Directory.GetFiles(folderPath, "*.*", SearchOption.TopDirectoryOnly)
-                                    .Where(f => f.EndsWith(".cbz", StringComparison.OrdinalIgnoreCase) ||
-                                                f.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                                    .Where(ArchiveExtensions.IsArchive)
                                     .OrderBy(f => f, new CbzVolumeComparer())
                                     .ToList();
                 long tScanEnd = sw.ElapsedMilliseconds;
@@ -164,8 +163,7 @@ namespace MangaViewer
             {
                 CurrentFolder = folderPath;
                 var cbzs = preScannedCbzFiles
-                    .Where(f => f.EndsWith(".cbz", StringComparison.OrdinalIgnoreCase) ||
-                                f.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                    .Where(ArchiveExtensions.IsArchive)
                     .OrderBy(f => f, new CbzVolumeComparer())
                     .ToList();
 

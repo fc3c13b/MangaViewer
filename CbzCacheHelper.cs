@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.IO;
 using System.IO.Compression;
@@ -6,6 +6,8 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
+using SharpCompress.Archives;
+using SharpCompress.Common;
 
 namespace MangaViewer
 {
@@ -132,6 +134,15 @@ namespace MangaViewer
                 throw;
             }
 
+            // RARは SharpCompress で展開。ZIP/CBZは従来の System.IO.Compression を使用。
+            if (ArchiveExtensions.IsRar(cbzFile))
+                ExtractRarTo(cacheDir, cbzFile, startedAt, statusCallback, ct);
+            else
+                ExtractZipTo(cacheDir, cbzFile, startedAt, statusCallback, ct);
+        }
+
+        private static void ExtractZipTo(string cacheDir, string cbzFile, System.Diagnostics.Stopwatch startedAt, Action<string>? statusCallback = null, CancellationToken ct = default)
+        {
             try
             {
                 using var archive = ZipFile.OpenRead(cbzFile);
@@ -212,6 +223,53 @@ namespace MangaViewer
             {
                 // Not a valid ZIP; leave cacheDir empty.
             }
+        }
+
+        private static void ExtractRarTo(string cacheDir, string rarFile, System.Diagnostics.Stopwatch startedAt, Action<string>? statusCallback = null, CancellationToken ct = default)
+        {
+            try
+            {
+                using var archive = ArchiveFactory.OpenArchive(rarFile);
+                var imageEntries = archive.Entries
+                    .Where(e => !e.IsDirectory && !string.IsNullOrEmpty(e.Key))
+                    .ToList();
+                int totalEntries = imageEntries.Count;
+                int processedEntries = 0;
+                long lastStatusMs = 0;
+
+                foreach (var entry in imageEntries)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    processedEntries++;
+
+                    var dest = Path.Combine(cacheDir, entry.Key!);
+                    if (!Path.GetFullPath(dest).StartsWith(Path.GetFullPath(cacheDir), StringComparison.Ordinal))
+                        continue;
+
+                    Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
+                    try
+                    {
+                        entry.WriteToFile(dest, new ExtractionOptions { Overwrite = true });
+                    }
+                    catch (UnauthorizedAccessException) { }
+                    catch { }
+
+                    if (statusCallback != null)
+                    {
+                        long elapsedMs = (long)startedAt.Elapsed.TotalMilliseconds;
+                        if (processedEntries == 1 || processedEntries == totalEntries || elapsedMs - lastStatusMs >= 2000)
+                        {
+                            lastStatusMs = elapsedMs;
+                            statusCallback(CbzStatusHelper.BuildDownloadStatus(rarFile, processedEntries, totalEntries, startedAt.Elapsed));
+                        }
+                    }
+                }
+
+                statusCallback?.Invoke($"表示準備完了: {Path.GetFileName(rarFile)}");
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (UnauthorizedAccessException) { throw; }
+            catch { }
         }
     }
 }
