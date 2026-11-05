@@ -14,6 +14,7 @@ namespace MangaViewer
         private ListBox _listBox;
         private Panel _panelList;
         private System.Windows.Forms.Timer? _scrollTimer;
+        private Func<string, Color>? _itemColorResolver; // null means no color coding
 
         private int _scrollOffsetX;
         private bool _scrolling;
@@ -23,9 +24,14 @@ namespace MangaViewer
         private float _scrollPixelsPerMs;
 
         public ListBoxScrollHelper(ListBox listBox, Panel panelList)
+            : this(listBox, panelList, null) { }
+
+        public ListBoxScrollHelper(ListBox listBox, Panel panelList, Func<string, Color>? itemColorResolver)
         {
             _listBox = listBox;
             _panelList = panelList;
+            _itemColorResolver = itemColorResolver;
+
 
             _scrollTimer = new Timer { Interval = 16 }; // ~60 FPS
             _scrollTimer.Tick += ScrollTimer_Tick;
@@ -161,14 +167,17 @@ namespace MangaViewer
                 }
 
                 int drawX = e.Bounds.X - _scrollOffsetX;
-                using (var b = new SolidBrush(Color.White))
+                var itemColor = _itemColorResolver != null ? _itemColorResolver(text) : Color.White;
+                using (var b = new SolidBrush(itemColor))
                 {
                     e.Graphics.DrawString(text, ListFont, b, drawX, e.Bounds.Y + 2);
                 }
             }
             else
             {
-                using (var b = new SolidBrush(_listBox.ForeColor))
+                // Color coding: green (read complete) > yellow (new/updated) > default white
+                var itemColor = _itemColorResolver != null ? _itemColorResolver(text) : _listBox.ForeColor;
+                using (var b = new SolidBrush(itemColor))
                 {
                     e.Graphics.DrawString(text, ListFont, b, e.Bounds.X + 2, e.Bounds.Y + 2);
                 }

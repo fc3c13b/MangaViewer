@@ -164,6 +164,7 @@ namespace MangaViewer
                     else
                     {
                         cjData.Folders[dir] = ScanFolderEntry(dir);
+                        cjData.Folders[dir].IsNew = true;
                         added++;
                     }
                 }
@@ -264,6 +265,8 @@ namespace MangaViewer
                             cjEntry.Rating = r.GetInt32();
                         if (entry.Value.TryGetProperty("updatedAt", out var ua) && ua.ValueKind == JsonValueKind.Number)
                             cjEntry.UpdatedAt = ua.GetInt64();
+                        if (entry.Value.TryGetProperty("isNew", out var nw) && nw.ValueKind == JsonValueKind.True)
+                            cjEntry.IsNew = true;
 
                         folders[entry.Name] = cjEntry;
                     }
@@ -535,6 +538,8 @@ namespace MangaViewer
                     entryObj["CbzZipCount"] = kvp.Value.CbzZipCount.Value;
                 if (kvp.Value.ImageCount.HasValue && kvp.Value.ImageCount.Value > 0)
                     entryObj["imageCount"] = kvp.Value.ImageCount.Value;
+                if (kvp.Value.IsNew)
+                    entryObj["isNew"] = true;
 
                 ((Dictionary<object, object>)obj["folders"])[kvp.Key] = entryObj;
             }

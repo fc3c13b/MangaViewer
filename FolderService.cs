@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -19,6 +20,8 @@ namespace MangaViewer
         public int? ImageCount { get; set; }  // null=省略（0の場合）
         public int Rating { get; set; } = -1;
         public long UpdatedAt { get; set; } = 0;
+        public bool IsNew { get; set; } = false;              // Key3検索で新規/更新されたフォルダ
+        public bool IsReadComplete { get; set; } = false;     // 全ページ表示完了済み
     }
 
     /// <summary>
@@ -43,6 +46,8 @@ namespace MangaViewer
         public int ImageCount;
         public int CbzFileCount; // CBZ ファイルの数
         public int Rating; // -1: 評価未設定
+        public bool IsNew;                                    // Key3検索で新規/更新されたフォルダ
+        public bool IsReadComplete;                          // 全ページ表示完了済み
     }
 
     /// <summary>
@@ -50,7 +55,7 @@ namespace MangaViewer
     /// </summary>
     public class FolderService
     {
-        private static readonly HashSet<string> SupportedImageExtensions = new(StringComparer.OrdinalIgnoreCase)
+        private static readonly HashSet<string> SupportedImageExtensions = new(StringComparer.Create(CultureInfo.CurrentCulture, true))
         {
             ".jpg", ".jpeg", ".webp", ".png"
         };
@@ -134,7 +139,7 @@ namespace MangaViewer
                 var dirs = Directory.GetDirectories(rootPath);
                 var sorted = dirs
                     .Select(d => d.Replace("\\", "/"))
-                    .OrderBy(d => Path.GetFileName(d), StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(d => Path.GetFileName(d), NaturalSortComparer.Default)
                     .ToList();
 
                 foreach (var dir in sorted)
@@ -283,7 +288,7 @@ namespace MangaViewer
                 var dirs = Directory.GetDirectories(rootPath);
                 var sorted = dirs
                     .Select(d => d.Replace("\\", "/"))
-                    .OrderBy(d => Path.GetFileName(d), StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(d => Path.GetFileName(d), NaturalSortComparer.Default)
                     .ToList();
 
                 foreach (var dir in sorted)
@@ -459,7 +464,7 @@ namespace MangaViewer
 
             try
             {
-                var imageExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                var imageExtensions = new HashSet<string>(StringComparer.Create(CultureInfo.CurrentCulture, true))
                 {
                     ".jpg", ".jpeg", ".webp", ".png"
                 };
@@ -788,11 +793,11 @@ namespace MangaViewer
                 var dirs = Directory.GetDirectories(rootPath);
                 var sorted = dirs
                     .Select(d => d.Replace("\\", "/"))
-                    .OrderBy(d => Path.GetFileName(d), StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(d => Path.GetFileName(d), StringComparer.Create(CultureInfo.CurrentCulture, true))
                     .ToList();
 
                 // ディスク上に実際に存在する子フォルダの集合
-                var existingPaths = new HashSet<string>(sorted, StringComparer.OrdinalIgnoreCase);
+                var existingPaths = new HashSet<string>(sorted, StringComparer.Create(CultureInfo.CurrentCulture, true));
 
                 foreach (var dir in sorted)
                 {
@@ -840,7 +845,7 @@ namespace MangaViewer
                                 if (_settings.MinEvaluation > 0 && rating >= 0 && rating < _settings.MinEvaluation)
                                     continue;
 
-                                entries.Add(new FolderEntry { Path = dir, ImageCount = imageCount, CbzFileCount = cbzFileCount, Rating = rating });
+                                entries.Add(new FolderEntry { Path = dir, ImageCount = imageCount, CbzFileCount = cbzFileCount, Rating = rating, IsNew = false, IsReadComplete = cjEntry.IsReadComplete });
                             }
                             else
                             {
@@ -853,6 +858,20 @@ namespace MangaViewer
                                 cjEntry.Rating = r;
                                 cjEntry.UpdatedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
+                                // 前回imageCountとの比較でisNew/isReadCompleteを判定
+                                int prevImageCount = cjEntry.ImageCount ?? 0;
+                                bool imageIncreased = ic > prevImageCount;
+                                if (imageIncreased)
+                                {
+                                    cjEntry.IsNew = true;
+                                    cjEntry.IsReadComplete = false; // 更新されたら読了フラグをリセット
+                                }
+                                else
+                                {
+                                    cjEntry.IsNew = false;
+                                    // IsReadComplete は維持（変更しない）
+                                }
+
                                 // フィルタ適用
                                 bool inRange2 = true;
                                 if (_settings.MinDisplayCount > 0 && ic < _settings.MinDisplayCount) inRange2 = false;
@@ -863,7 +882,7 @@ namespace MangaViewer
                                 if (_settings.MinEvaluation > 0 && r >= 0 && r < _settings.MinEvaluation)
                                     continue;
 
-                                entries.Add(new FolderEntry { Path = dir, ImageCount = ic, CbzFileCount = cc, Rating = r });
+                                entries.Add(new FolderEntry { Path = dir, ImageCount = ic, CbzFileCount = cc, Rating = r, IsNew = cjEntry.IsNew, IsReadComplete = cjEntry.IsReadComplete });
                             }
                         }
                         else
@@ -891,7 +910,7 @@ namespace MangaViewer
                             if (_settings.MinEvaluation > 0 && r >= 0 && r < _settings.MinEvaluation)
                                 continue;
 
-                            entries.Add(new FolderEntry { Path = dir, ImageCount = ic, CbzFileCount = cc, Rating = r });
+                            entries.Add(new FolderEntry { Path = dir, ImageCount = ic, CbzFileCount = cc, Rating = r, IsNew = true, IsReadComplete = false });
                         }
                     }
                     catch (UnauthorizedAccessException) { }

@@ -338,6 +338,17 @@ namespace MangaViewer
                     form._currentIndex = forward
                         ? NavigationHandler.ComputeMaxPageIndex(form._imagePaths.Count, form._displayManager.DisplayCount)
                         : 0;
+                    
+                    // 前方遷移で次巻がなかった場合 → 読了判定
+                    if (forward && !string.IsNullOrEmpty(form._currentFolder) && form._activeCjData != null)
+                    {
+                        if (form._activeCjData.Folders.TryGetValue(form._currentFolder, out var entry))
+                        {
+                            entry.IsReadComplete = true;
+                            // メモリ内更新（ディスク保存は次回Key3検索時に行う）
+                            StartupHandler.WriteStartupLog($"[READ-COMPLETE] marked {form._currentFolder}");
+                        }
+                    }
                 }
 
                 StartupHandler.WriteStartupLog($"[NAV-CROSS] applied gen={generation} forward={forward} advanced={advanced} index={form._currentIndex}");

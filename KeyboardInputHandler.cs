@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Windows.Forms;
 
 namespace MangaViewer
@@ -114,7 +115,7 @@ namespace MangaViewer
              // - 1 : ルートフォルダ選択ダイアログ
              // - 2,8 : 表示枚数 (DisplayCount) を設定
              // - 9 : フルスクリーン ⇔ ノーマル切替
-             // - 3〜7 : なし（何もしない）
+             // - 3〜6 : なし（何もしない）\n              // - 7 : 現在マンガのタイトル・巻数を表示（ダイアログ）
              // - 0   : 設定ダイアログを表示
              if (!ctrl && !alt)
              {
@@ -154,8 +155,12 @@ namespace MangaViewer
                     case Keys.D6:
                         return;
 
-                    // 7 : なし（モード切替廃止）
+                    // 7 : 現在マンガのタイトル・巻数を表示（ダイアログ）
                     case Keys.D7:
+                        if (!listBoxFocused)
+                        {
+                            ShowMangaInfoDialog(nav);
+                        }
                         return;
 
                     case Keys.D0:
@@ -293,7 +298,10 @@ namespace MangaViewer
                 RatingService.SaveRating(nav.CurrentFolder, rating);
                 if (nav is Form1 form)
                     RatingDisplayService.RefreshFolderRatingDisplay(form, nav.CurrentFolder);
-                nav.NavigateToNextUnrated();
+                // Ctrl+/Ctrl- の時のみ次へ移動（SHORTCUTS.md 仕様）
+                // Ctrl+数字キーでは評価値のみを設定し、リスト位置は維持する
+                if (rating == 10 || rating == -1)
+                    nav.NavigateToNextUnrated();
             }
         }
 
@@ -324,6 +332,101 @@ namespace MangaViewer
             {
                 nav.StartSlideshow();
             }
+        }
+
+        // キー7：現在のマンガのタイトルと巻数を表示
+        private static void ShowMangaInfoDialog(INavigationActions nav)
+        {
+            string folderPath = nav.CurrentFolder;
+            if (string.IsNullOrEmpty(folderPath))
+            {
+                MessageBox.Show("フォルダ情報がありません。", "情報表示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            // フォルダ名を取得（フルパスから最後の要素）
+            string folderName = Path.GetFileName(folderPath);
+            if (string.IsNullOrEmpty(folderName))
+            {
+                MessageBox.Show("フォルダ名の取得に失敗しました。", "情報表示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            // [作者名] を削除してタイトルを抽出
+            string title = folderName;
+            int bracketEnd = folderName.IndexOf(']');
+            if (folderName.StartsWith('[') && bracketEnd >= 0)
+            {
+                title = folderName.Substring(bracketEnd + 1).Trim();
+            }
+
+            // 巻数を検出
+            string volume = "";
+            int? detectedVolume = null;
+
+            // 第一優先: 「xx巻」「Vol.xx」「Volxx」パターンを検索
+            var explicitMatch = System.Text.RegularExpressions.Regex.Match(title, @"(\d+)巻|Vol\.?\s*(\d+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (explicitMatch.Success)
+            {
+                detectedVolume = int.Parse(explicitMatch.Groups[1].Value ?? explicitMatch.Groups[2].Value);
+            }
+
+            // 第二優先: タイトル末尾から数字を検索（フォルダ名末尾の巻番号）
+            if (!detectedVolume.HasValue)
+            {
+                var endMatch = System.Text.RegularExpressions.Regex.Match(title, @"(\d+)(?:\s*[A-Za-z]*)?$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                if (endMatch.Success && endMatch.Groups[1].Value.Length > 0)
+                {
+                    detectedVolume = int.Parse(endMatch.Groups[1].Value);
+                }
+            }
+
+            // フォルダ内の最大巻数を検出
+            int maxVolume = GetMaxVolumeInFolder(folderPath);
+            string totalInfo = maxVolume > 0 ? $" / 全{maxVolume}巻" : "";
+
+            // メッセージに全巻情報を追加
+            if (detectedVolume.HasValue)
+            {
+                volume = $"（第{detectedVolume.Value}巻{totalInfo}）";
+            }
+
+            string message = $"タイトル: {title}{volume}";
+            MessageBox.Show(message, "現在表示中のマンガ", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        // フォルダ内の最大巻数を検出
+        private static int GetMaxVolumeInFolder(string folderPath)
+        {
+            try
+            {
+                string parentDir = Path.GetDirectoryName(folderPath);
+                if (string.IsNullOrEmpty(parentDir) || !Directory.Exists(parentDir))
+                    return 0;
+
+                int maxVol = 0;
+                var volumeRegex = new System.Text.RegularExpressions.Regex(@"(\d+)巻|Vol\.?\s*(\d+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+                foreach (var subDir in Directory.EnumerateDirectories(parentDir))
+                {
+                    string name = Path.GetFileName(subDir);
+                    var match = volumeRegex.Match(name);
+                    if (match.Success)
+                    {
+                        int vol = 0;
+                        if (!string.IsNullOrEmpty(match.Groups[1].Value))
+                            vol = int.Parse(match.Groups[1].Value);
+                        else if (!string.IsNullOrEmpty(match.Groups[2].Value))
+                            vol = int.Parse(match.Groups[2].Value);
+
+                        if (vol > maxVol)
+                            maxVol = vol;
+                    }
+                }
+
+                return maxVol;
+            }
+            catch { return 0; }
         }
     }
 }

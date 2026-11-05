@@ -28,6 +28,7 @@ namespace MangaViewer
         public bool IsRankDisplayMode => true;
 
         private string _rootFolder = "";
+        internal string RootFolder => _rootFolder;
         internal string? _activeDbFile = null;
 
         // オンメモリ CJ 保持 (FormNavigator からアクセス)
@@ -142,6 +143,14 @@ namespace MangaViewer
                 StartupHandler.WriteStartupLog(
                     $"[Form1] SyncCjForParent done: updated={updated}, added={added}, removed={removed}, FoldersMapCount={cjData.Folders.Count}");
 
+                // Track newly added folders for yellow highlight
+                if (added > 0 && cjData.Folders != null)
+                {
+                    _syncAddedFolders.Clear();
+                    foreach (var kvp in cjData.Folders.Where(kvp => kvp.Value.IsNew))
+                        _syncAddedFolders.Add(System.IO.Path.GetFileName(kvp.Key));
+                }
+
                 if (IsRankDisplayMode)
                     BuildRankFilteredListFromActiveCj();
 
@@ -251,7 +260,6 @@ namespace MangaViewer
         internal FolderService? _folderService;
         internal System.Windows.Forms.Timer? _slideshowTimer = null;
         private System.Windows.Forms.Timer? _folderDebounceTimer;
-        private System.Windows.Forms.Timer? _titleUpdateTimer;
         internal System.Windows.Forms.Timer? _cacheStatusTimer = null;
         private int _folderLoadGeneration;
         private int _cbzLoadGeneration;
@@ -267,6 +275,9 @@ namespace MangaViewer
 
         // ListBox scroll/draw helper (TASK09.25)
         private ListBoxScrollHelper? _listBoxScrollHelper;
+
+        // Newly synced folder tracking for yellow highlight
+        private HashSet<string> _syncAddedFolders = new HashSet<string>();
 
         // CBZ List overlay dialog (TASK09.31)
         private Panel? panelCbzListOverlay;
@@ -502,123 +513,12 @@ namespace MangaViewer
 
         internal void ScheduleWindowTitleUpdate()
         {
-            if (IsDisposed)
-                return;
-
-            if (_titleUpdateTimer == null)
-            {
-                _titleUpdateTimer = new System.Windows.Forms.Timer { Interval = 100 };
-                _titleUpdateTimer.Tick += (s, e) =>
-                {
-                    _titleUpdateTimer?.Stop();
-                    if (!IsDisposed)
-                        UpdateWindowTitle();
-                };
-            }
-
-            _titleUpdateTimer.Stop();
-            _titleUpdateTimer.Start();
+            WindowTitleBuilder.ScheduleUpdate(this);
         }
 
         internal void UpdateWindowTitle()
         {
-            // TASK09.24: Always DBList mode (no more FolderList mode).
-            string baseTitle = Constants.AppTitle;
-
-            string titleBase;
-            if (!string.IsNullOrEmpty(_activeDbFile))
-            {
-                string dbName = Path.GetFileName(_activeDbFile);
-                titleBase = $"{baseTitle} - DBList [{dbName}]";
-            }
-            else
-            {
-                // Fallback when no CJ selected.
-                string label = string.IsNullOrWhiteSpace(_rootFolder)
-                    ? "[<none>]"
-                    : $"[{_rootFolder}]";
-                titleBase = $"{baseTitle} - DBList {label}";
-            }
-
-            // TASK09.33: Append CBZ cache list (order is not guaranteed).
-            string cbzList = BuildCbzCacheList();
-            this.Text = string.IsNullOrEmpty(cbzList) ? titleBase : $"{titleBase} {cbzList}";
-        }
-
-        private string BuildCbzCacheList()
-        {
-            try
-            {
-                if (_folderList == null || _folderList.Count == 0 || _currentFolderIndex < 0 || _currentFolderIndex >= _folderList.Count)
-                    return "";
-
-                string currentFolder = _folderList[_currentFolderIndex];
-
-                // CbzManager が現在フォルダのリストを保持していれば再スキャン不要（NAS ブロック防止）
-                List<string> cbzFiles;
-                if (_cbzManager != null &&
-                    string.Equals(_cbzManager.CurrentFolder, currentFolder, StringComparison.OrdinalIgnoreCase) &&
-                    _cbzManager.CbxFiles.Count > 0)
-                {
-                    cbzFiles = _cbzManager.CbxFiles;
-                }
-                else
-                {
-                    // フォールバック: CbzManager が未初期化の場合のみスキャン
-                    if (string.IsNullOrWhiteSpace(currentFolder) || !Directory.Exists(currentFolder))
-                        return "";
-
-                    cbzFiles = Directory.GetFiles(currentFolder, "*.*", SearchOption.TopDirectoryOnly)
-                        .Where(ArchiveExtensions.IsArchive)
-                        .ToList();
-                }
-
-                if (cbzFiles.Count == 0)
-                    return "";
-
-                string? area1Root = CbzManager.GetCacheSearchRoots().FirstOrDefault();
-                if (string.IsNullOrEmpty(area1Root))
-                    return "";
-
-                var cachedList = new List<string>();
-
-                foreach (var cbz in cbzFiles)
-                {
-                    try
-                    {
-                        using var md5 = System.Security.Cryptography.MD5.Create();
-                        var hash = md5.ComputeHash(System.Text.Encoding.UTF8.GetBytes(cbz));
-                        var hashStr = BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
-                        bool existsInArea1 = Directory.Exists(Path.Combine(area1Root, hashStr)) &&
-                                             File.Exists(Path.Combine(area1Root, hashStr, CbzManager.CacheCompleteMarkerFileName));
-
-                        if (existsInArea1)
-                            cachedList.Add(cbz);
-                    }
-                    catch { }
-                }
-
-                var sb = new System.Text.StringBuilder();
-                foreach (var item in cachedList)
-                    sb.Append(" /").Append(ShortenCbzName(Path.GetFileName(item)));
-
-                return sb.ToString().TrimStart(' ');
-            }
-            catch
-            {
-                return "";
-            }
-        }
-
-        private static string ShortenCbzName(string fileName)
-        {
-            string nameWithoutExt = Path.GetFileNameWithoutExtension(fileName);
-            // 先頭の[...]を除去
-            string stripped = System.Text.RegularExpressions.Regex.Replace(nameWithoutExt, @"^\[.*?\]\s*", "");
-            if (stripped.Length <= 14)
-                return stripped;
-
-            return stripped.Substring(0, 10) + "..." + stripped.Substring(stripped.Length - 4);
+            WindowTitleBuilder.Update(this);
         }
 
         private void InitializeComponent()
@@ -658,7 +558,7 @@ namespace MangaViewer
             };
 
             // TASK09.25: ListBoxScrollHelper handles DrawItem + scroll animation
-            _listBoxScrollHelper = new ListBoxScrollHelper(listBoxFolders, panelList);
+            _listBoxScrollHelper = new ListBoxScrollHelper(listBoxFolders, panelList, ResolveItemColor);
 
             listBoxFolders.SelectedIndexChanged += (s, e) =>
             {
@@ -737,6 +637,32 @@ namespace MangaViewer
         internal void UpdateLayout()
         {
             UiLayoutService.UpdateLayout(this);
+        }
+
+        // Color resolver for folder list items (green > yellow > white priority)
+        private Color ResolveItemColor(string displayText)
+        {
+            // Extract the folder name from display text like "[120][-](5) Title"
+            int lastSpace = displayText.LastIndexOf(' ');
+            string folderName = lastSpace >= 0 ? displayText.Substring(lastSpace + 1) : displayText;
+
+            // Priority 1: Green for read-complete folders (check via _activeCjData if possible)
+            if (_activeCjData?.Folders != null)
+            {
+                foreach (var kvp in _activeCjData.Folders)
+                {
+                    string entryName = System.IO.Path.GetFileName(kvp.Key);
+                    if (entryName == folderName && kvp.Value.IsReadComplete)
+                        return Color.LimeGreen;
+                }
+            }
+
+            // Priority 2: Yellow/Goldenrod for newly synced folders
+            if (_syncAddedFolders.Contains(folderName))
+                return Color.Goldenrod;
+
+            // Default: use ListBox's ForeColor (typically white)
+            return listBoxFolders.ForeColor;
         }
 
         protected override void OnFormClosing(FormClosingEventArgs e)
