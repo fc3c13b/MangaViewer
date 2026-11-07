@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Windows.Forms;
 
@@ -41,10 +41,12 @@ namespace MangaViewer
 
             StartupHandler.WriteStartupLog($"[KEY] source=KeyboardInputHandler key={key} ctrl={ctrl} alt={alt} listBoxFocused={listBoxFocused}");
 
-            // Ctrl+数字/テンキー/etc は評価用（既存の動作）
-            if (ctrl && IsRatingKey(e))
+            // Ctrl / Alt + 数字・テンキー・＋/− で評価値を設定
+            if ((ctrl || alt) && IsRatingKey(e))
             {
-                HandleRatingInput(e, nav);
+                // CTRL: 評価のみ（リスト位置維持）
+                // ALT: 評価後、次の未評価タイトルへ移動
+                HandleRatingInput(e, nav, autoAdvance: alt);
                 return;
             }
 
@@ -122,22 +124,22 @@ namespace MangaViewer
                  switch (key)
                  {
                      case Keys.D1:
-
+                         e.SuppressKeyPress = true;
                          nav.SetDisplayCount(1);
                          return;
 
                     case Keys.D2:
-                        e.Handled = true;
+                        e.SuppressKeyPress = true;
                         nav.SetDisplayCount(2);
                         return;
 
                     case Keys.D8:
-                        e.Handled = true;
+                        e.SuppressKeyPress = true;
                         nav.SetDisplayCount(8);
                         return;
 
                     case Keys.D9:
-                        e.Handled = true;
+                        e.SuppressKeyPress = true;
                         nav.ToggleFullScreen();
                         return;
 
@@ -145,7 +147,7 @@ namespace MangaViewer
                     // - 通常モード: ルートフォルダ変更
                     // - DBモード: FolderBrowserDialog → CreateCjForParent → フィルタ再構築
                     case Keys.D3:
-                        e.Handled = true;
+                        e.SuppressKeyPress = true;
                         HandleD3Key(nav);
                         return;
 
@@ -164,7 +166,7 @@ namespace MangaViewer
                         return;
 
                     case Keys.D0:
-                        e.Handled = true;
+                        e.SuppressKeyPress = true;
                         nav.ShowSettingsDialog();
                         return;
                 }
@@ -257,9 +259,9 @@ namespace MangaViewer
             }
         }
 
-        private static void HandleRatingInput(KeyEventArgs e, INavigationActions nav)
+        private static void HandleRatingInput(KeyEventArgs e, INavigationActions nav, bool autoAdvance)
         {
-            // Ctrl + (数字キー / テンキー / ＋ / −) で評価値保存。
+            // Ctrl/Alt + (数字キー / テンキー / ＋ / −) で評価値保存。
             int rating = e.KeyCode switch
             {
                 // テンキー
@@ -298,9 +300,8 @@ namespace MangaViewer
                 RatingService.SaveRating(nav.CurrentFolder, rating);
                 if (nav is Form1 form)
                     RatingDisplayService.RefreshFolderRatingDisplay(form, nav.CurrentFolder);
-                // Ctrl+/Ctrl- の時のみ次へ移動（SHORTCUTS.md 仕様）
-                // Ctrl+数字キーでは評価値のみを設定し、リスト位置は維持する
-                if (rating == 10 || rating == -1)
+                // autoAdvance=true の場合のみ次へ移動（ALT+数字/+- で使用）
+                if (autoAdvance)
                     nav.NavigateToNextUnrated();
             }
         }

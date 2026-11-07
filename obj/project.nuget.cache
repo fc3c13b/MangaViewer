@@ -1,9 +1,10 @@
 {
   "version": 2,
-  "dgSpecHash": "EG3JEeohdF8=",
+  "dgSpecHash": "gCKxH+DXstc=",
   "success": true,
   "projectFilePath": "C:\\source\\repos\\MangaViewer\\MangaViewer.csproj",
   "expectedPackageFiles": [
+    "C:\\Users\\fc3c1\\.nuget\\packages\\sharpcompress\\0.50.7\\sharpcompress.0.50.7.nupkg.sha512",
     "C:\\Users\\fc3c1\\.nuget\\packages\\skiasharp\\4.150.0\\skiasharp.4.150.0.nupkg.sha512",
     "C:\\Users\\fc3c1\\.nuget\\packages\\skiasharp.nativeassets.macos\\4.150.0\\skiasharp.nativeassets.macos.4.150.0.nupkg.sha512",
     "C:\\Users\\fc3c1\\.nuget\\packages\\skiasharp.nativeassets.win32\\4.150.0\\skiasharp.nativeassets.win32.4.150.0.nupkg.sha512",

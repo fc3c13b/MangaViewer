@@ -98,3 +98,4 @@ C:\source\repos\MangaViewer\obj\Debug\net8.0-windows\refint\MangaViewer.dll
 C:\source\repos\MangaViewer\obj\Debug\net8.0-windows\MangaViewer.pdb
 C:\source\repos\MangaViewer\obj\Debug\net8.0-windows\MangaViewer.genruntimeconfig.cache
 C:\source\repos\MangaViewer\obj\Debug\net8.0-windows\ref\MangaViewer.dll
+C:\source\repos\MangaViewer\bin\Debug\net8.0-windows\SharpCompress.dll

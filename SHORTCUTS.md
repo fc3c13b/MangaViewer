@@ -1,12 +1,16 @@
 # MangaViewer ショートカットキー一覧
 
-## 評価値設定（Ctrl + 数字）
+## 評価値設定（Ctrl / Alt + 数字）
 | キー | 動作 |
 |------|------|
-| Ctrl+0 / Ctrl+NumPad0 | 評価値 0（未評価） |
-| Ctrl+1 ~ Ctrl+9 | 評価値 1~9 |
-| Ctrl++ (Oemplus/Add) | 評価値 +1 → 次へ移動 |
-| Ctrl+- (OemMinus/Subtract) | 評価値 -1 → 次へ移動 |
+| Ctrl+0 / Ctrl+NumPad0 | 評価値 0（未評価） ※リスト位置維持 |
+| Ctrl+1 ~ Ctrl+9 | 評価値 1~9 ※リスト位置維持 |
+| Ctrl++ (Oemplus/Add) | 評価値 +1 ※リスト位置維持 |
+| Ctrl+- (OemMinus/Subtract) | 評価値 -1 ※リスト位置維持 |
+| Alt+0 / Alt+NumPad0 | 評価値 0（未評価） → 次の未評価タイトルへ移動 |
+| Alt+1 ~ Alt+9 | 評価値 1~9 → 次の未評価タイトルへ移動 |
+| Alt++ (Oemplus/Add) | 評価値 +1 → 次の未評価タイトルへ移動 |
+| Alt+- (OemMinus/Subtract) | 評価値 -1 → 次の未評価タイトルへ移動 |
 
 ## ナビゲーション（矢印キー）
 | キー | 動作 |

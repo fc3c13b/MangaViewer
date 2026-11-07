@@ -1,0 +1,17 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^dotnet build \"MangaViewer\\.Android\\\\MangaViewer\\.Android\\.csproj\" -f net10\\.0-android -nologo$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^cd c:\\\\source\\\\repos\\\\MangaViewer; git add KeyboardInputHandler\\.cs ImageService\\.cs MangaViewer\\.csproj; git commit -m \"v0\\.9\\.66: 例外2件修正\n\n- KeyboardInputHandler\\.cs: D1キー処理に残っていたデバッグ用WriteErrorLog呼び出しを削除（error\\.logに無関係なキーボードログが混入していた問題）\n- ImageService\\.cs: EnsureCacheSpaceのOrderByラムダで_imageCache\\[k\\]インデクサーを使用していたため、遅延評価中に他スレッドがキーを削除するとKeyNotFoundExceptionが発生していた競合問題を修正。TryGetValueに変更し削除済みキーにはDateTime\\.MaxValueを返すことで安全化\"$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^git push$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    },
+    "dotnet.defaultSolution": "MangaViewer.sln"
+}

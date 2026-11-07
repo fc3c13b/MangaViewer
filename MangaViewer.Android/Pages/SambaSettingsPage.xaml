@@ -1,0 +1,37 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:models="clr-namespace:MangaViewer.Android.Models"
+             x:Class="MangaViewer.Android.Pages.SambaSettingsPage"
+             Title="SAMBA設定">
+
+    <Grid RowDefinitions="Auto,*" Padding="12" RowSpacing="10">
+        <HorizontalStackLayout Grid.Row="0" Spacing="8">
+            <Button Text="追加" Clicked="OnAddClicked" />
+            <Button Text="編集" Clicked="OnEditClicked" />
+            <Button Text="削除" Clicked="OnDeleteClicked" />
+            <Button Text="接続テスト" Clicked="OnTestClicked" />
+            <Button Text="既定化" Clicked="OnSetDefaultClicked" />
+            <Button Text="閉じる" Clicked="OnCloseClicked" />
+        </HorizontalStackLayout>
+
+        <CollectionView x:Name="ConnectionList"
+                        Grid.Row="1"
+                        SelectionMode="Single"
+                        SelectionChanged="OnSelectionChanged">
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="models:SambaConnectionListItem">
+                    <Grid Padding="8,6">
+                        <VerticalStackLayout>
+                            <Label Text="{Binding Number, StringFormat='No.{0}'}" FontAttributes="Bold" />
+                            <Label Text="{Binding FolderName, StringFormat='登録フォルダー名: {0}'}" FontSize="12" />
+                            <Label Text="{Binding Host, StringFormat='IP/Host: {0}'}" FontSize="12" />
+                            <Label Text="{Binding ServerRoot, StringFormat='サーバー側ROOT: {0}'}" FontSize="12" />
+                        </VerticalStackLayout>
+                    </Grid>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+    </Grid>
+
+</ContentPage>

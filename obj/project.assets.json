@@ -2,6 +2,15 @@
   "version": 4,
   "targets": {
     "net8.0-windows": {
+      "SharpCompress/0.50.7": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/SharpCompress.dll": {}
+        },
+        "runtime": {
+          "lib/net8.0/SharpCompress.dll": {}
+        }
+      },
       "SkiaSharp/4.150.0": {
         "type": "package",
         "dependencies": {
@@ -70,6 +79,24 @@
     }
   },
   "libraries": {
+    "SharpCompress/0.50.7": {
+      "sha512": "amxjOlPKUFb33ohAVahPCCBHLtToYOOb6JGyM40q8DnT6KYoBLW1TtW6uLEXbv40S7ej6ikf6VmAXGBaFL6Klg==",
+      "type": "package",
+      "path": "sharpcompress/0.50.7",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "README.md",
+        "lib/net10.0/SharpCompress.dll",
+        "lib/net48/SharpCompress.dll",
+        "lib/net6.0/SharpCompress.dll",
+        "lib/net8.0/SharpCompress.dll",
+        "lib/netstandard2.0/SharpCompress.dll",
+        "lib/netstandard2.1/SharpCompress.dll",
+        "sharpcompress.0.50.7.nupkg.sha512",
+        "sharpcompress.nuspec"
+      ]
+    },
     "SkiaSharp/4.150.0": {
       "sha512": "K8dpv8SJ7xwe+lPnOlHRMRcpfZ/LfR2tIMxIz3jndMR/X1q81UXwFw3Ybj8ZjMimGVl9gUFY6SoyQ3BiIfkuDg==",
       "type": "package",
@@ -220,6 +247,7 @@
   },
   "projectFileDependencyGroups": {
     "net8.0-windows": [
+      "SharpCompress >= 0.50.7",
       "SkiaSharp >= 4.150.0"
     ]
   },
@@ -228,7 +256,7 @@
     "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
-    "version": "0.9.43",
+    "version": "0.9.73",
     "restore": {
       "projectUniqueName": "C:\\source\\repos\\MangaViewer\\MangaViewer.csproj",
       "projectName": "MangaViewer",
@@ -276,6 +304,10 @@
         "framework": "net8.0-windows7.0",
         "targetAlias": "net8.0-windows",
         "dependencies": {
+          "SharpCompress": {
+            "target": "Package",
+            "version": "[0.50.7, )"
+          },
           "SkiaSharp": {
             "target": "Package",
             "version": "[4.150.0, )"

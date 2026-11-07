@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -555,6 +555,12 @@ namespace MangaViewer
                 }
 
                 KeyboardInputHandler.HandleKeyDown(e, this);
+            };
+
+            // リストにフォーカスがある時の文字キー入力によるインクリメンタルサーチジャンプを無効化
+            listBoxFolders.KeyPress += (s, e) =>
+            {
+                e.Handled = true;
             };
 
             // TASK09.25: ListBoxScrollHelper handles DrawItem + scroll animation
