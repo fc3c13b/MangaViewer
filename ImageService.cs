@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -16,6 +17,11 @@ namespace MangaViewer
     public class ImageService : IDisposable
     {
         private readonly ConcurrentDictionary<string, CacheEntry> _imageCache = new();
+        // 単体画像専用キャッシュ（バイト数制限付き）
+        private readonly ConcurrentDictionary<string, CacheEntry> _singleImageCache = new();
+        private readonly LinkedList<string> _usageOrder = new LinkedList<string>();
+        private long _currentCacheSize = 0;
+        private readonly object _cacheLock = new();
         private bool _disposed = false;
 
         private struct CacheEntry
@@ -43,21 +49,42 @@ namespace MangaViewer
         {
             if (_disposed) throw new ObjectDisposedException(nameof(ImageService));
 
-            // Cache hit: return cloned bitmap, update access time
-            if (_imageCache.TryGetValue(imagePath, out var entry))
-            {
-                entry.LastAccessed = DateTime.UtcNow;
-                _imageCache[imagePath] = entry;
-                try
-                {
-                    return new Bitmap(entry.Bitmap);
-                }
-                catch
-                {
-                    // キャッシュのビットマップが壊れている場合、再読み込みを試みる
-                    _ = _imageCache.TryRemove(imagePath, out _);
-                }
-            }
+             // Cache hit: return cloned bitmap, update access time
+             if (_imageCache.TryGetValue(imagePath, out var entry))
+             {
+                 entry.LastAccessed = DateTime.UtcNow;
+                 _imageCache[imagePath] = entry;
+                 try
+                 {
+                     return new Bitmap(entry.Bitmap);
+                 }
+                 catch
+                 {
+                     // キャッシュのビットマップが壊れている場合、再読み込みを試みる
+                     _ = _imageCache.TryRemove(imagePath, out _);
+                 }
+             }
+             // Single image cache hit
+             if (_singleImageCache.TryGetValue(imagePath, out var singleEntry))
+             {
+                 lock (_cacheLock)
+                 {
+                     singleEntry.LastAccessed = DateTime.UtcNow;
+                     _singleImageCache[imagePath] = singleEntry;
+                     // Move to end of usage order
+                     _usageOrder.Remove(imagePath);
+                     _usageOrder.AddLast(imagePath);
+                 }
+                 try
+                 {
+                     return new Bitmap(singleEntry.Bitmap);
+                 }
+                 catch
+                 {
+                     _ = _singleImageCache.TryRemove(imagePath, out _);
+                     _usageOrder.Remove(imagePath);
+                 }
+             }
 
             string ext = Path.GetExtension(imagePath).ToLowerInvariant();
 
@@ -162,13 +189,33 @@ namespace MangaViewer
         /// </summary>
         private void AddToCache(string imagePath, Bitmap bitmap)
         {
-            EnsureCacheSpace();
+            // Determine if this image is from CBZ cache
+            bool isCbzCache = imagePath.IndexOf("CBZCache", StringComparison.OrdinalIgnoreCase) >= 0;
 
-            _imageCache[imagePath] = new CacheEntry
+            lock (_cacheLock)
             {
-                Bitmap = new Bitmap(bitmap),
-                LastAccessed = DateTime.UtcNow
-            };
+                if (isCbzCache)
+                {
+                    EnsureCacheSpace();
+                    _imageCache[imagePath] = new CacheEntry
+                    {
+                        Bitmap = new Bitmap(bitmap),
+                        LastAccessed = DateTime.UtcNow
+                    };
+                }
+                else
+                {
+                    // Single image cache with size limit
+                    EnsureSingleCacheSpace(bitmap);
+                    _singleImageCache[imagePath] = new CacheEntry
+                    {
+                        Bitmap = new Bitmap(bitmap),
+                        LastAccessed = DateTime.UtcNow
+                    };
+                    _currentCacheSize += EstimateBitmapSize(bitmap);
+                    _usageOrder.AddLast(imagePath);
+                }
+            }
         }
 
         /// <summary>
@@ -176,17 +223,45 @@ namespace MangaViewer
         /// </summary>
         private void EnsureCacheSpace()
         {
-            while (_imageCache.Count >= Constants.MaxCacheSize)
+            lock (_cacheLock)
             {
-                // TryGetValue でアクセス: OrderBy 評価中に他スレッドが削除しても KeyNotFoundException にならない
-                var oldestKey = _imageCache.Keys
-                    .OrderBy(k => _imageCache.TryGetValue(k, out var e) ? e.LastAccessed : DateTime.MaxValue)
-                    .FirstOrDefault();
-
-                if (oldestKey == null) break;
-
-                if (_imageCache.TryRemove(oldestKey, out var oldEntry))
+                while (_imageCache.Count >= Constants.MaxCacheSize)
                 {
+                    var oldestKey = _imageCache.Keys
+                        .OrderBy(k => _imageCache.TryGetValue(k, out var e) ? e.LastAccessed : DateTime.MaxValue)
+                        .FirstOrDefault();
+                    if (oldestKey == null) break;
+                    if (_imageCache.TryRemove(oldestKey, out var oldEntry))
+                    {
+                        oldEntry.Bitmap.Dispose();
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// 推定バイト数を返す（32bpp と仮定）。
+        /// </summary>
+        private long EstimateBitmapSize(Bitmap bmp)
+        {
+            return (long)bmp.Width * bmp.Height * 4;
+        }
+
+        /// <summary>
+        /// 単体画像キャッシュの空き確保。
+        /// </summary>
+        private void EnsureSingleCacheSpace(Bitmap newBitmap)
+        {
+            long newSize = EstimateBitmapSize(newBitmap);
+            while (_currentCacheSize + newSize > Constants.MaxStandaloneCacheBytes && _usageOrder.Count > 0)
+            {
+                var oldestNode = _usageOrder.First;
+                if (oldestNode == null) break;
+                var oldestKey = oldestNode.Value;
+                _usageOrder.RemoveFirst();
+                if (_singleImageCache.TryRemove(oldestKey, out var oldEntry))
+                {
+                    _currentCacheSize -= EstimateBitmapSize(oldEntry.Bitmap);
                     oldEntry.Bitmap.Dispose();
                 }
             }
@@ -197,9 +272,31 @@ namespace MangaViewer
         /// </summary>
         public void ClearCache()
         {
+            // CBZ cache
             foreach (var entry in _imageCache.Values)
                 entry.Bitmap.Dispose();
             _imageCache.Clear();
+            // Single image cache
+            foreach (var entry in _singleImageCache.Values)
+                entry.Bitmap.Dispose();
+            _singleImageCache.Clear();
+            _usageOrder.Clear();
+            _currentCacheSize = 0;
+        }
+
+        /// <summary>
+        /// 単体画像キャッシュだけをクリア。
+        /// </summary>
+        public void ClearSingleImageCache()
+        {
+            lock (_cacheLock)
+            {
+                foreach (var entry in _singleImageCache.Values)
+                    entry.Bitmap.Dispose();
+                _singleImageCache.Clear();
+                _usageOrder.Clear();
+                _currentCacheSize = 0;
+            }
         }
 
         /// <summary>

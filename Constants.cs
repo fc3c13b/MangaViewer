@@ -79,6 +79,7 @@ namespace MangaViewer
 
         /// <summary>キャッシュに保持する最大画像数</summary>
         public const int MaxCacheSize = 200;
+        public const int MaxStandaloneCacheBytes = 100 * 1024 * 1024;
 
         #endregion
 
