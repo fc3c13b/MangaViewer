@@ -1,17 +1,18 @@
 using System;
 using System.IO;
 using System.Windows.Forms;
+using System.Threading.Tasks;
 
 namespace MangaViewer
 {
     /// <summary>
-    /// キーボード入力の処理を担当する静的クラス。
-    /// INavigationActions インターフェース経由でナビゲーション操作を実行し、
-    /// Form1 の内部実装に依存しないように分離されています。
+    /// キーボ�Eド�E力�E処琁E��拁E��する静皁E��ラス、E
+    /// INavigationActions インターフェース経由でナビゲーション操作を実行し、E
+    /// Form1 の冁E��実裁E��依存しなぁE��ぁE��刁E��されてぁE��す、E
     /// </summary>
     public static class KeyboardInputHandler
     {
-        // 公開されたエントリーポイント: Form1/ListBox から呼び出す用
+        // 公開されたエントリーポインチE Form1/ListBox から呼び出す用
         public static void HandleKeyDown(KeyEventArgs e, INavigationActions nav)
         {
             if (nav is Form form)
@@ -20,19 +21,19 @@ namespace MangaViewer
             }
             else
             {
-                // Form が不明な場合は基本処理のみ
+                // Form が不�Eな場合�E基本処琁E�Eみ
                 HandleBasicKeys(e, nav, listBoxFocused: false);
             }
         }
 
         private static void HandleKeyDownInternal(KeyEventArgs e, INavigationActions nav, Form form)
         {
-            // ListBox がフォーカスを持っているかを確認
+            // ListBox がフォーカスを持ってぁE��かを確誁E
             bool listBoxFocused = IsListBoxFoldersFocused(form);
             HandleBasicKeys(e, nav, listBoxFocused);
         }
 
-        // 基本キー処理（矢印キー、Esc、主要ショートカット）
+        // 基本キー処琁E��矢印キー、Esc、主要ショートカチE���E�E
         private static void HandleBasicKeys(KeyEventArgs e, INavigationActions nav, bool listBoxFocused)
         {
             Keys key = e.KeyCode;
@@ -41,16 +42,16 @@ namespace MangaViewer
 
             StartupHandler.WriteStartupLog($"[KEY] source=KeyboardInputHandler key={key} ctrl={ctrl} alt={alt} listBoxFocused={listBoxFocused}");
 
-            // Ctrl / Alt + 数字・テンキー・＋/− で評価値を設定
+            // Ctrl / Alt + 数字�EチE��キー・�E�E∁Eで評価値を設宁E
             if ((ctrl || alt) && IsRatingKey(e))
             {
-                // CTRL: 評価のみ（リスト位置維持）
-                // ALT: 評価後、次の未評価タイトルへ移動
+                // CTRL: 評価のみ�E�リスト位置維持E��E
+                // ALT: 評価後、次の未評価タイトルへ移勁E
                 HandleRatingInput(e, nav, autoAdvance: alt);
                 return;
             }
 
-            // Alt + 左右: CBZファイル間切り替え / 上下: フォルダジャンプ
+            // Alt + 左右: CBZファイル間�Eり替ぁE/ 上丁E フォルダジャンチE
             if (alt)
             {
                 switch (key)
@@ -76,7 +77,7 @@ namespace MangaViewer
                 }
             }
 
-            // Ctrl + 左右: DisplayCount×4 ページ移動
+            // Ctrl + 左右: DisplayCountÁE ペ�Eジ移勁E
             if (ctrl)
             {
                 switch (key)
@@ -91,7 +92,7 @@ namespace MangaViewer
                         return;
                 }
 
-                // Ctrl + 上下: フォルダ移動（±1）
+                // Ctrl + 上丁E フォルダ移動（±1�E�E
                 switch (key)
                 {
                     case Keys.Up:
@@ -105,7 +106,7 @@ namespace MangaViewer
                 }
             }
 
-            // Esc: フルスクリーン切替
+            // Esc: フルスクリーン刁E��
             if (key == Keys.Escape)
             {
                 e.Handled = true;
@@ -113,11 +114,11 @@ namespace MangaViewer
                 return;
             }
 
-         // 数字キー（Ctrlなし）:
+         // 数字キー�E�Etrlなし！E
              // - 1 : ルートフォルダ選択ダイアログ
-             // - 2,8 : 表示枚数 (DisplayCount) を設定
-             // - 9 : フルスクリーン ⇔ ノーマル切替
-             // - 3〜6 : なし（何もしない）\n              // - 7 : 現在マンガのタイトル・巻数を表示（ダイアログ）
+             // - 2,8 : 表示枚数 (DisplayCount) を設宁E
+             // - 9 : フルスクリーン ⇁Eノ�Eマル刁E��
+             // - 3、E : なし（何もしなぁE��\n              // - 7 : 現在マンガのタイトル・巻数を表示�E�ダイアログ�E�E
              // - 0   : 設定ダイアログを表示
              if (!ctrl && !alt)
              {
@@ -143,21 +144,21 @@ namespace MangaViewer
                         nav.ToggleFullScreen();
                         return;
 
-                    // 3 : モード別動作
-                    // - 通常モード: ルートフォルダ変更
-                    // - DBモード: FolderBrowserDialog → CreateCjForParent → フィルタ再構築
+                    // 3 : モード別動佁E
+                    // - 通常モーチE ルートフォルダ変更
+                    // - DBモーチE FolderBrowserDialog ↁECreateCjForParent ↁEフィルタ再構篁E
                     case Keys.D3:
                         e.SuppressKeyPress = true;
                         HandleD3Key(nav);
                         return;
 
-                    // 4,5,6 は何もしない
+                    // 4,5,6 は何もしなぁE
                     case Keys.D4:
                     case Keys.D5:
                     case Keys.D6:
                         return;
 
-                    // 7 : 現在マンガのタイトル・巻数を表示（ダイアログ）
+                    // 7 : 現在マンガのタイトル・巻数を表示�E�ダイアログ�E�E
                     case Keys.D7:
                         if (!listBoxFocused)
                         {
@@ -172,7 +173,7 @@ namespace MangaViewer
                 }
             }
 
-            // A キー: 2ページ表示時に先頭を空白のダミーページにする調整トグル（Adjust）
+            // A キー: 2ペ�Eジ表示時に先頭を空白のダミ�Eペ�Eジにする調整トグル�E�Edjust�E�E
             if (!ctrl && !alt && key == Keys.A && !listBoxFocused)
             {
                 e.Handled = true;
@@ -180,7 +181,7 @@ namespace MangaViewer
                 return;
             }
 
-            // S キー: スライドショーの開始/停止（ListBoxフォーカス時は無効化）
+            // S キー: スライドショーの開姁E停止�E�EistBoxフォーカス時�E無効化！E
             if (!ctrl && !alt && key == Keys.S && !listBoxFocused)
             {
                 e.Handled = true;
@@ -188,7 +189,7 @@ namespace MangaViewer
                 return;
             }
 
-            // 左右矢印キー: DisplayCount分移動（常にページ送り）
+            // 左右矢印キー: DisplayCount刁E��動（常にペ�Eジ送り�E�E
             if (!ctrl && !alt)
             {
                 switch (key)
@@ -207,7 +208,7 @@ namespace MangaViewer
 
         private static bool IsListBoxFoldersFocused(Form form)
         {
-            // Form1 のコントロール内から listBoxFolders を探す
+            // Form1 のコントロール冁E��めElistBoxFolders を探ぁE
             foreach (var c in form.Controls)
             {
                 if (c is Panel panel)
@@ -222,7 +223,7 @@ namespace MangaViewer
             return false;
         }
 
-        // D3 キー：DBList モード固定（フォルダ選択 → CJ Load/Create）
+        // D3 キー�E�DBList モード固定（フォルダ選抁EↁECJ Load/Create�E�E
         private static void HandleD3Key(INavigationActions nav)
         {
             using (var dialog = new FolderBrowserDialog())
@@ -232,7 +233,7 @@ namespace MangaViewer
                 {
                     string selectedPath = dialog.SelectedPath;
 
-                    // CJ が既存なら LoadCjForParent を優先（CreateCjForParent は新規作成のみ）
+                    // CJ が既存なめELoadCjForParent を優先！EreateCjForParent は新規作�Eのみ�E�E
                     bool exists = CjManager.CjExists(selectedPath);
                     if (exists)
                     {
@@ -246,7 +247,7 @@ namespace MangaViewer
             }
         }
 
-        // 後方互換用（外部から呼ばれている可能性のため残す）
+        // 後方互換用�E�外部から呼ばれてぁE��可能性のため残す�E�E
         private static void HandleRootFolderChange(INavigationActions nav)
         {
             using (var dialog = new FolderBrowserDialog())
@@ -259,12 +260,12 @@ namespace MangaViewer
             }
         }
 
-        private static void HandleRatingInput(KeyEventArgs e, INavigationActions nav, bool autoAdvance)
+        private static async void HandleRatingInput(KeyEventArgs e, INavigationActions nav, bool autoAdvance)
         {
-            // Ctrl/Alt + (数字キー / テンキー / ＋ / −) で評価値保存。
+            // Ctrl/Alt + (数字キー / チE��キー / �E�E/ ∁E で評価値保存、E
             int rating = e.KeyCode switch
             {
-                // テンキー
+                // チE��キー
                 Keys.NumPad0 => 0,
                 Keys.NumPad1 => 1,
                 Keys.NumPad2 => 2,
@@ -286,11 +287,11 @@ namespace MangaViewer
                 Keys.D7 => 7,
                 Keys.D8 => 8,
                 Keys.D9 => 9,
-                // ＋ / − （テンキーおよびメインキーボード）
+                // �E�E/ ∁E�E�テンキーおよびメインキーボ�Eド！E
                 Keys.Add      => 10,
-                Keys.Oemplus  => 10,     // = / + キー (メインキーボード)
+                Keys.Oemplus  => 10,     // = / + キー (メインキーボ�EチE
                 Keys.Subtract  => -1,
-                Keys.OemMinus  => -1,    // メインキーボードのー
+                Keys.OemMinus  => -1,    // メインキーボ�Eド�Eー
                 _               => int.MinValue
             };
 
@@ -298,11 +299,11 @@ namespace MangaViewer
             {
                 e.Handled = true;
                 RatingService.SaveRating(nav.CurrentFolder, rating);
-                if (nav is Form1 form)
-                    RatingDisplayService.RefreshFolderRatingDisplay(form, nav.CurrentFolder);
-                // autoAdvance=true の場合のみ次へ移動（ALT+数字/+- で使用）
-                if (autoAdvance)
-                    nav.NavigateToNextUnrated();
+                  // 10 も評価値として扱う場合は 0〜10 の範囲を含める
+                  if ((rating >= 0 && rating <= 10) || rating == -1)
+                 {
+                     await nav.NavigateToNextUnrated();
+                 }
             }
         }
 
@@ -335,25 +336,25 @@ namespace MangaViewer
             }
         }
 
-        // キー7：現在のマンガのタイトルと巻数を表示
+        // キー7�E�現在のマンガのタイトルと巻数を表示
         private static void ShowMangaInfoDialog(INavigationActions nav)
         {
             string folderPath = nav.CurrentFolder;
             if (string.IsNullOrEmpty(folderPath))
             {
-                MessageBox.Show("フォルダ情報がありません。", "情報表示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                 MessageBox.Show("フォルダがありません、表示", "現在表示中のマンガ", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
-            // フォルダ名を取得（フルパスから最後の要素）
+            // フォルダ名を取得（フルパスから最後�E要素�E�E
             string folderName = Path.GetFileName(folderPath);
             if (string.IsNullOrEmpty(folderName))
             {
-                MessageBox.Show("フォルダ名の取得に失敗しました。", "情報表示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                 MessageBox.Show("フォルダ名取得に失敗しました、表示", "現在表示中のマンガ", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
-            // [作者名] を削除してタイトルを抽出
+            // [作老E��] を削除してタイトルを抽出
             string title = folderName;
             int bracketEnd = folderName.IndexOf(']');
             if (folderName.StartsWith('[') && bracketEnd >= 0)
@@ -361,18 +362,18 @@ namespace MangaViewer
                 title = folderName.Substring(bracketEnd + 1).Trim();
             }
 
-            // 巻数を検出
+            // 巻数を検�E
             string volume = "";
             int? detectedVolume = null;
 
-            // 第一優先: 「xx巻」「Vol.xx」「Volxx」パターンを検索
+            // 第一優允E 「xx巻」「Vol.xx」「Volxx」パターンを検索
             var explicitMatch = System.Text.RegularExpressions.Regex.Match(title, @"(\d+)巻|Vol\.?\s*(\d+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
             if (explicitMatch.Success)
             {
                 detectedVolume = int.Parse(explicitMatch.Groups[1].Value ?? explicitMatch.Groups[2].Value);
             }
 
-            // 第二優先: タイトル末尾から数字を検索（フォルダ名末尾の巻番号）
+            // 第二優允E タイトル末尾から数字を検索�E�フォルダ名末尾の巻番号�E�E
             if (!detectedVolume.HasValue)
             {
                 var endMatch = System.Text.RegularExpressions.Regex.Match(title, @"(\d+)(?:\s*[A-Za-z]*)?$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
@@ -382,21 +383,21 @@ namespace MangaViewer
                 }
             }
 
-            // フォルダ内の最大巻数を検出
+            // フォルダ冁E�E最大巻数を検�E
             int maxVolume = GetMaxVolumeInFolder(folderPath);
             string totalInfo = maxVolume > 0 ? $" / 全{maxVolume}巻" : "";
 
-            // メッセージに全巻情報を追加
+            // メチE��ージに全巻惁E��を追加
             if (detectedVolume.HasValue)
             {
-                volume = $"（第{detectedVolume.Value}巻{totalInfo}）";
+                 volume = $"第{detectedVolume.Value}巻{totalInfo}";
             }
 
             string message = $"タイトル: {title}{volume}";
             MessageBox.Show(message, "現在表示中のマンガ", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
-        // フォルダ内の最大巻数を検出
+        // フォルダ冁E�E最大巻数を検�E
         private static int GetMaxVolumeInFolder(string folderPath)
         {
             try

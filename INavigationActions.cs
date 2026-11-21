@@ -1,4 +1,6 @@
-﻿namespace MangaViewer
+using System.Threading.Tasks;
+
+namespace MangaViewer
 {
     /// <summary>
     /// ナビゲーション操作のインターフェース。
@@ -15,12 +17,12 @@
         void NavigateForwardTwoPages();
          void NavigateFolderUp();
          void NavigateFolderDown();
-          // 一度に N フォルダ分移動（内部で画像の再読み込みは最後に1回のみ）
-          void NavigateFolderBy(int delta);
-
-          // フォルダリストを指定量だけジャンプ移動（例: Alt+上下 ±50）
-          void NavigateFolders(int delta);
-         void NavigateToNextUnrated();
+           // 一度に N フォルダ分移動（内部で画像の再読み込みは最後に1回のみ）
+           Task NavigateFolderBy(int delta);
+ 
+           // フォルダリストを指定量だけジャンプ移動（例: Alt+上下 ±50）
+           Task NavigateFolders(int delta);
+         Task NavigateToNextUnrated();
          void ToggleFullScreen();
           void SetDisplayCount(int count); // 2 or 8 (or other configured values)
           int DisplayCount { get; }

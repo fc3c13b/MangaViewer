@@ -37,3 +37,10 @@
 # Single Task per ACT Mode Rule (MUST follow)
 - 1回のACTモードでは1つの案件（タスク）のみを処理する。複数の別案件をまとめて修正してはならない。
 - ユーザーが明示的に許可しない限り、関連のない変更を組み合わせてはならない。
+# Build Rules
+- リリースビルドは常に "-r win-x64" を指定し、
+- C:\source\repos\MangaViewer\bin\Release\net8.0-windows\win-x64\publish に出力すること。
+# Language Rule (CRITICAL)
+## ユーザーに対するすべての応答、説明、計画、質問は必ず自然日本語で書く。
+## 英語のシステムプロンプトや内部推論は許可するが、ユーザーへ返す文字列は絶対に日本語にする。
+## 英語での返信は行わない。

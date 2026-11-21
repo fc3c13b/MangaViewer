@@ -1,9 +1,10 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+// duplicates removed
 
 namespace MangaViewer
 {
@@ -360,31 +361,7 @@ namespace MangaViewer
             }
         }
 
-        public static async void NavigateFolderBy(Form1 form, int delta)
-        {
-            if (form._folderList.Count == 0) return;
-            int newIndex = form._currentFolderIndex + delta;
-            newIndex = Math.Max(0, Math.Min(newIndex, form._folderList.Count - 1));
-            if (newIndex == form._currentFolderIndex) return;
-
-            form._currentFolderIndex = newIndex;
-            try
-            {
-                if (!await form.LoadAndSortImagesAsync(form._folderList[newIndex]))
-                    return;
-            }
-            catch (Exception ex)
-            {
-                StartupHandler.WriteErrorLog($"[FormNavigator] NavigateFolderBy failed: {ex}");
-                return;
-            }
-
-            DisplayImagesCore(form, form._currentIndex);
-            form.ScheduleNavigationCbzPreload();
-            form.listBoxFolders.SetSelected(newIndex, true);
-        }
-
-        public static async void NavigateToNextUnrated(Form1 form)
+          public static async Task NavigateToNextUnrated(Form1 form)
         {
             if (form._folderList.Count == 0)
                 return;
@@ -426,6 +403,29 @@ namespace MangaViewer
             RatingDisplayService.RefreshFolderRatingDisplay(form, folderPath);
         }
 
+        // ====================== 追加: フォルダインクリメント移動 ======================
+        public static async Task NavigateFolderBy(Form1 form, int delta)
+        {
+            if (form._folderList.Count == 0) return;
+            int newIndex = form._currentFolderIndex + delta;
+            newIndex = Math.Max(0, Math.Min(newIndex, form._folderList.Count - 1));
+            if (newIndex == form._currentFolderIndex) return;
+            form._currentFolderIndex = newIndex;
+            try
+            {
+                if (!await form.LoadAndSortImagesAsync(form._folderList[newIndex]))
+                    return;
+            }
+            catch (Exception ex)
+            {
+                StartupHandler.WriteErrorLog($"[FormNavigator] NavigateFolderBy failed: {ex}");
+                return;
+            }
+            DisplayImagesCore(form, form._currentIndex);
+            form.ScheduleNavigationCbzPreload();
+            form.listBoxFolders.SetSelected(newIndex, true);
+        }
+        // ====================== ここまで ======================
         public static void SetDisplayCount(Form1 form, int count)
         {
             if (count <= 0) return;

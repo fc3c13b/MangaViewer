@@ -831,19 +831,19 @@ namespace MangaViewer
             HandleFolderListArrowKey(new KeyEventArgs(Keys.Down));
         }
 
-        public void NavigateFolderBy(int delta)
+        public async Task NavigateFolderBy(int delta)
         {
-            FormNavigator.NavigateFolderBy(this, delta);
+            await FormNavigator.NavigateFolderBy(this, delta);
         }
 
-        public void NavigateFolders(int delta)
+        public async Task NavigateFolders(int delta)
         {
-            FormNavigator.NavigateFolderBy(this, delta);
+            await FormNavigator.NavigateFolderBy(this, delta);
         }
 
-        public void NavigateToNextUnrated()
+        public async Task NavigateToNextUnrated()
         {
-            FormNavigator.NavigateToNextUnrated(this);
+            await FormNavigator.NavigateToNextUnrated(this);
         }
 
         public void SetDisplayCount(int count)

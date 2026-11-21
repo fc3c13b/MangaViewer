@@ -270,50 +270,48 @@ namespace MangaViewer
 
         private static void SyncRatingToActiveCjCache(string folderPath, int rating)
         {
+            // The rating should only be reflected in the CJ file that represents the
+            // collection for *this* folder.  The original implementation iterated
+            // over *all* cache files, causing a needless full scan of the cache
+            // directory for every rating change.  That scan became the root of the
+            // UI lag.  We now resolve the specific CJ file using CjService and
+            // modify it directly.
             try
             {
-                string cacheDir = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    "MangaViewer",
-                    "cache");
+                // Resolve the CJ file for the *parent* folder of the rated folder.
+                // The original implementation mistakenly passed the folderPath
+                // directly, causing FindAndLoadCj to search for a CJ file in the
+                // leaf folder itself, which of course does not exist.
+                string parentFolder = Path.GetDirectoryName(folderPath);
+                if (string.IsNullOrEmpty(parentFolder)) return;
+                var cjInfo = CjService.FindAndLoadCj(parentFolder);
+                if (cjInfo == null) return;
 
-                if (!Directory.Exists(cacheDir))
+                string cjFile = cjInfo.Value.cjFile;
+                if (!File.Exists(cjFile)) return;
+
+                // Load, modify and write back the JSON.
+                var json = File.ReadAllText(cjFile);
+                using var doc = JsonDocument.Parse(json);
+                if (!doc.RootElement.TryGetProperty("folders", out var foldersElem) || foldersElem.ValueKind != JsonValueKind.Object)
                     return;
 
-                string normalizedFolderPath = NormalizeFolderKey(folderPath);
-                foreach (var file in Directory.GetFiles(cacheDir, "ratings_cache_*.json", SearchOption.TopDirectoryOnly))
+                bool matched = false;
+                foreach (var entry in foldersElem.EnumerateObject())
                 {
-                    try
+                    string key = NormalizeFolderKey(entry.Name);
+                    if (string.Equals(key, NormalizeFolderKey(folderPath), StringComparison.OrdinalIgnoreCase))
                     {
-                        var json = File.ReadAllText(file);
-                        using var doc = JsonDocument.Parse(json);
-                        if (!doc.RootElement.TryGetProperty("folders", out var foldersElem) || foldersElem.ValueKind != JsonValueKind.Object)
-                            continue;
-
-                        bool matched = false;
-                        foreach (var entry in foldersElem.EnumerateObject())
-                        {
-                            string key = NormalizeFolderKey(entry.Name);
-                            if (string.Equals(key, normalizedFolderPath, StringComparison.OrdinalIgnoreCase))
-                            {
-                                var root = JsonNode.Parse(json)!;
-                                var folderNode = root["folders"]![entry.Name]!;
-                                folderNode["rating"] = rating;
-                                File.WriteAllText(file, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
-                                StartupHandler.WriteStartupLog($"[RATING] Synced CJ cache rating file={Path.GetFileName(file)} folder={folderPath} rating={rating}");
-                                matched = true;
-                                break;
-                            }
-                        }
-
-                        if (matched)
-                            break;
-                    }
-                    catch (Exception ex)
-                    {
-                        StartupHandler.WriteErrorLog($"[RATING] SyncRatingToActiveCjCache failed file={file} error={ex}");
+                        var root = JsonNode.Parse(json)!;
+                        var folderNode = root["folders"]![entry.Name]!;
+                        folderNode["rating"] = rating;
+                        File.WriteAllText(cjFile, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+                        StartupHandler.WriteStartupLog($"[RATING] Synced CJ cache rating file={Path.GetFileName(cjFile)} folder={folderPath} rating={rating}");
+                        matched = true;
+                        break;
                     }
                 }
+                // No match means the folder is not part of the CJ – nothing to sync.
             }
             catch (Exception ex)
             {

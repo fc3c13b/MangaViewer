@@ -1,32 +1,32 @@
-ï»¿using System;
+using System;
 using System.IO;
 using System.Linq;
 
 namespace MangaViewer
 {
     /// <summary>
-    /// ã‚¢ãƒ—ãƒªã‚±ãƒ¼ã‚·ãƒ§ãƒ³ã®ãƒ•ã‚¡ã‚¤ãƒ«ãƒ‘ã‚¹é–¢é€£ã®å®šæ•°ãƒ»ãƒ¦ãƒ¼ãƒ†ã‚£ãƒªãƒ†ã‚£ã‚’ä¸€å…ƒç®¡ç†ã™ã‚‹é™çš„ã‚¯ãƒ©ã‚¹ã€‚
+    /// ƒAƒvƒŠƒP[ƒVƒ‡ƒ“‚Ìƒtƒ@ƒCƒ‹ƒpƒXŠÖ˜A‚Ì’è”Eƒ†[ƒeƒBƒŠƒeƒB‚ğˆêŒ³ŠÇ—‚·‚éÃ“IƒNƒ‰ƒXB
     /// </summary>
     public static class AppPaths
     {
         /// <summary>
-        /// è¨­å®šãƒ•ã‚¡ã‚¤ãƒ« (setting.json) ã®ãƒ•ãƒ«ãƒ‘ã‚¹ã€‚
+        /// İ’èƒtƒ@ƒCƒ‹ (setting.json) ‚Ìƒtƒ‹ƒpƒXB
         /// </summary>
         public static string SettingsFilePath => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "setting.json");
 
         /// <summary>
-        /// ã‚¿ã‚¤ãƒˆãƒ«ã”ã¨ã®æ—¢èª­å±¥æ­´ãƒ•ã‚¡ã‚¤ãƒ«ãƒ‘ã‚¹ã€‚
+        /// ƒ^ƒCƒgƒ‹‚²‚Æ‚ÌŠù“Ç—š—ğƒtƒ@ƒCƒ‹ƒpƒXB
         /// </summary>
         public static string PlaybackHistoryFilePath => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "playback-history.json");
 
         /// <summary>
-        /// ã‚¨ãƒ©ãƒ¼ãƒ­ã‚°ãƒ•ã‚¡ã‚¤ãƒ«ã®ãƒ•ãƒ«ãƒ‘ã‚¹ã€‚
+        /// ƒGƒ‰[ƒƒOƒtƒ@ƒCƒ‹‚Ìƒtƒ‹ƒpƒXB
         /// </summary>
         public static string ErrorLogPath => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "error.log");
 
         /// <summary>
-        /// READ ONLY ãƒ•ã‚©ãƒ«ãƒ€å‘ã‘ã®è©•ä¾¡ã‚­ãƒ£ãƒƒã‚·ãƒ¥JSON ã®æ­£æœ¬ãƒ‘ã‚¹ã€‚
-        /// æ›¸ãè¾¼ã¿å¯èƒ½ãªãƒ¦ãƒ¼ã‚¶ãƒ¼é ˜åŸŸã‚’ä½¿ç”¨ã—ã€å†èµ·å‹•å¾Œã®å¾©å…ƒå…ƒã¨ã—ã¦æ‰±ã†ã€‚
+        /// READ ONLY ƒtƒHƒ‹ƒ_Œü‚¯‚Ì•]‰¿ƒLƒƒƒbƒVƒ…JSON ‚Ì³–{ƒpƒXB
+        /// ‘‚«‚İ‰Â”\‚Èƒ†[ƒU[—Ìˆæ‚ğg—p‚µAÄ‹N“®Œã‚Ì•œŒ³Œ³‚Æ‚µ‚Äˆµ‚¤B
         /// </summary>
         public static string RatingsCacheDir => Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -35,13 +35,13 @@ namespace MangaViewer
         public static string RatingsCacheFilePath => Path.Combine(RatingsCacheDir, "ratings_cache.json");
 
         /// <summary>
-        /// æ—§æ¥ã®ãƒ“ãƒ«ãƒ‰å‡ºåŠ›é…ç½®ã‚’äº’æ›ç”¨ã¨ã—ã¦èª­ã¿è¾¼ã‚€ãŸã‚ã®ãƒ‘ã‚¹ã€‚
-        /// æ›¸ãè¾¼ã¿ã¯è¡Œã‚ãšã€å­˜åœ¨æ™‚ã®ã¿ç§»è¡Œå…ƒã¨ã—ã¦æ‰±ã†ã€‚
+        /// ‹Œ—ˆ‚Ìƒrƒ‹ƒho—Í”z’u‚ğŒİŠ·—p‚Æ‚µ‚Ä“Ç‚İ‚Ş‚½‚ß‚ÌƒpƒXB
+        /// ‘‚«‚İ‚Ís‚í‚¸A‘¶İ‚Ì‚İˆÚsŒ³‚Æ‚µ‚Äˆµ‚¤B
         /// </summary>
         public static string LegacyRatingsCacheFilePath => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ratings_cache.json");
 
         /// <summary>
-        /// READ ONLY ãƒ•ã‚©ãƒ«ãƒ€å‘ã‘ã®ãƒ•ã‚©ãƒ«ãƒ€ãƒ¡ã‚¿ãƒ‡ãƒ¼ã‚¿ãƒ­ãƒ¼ã‚«ãƒ«ä¿å­˜ãƒ‡ã‚£ãƒ¬ã‚¯ãƒˆãƒªã€‚
+        /// READ ONLY ƒtƒHƒ‹ƒ_Œü‚¯‚ÌƒtƒHƒ‹ƒ_ƒƒ^ƒf[ƒ^ƒ[ƒJƒ‹•Û‘¶ƒfƒBƒŒƒNƒgƒŠB
         /// </summary>
         public static string FolderMetaLocalDir => Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -49,8 +49,8 @@ namespace MangaViewer
             "folder_meta");
 
         /// <summary>
-        /// CJï¼ˆã‚¢ãƒ—ãƒªç¼“å­˜JSONï¼‰çš„save directoryã€‚
-        /// Parent folder eachCJ filesave hereã€‚
+        /// CJiƒAƒvƒŠ?‘¶JSONj“Isave directoryB
+        /// Parent folder eachCJ filesave hereB
         /// </summary>
         public static string CacheDir => Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -58,13 +58,13 @@ namespace MangaViewer
             "cache");
 
         /// <summary>
-        /// å…±æœ‰CJã‚­ãƒ£ãƒƒã‚·ãƒ¥ä¿å­˜å…ˆï¼ˆWindowså´ï¼‰ã€‚
-        /// Androidå´ã¯åŒç­‰ã®SMB URIã‚’åˆ©ç”¨ã™ã‚‹ã€‚
+        /// ‹¤—LCJƒLƒƒƒbƒVƒ…•Û‘¶æiWindows‘¤jB
+        /// Android‘¤‚Í“¯“™‚ÌSMB URI‚ğ—˜—p‚·‚éB
         /// </summary>
         public static string SharedCacheDir => @"Q:\MangaViewerCache";
 
         /// <summary>
-        /// ç«¯æœ«è­˜åˆ¥å­ã®ä¿å­˜å…ˆã€‚
+        /// ’[––¯•Êq‚Ì•Û‘¶æB
         /// </summary>
         public static string WriterIdFilePath => Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -72,8 +72,8 @@ namespace MangaViewer
             "writer_id.txt");
 
         /// <summary>
-        /// CJï¼ˆã‚¢ãƒ—ãƒªç¼“å­˜JSONï¼‰çš„save file path for specified parent folder.
-        /// e.g. "O:\NEW" â†’ "%APPDATA%\MangaViewer\cache\ratings_cache_O__New.json"
+        /// CJiƒAƒvƒŠ?‘¶JSONj“Isave file path for specified parent folder.
+        /// e.g. "O:\NEW" ¨ "%APPDATA%\MangaViewer\cache\ratings_cache_O__New.json"
         /// </summary>
         public static string GetCacheFilePath(string parentFolder)
         {
@@ -86,15 +86,15 @@ namespace MangaViewer
 
         private static string EscapeForFileName(string path)
         {
-            // 1. Replace with "_"ã€‚
+            // 1. Replace with "_"B
             string escaped = _safeCharRegex.Replace(path, "_");
-            // 2. Limit length to prevent excessively long filenamesã€‚
+            // 2. Limit length to prevent excessively long filenamesB
             if (escaped.Length > 64)
                 escaped = escaped.Substring(0, 64);
             return escaped;
         }
         /// <summary>
-        /// NASæ›¸ãè¾¼ã¿ä¸å¯æ™‚ã®ãƒ•ã‚©ãƒ«ãƒ€ã‚¹ã‚­ãƒ£ãƒ³çµæœãƒ­ãƒ¼ã‚«ãƒ«ã‚­ãƒ£ãƒƒã‚·ãƒ¥ãƒ•ã‚¡ã‚¤ãƒ«ã€‚
+        /// NAS‘‚«‚İ•s‰Â‚ÌƒtƒHƒ‹ƒ_ƒXƒLƒƒƒ“Œ‹‰Êƒ[ƒJƒ‹ƒLƒƒƒbƒVƒ…ƒtƒ@ƒCƒ‹B
         /// </summary>
         public static string FolderScanCacheFilePath => Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -102,7 +102,7 @@ namespace MangaViewer
             "folder_scan_cache.json");
 
         /// <summary>
-        /// rank_display_db.json ã®ãƒ‘ã‚¹ (data/rank_display_db.json)ã€‚
+        /// rank_display_db.json ‚ÌƒpƒX (data/rank_display_db.json)B
         /// </summary>
         public static string RankDisplayDbPath => Path.Combine(
             AppDomain.CurrentDomain.BaseDirectory,

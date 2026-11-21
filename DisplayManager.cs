@@ -221,8 +221,11 @@ namespace MangaViewer
             CurrentIndex = startIndex;
             int count = DisplayCount;
 
-            if (pictureBoxes.Length == 0 || pictureBoxes.Length != count)
+            // Ensure PictureBox array is ready – guard against null
+            if (pictureBoxes == null || pictureBoxes.Length != count)
+            {
                 InitializePictureBoxes();
+            }
 
             StartupHandler.WriteStartupLog($"[DisplayManager] pictureBoxes.Length={pictureBoxes.Length}, count={count}");
 
@@ -234,7 +237,10 @@ namespace MangaViewer
             ClearPictureBoxes();
 
             if (imagePaths.Count == 0)
+            {
+                // No images – simply exit after clearing
                 return;
+            }
 
             StartupHandler.WriteStartupLog($"[DisplayManager] render generation={generation} cols={(count == 8 ? 4 : (count == 1 ? 1 : 2))}");
             _ = System.Threading.Tasks.Task.Run(() => RenderImagesAsync(generation, startIndex, renderCts.Token), renderCts.Token);
